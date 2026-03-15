@@ -1,0 +1,86 @@
+/* ============================================================
+   JUDGE VIEW — LeetCode-style split-pane problem solver
+   ============================================================ */
+
+/* ---------- Container ---------- */
+.judge-layout {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ---------- Left Panel (Problem) ---------- */
+.judge-left {
+  width: 44%;
+  min-width: 320px;
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg1);
+}
+
+/* ---------- Right Panel (Editor) ---------- */
+.judge-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* ---------- Panel Topbar ---------- */
+.judge-topbar {
+  height: 40px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  flex-shrink: 0;
+}
+
+/* ---------- Problem Scroll Area ---------- */
+.judge-prob-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 18px 12px;
+  min-height: 0;
+}
+
+/* ---------- Editor Wrap ---------- */
+.judge-editor-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 12px;
+  gap: 10px;
+  min-height: 0;
+}
+
+.judge-editor-wrap .ta {
+  flex: 1;
+  min-height: 120px;
+  resize: none;
+  border-radius: var(--r);
+}
+
+/* ---------- Resizer Handle ---------- */
+.judge-resizer {
+  width: 4px;
+  background: var(--line);
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background var(--tr);
+}
+.judge-resizer:hover,
+.judge-resizer.dragging { background: var(--grn); }
+
+/* ---------- Mobile: stacked layout ---------- */
+@media (max-width: 768px) {
+  .judge-layout  { flex-direction: column; }
+  .judge-left    { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid var(--line); max-height: 45vh; }
+  .judge-resizer { display: none; }
+}

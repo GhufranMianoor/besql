@@ -1,0 +1,97 @@
+/* ============================================================
+   DESIGN TOKENS — CSS Custom Properties
+   All colours, spacing, typography, and shadow tokens live here.
+   ============================================================ */
+:root {
+  /* ---------- Background Scale (dark) ---------- */
+  --bg:    #0d1117;
+  --bg1:   #161b22;
+  --bg2:   #1c2230;
+  --bg3:   #212938;
+  --bg4:   #2a3347;
+  --bg5:   #323d52;
+
+  /* ---------- Border Scale ---------- */
+  --line:  #21293a;
+  --line2: #2a3447;
+  --line3: #334059;
+
+  /* ---------- Text Scale ---------- */
+  --t0: #e6edf3;
+  --t1: #adbac7;
+  --t2: #6e7f9a;
+  --t3: #3d4f66;
+  --t4: #243145;
+
+  /* ---------- Green Accent (primary) ---------- */
+  --grn:   #2ec866;
+  --grn2:  #25a855;
+  --gdim:  rgba(46, 200, 102, 0.09);
+  --gdim2: rgba(46, 200, 102, 0.05);
+
+  /* ---------- Indigo / Blue ---------- */
+  --ind:   #4f8ef7;
+  --ind2:  #3a72d6;
+  --idim:  rgba(79, 142, 247, 0.10);
+  --idim2: rgba(79, 142, 247, 0.05);
+
+  /* ---------- Semantic Colours ---------- */
+  --rose:   #f05060;
+  --rdim:   rgba(240, 80, 96, 0.08);
+  --gold:   #f0a030;
+  --adim:   rgba(240, 160, 48, 0.08);
+  --violet: #9b72f0;
+  --vdim:   rgba(155, 114, 240, 0.08);
+
+  /* ---------- Radius ---------- */
+  --r:  5px;
+  --r2: 8px;
+  --r3: 12px;
+
+  /* ---------- Typography ---------- */
+  --sans: 'Sora', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* ---------- Shadows ---------- */
+  --sh:  0 1px 3px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.3);
+  --sh2: 0 2px 8px rgba(0, 0, 0, 0.6), 0 12px 40px rgba(0, 0, 0, 0.4);
+
+  /* ---------- Transitions ---------- */
+  --tr: 0.14s ease;
+}
+
+/* ============================================================
+   LIGHT MODE — overrides above tokens
+   ============================================================ */
+body.light {
+  --bg:    #ffffff;
+  --bg1:   #f5f7fa;
+  --bg2:   #edf0f5;
+  --bg3:   #e2e7ef;
+  --bg4:   #cdd4e0;
+  --bg5:   #b8c2d4;
+  --line:  #dde2ec;
+  --line2: #cdd4e0;
+  --line3: #b8c2d4;
+  --t0: #1a2233;
+  --t1: #2e3f5c;
+  --t2: #546078;
+  --t3: #8595ae;
+  --t4: #adbac7;
+  --grn:   #1a9e50;
+  --grn2:  #158040;
+  --gdim:  rgba(26, 158, 80, 0.10);
+  --gdim2: rgba(26, 158, 80, 0.06);
+  --ind:   #2563eb;
+  --ind2:  #1d4ed8;
+  --idim:  rgba(37, 99, 235, 0.10);
+  --idim2: rgba(37, 99, 235, 0.05);
+  --rose:  #dc2626;
+  --rdim:  rgba(220, 38, 38, 0.08);
+  --gold:  #d97706;
+  --adim:  rgba(217, 119, 6, 0.08);
+  --violet: #7c3aed;
+  --vdim:  rgba(124, 58, 237, 0.08);
+  --sh:  0 1px 3px rgba(0, 0, 0, 0.1), 0 4px 14px rgba(0, 0, 0, 0.06);
+  --sh2: 0 2px 8px rgba(0, 0, 0, 0.12), 0 12px 40px rgba(0, 0, 0, 0.08);
+}
