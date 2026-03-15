@@ -255,6 +255,16 @@ function openProblemEditor(id) {
       <input class="inp" id="pe-daily" type="date" value="${p.dailyDate || ''}" style="width:180px">
     </div>`;
   openModal('modal-problem');
+  setTimeout(() => {
+    const f = el('pe-title');
+    if (f) f.focus();
+    // Wire Enter key on single-line inputs to save the problem
+    document.querySelectorAll('#prob-editor-body .inp').forEach(inp => {
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); saveProblem(); }
+      });
+    });
+  }, 100);
 }
 
 function renderTCEditor(tcs) {
@@ -405,6 +415,16 @@ function openContestCreator(id) {
       </label>
     </div>`;
   openModal('modal-contest');
+  setTimeout(() => {
+    const f = el('ce-title');
+    if (f) f.focus();
+    // Wire Enter key on single-line inputs to save the contest
+    document.querySelectorAll('#contest-editor-body .inp').forEach(inp => {
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); saveContest(); }
+      });
+    });
+  }, 100);
 }
 
 function saveContest() {
