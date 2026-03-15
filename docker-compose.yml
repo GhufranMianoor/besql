@@ -1,0 +1,102 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL (application data) ────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB:       besql
+      POSTGRES_USER:     besql_app
+      POSTGRES_PASSWORD: change_me_in_production
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U besql_app -d besql"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── PostgreSQL sandbox DB (isolated user query execution) ────────────────
+  postgres_sandbox:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB:       besql_sandbox
+      POSTGRES_USER:     besql_sandbox
+      POSTGRES_PASSWORD: sandbox_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - sandbox_data:/var/lib/postgresql/data
+      - ./docker/postgres/sandbox_init.sql:/docker-entrypoint-initdb.d/01_sandbox.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U besql_sandbox -d besql_sandbox"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Redis (caching: leaderboards, problem lists) ─────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── RabbitMQ (submission queue for high-concurrency) ─────────────────────
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: besql
+      RABBITMQ_DEFAULT_PASS: change_me_in_production
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── .NET API ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: >-
+        Host=postgres;Port=5432;Database=besql;Username=besql_app;Password=change_me_in_production
+      SqlExecution__SandboxConnectionString: >-
+        Host=postgres_sandbox;Port=5432;Database=besql_sandbox;Username=besql_sandbox;Password=sandbox_password
+      Jwt__SecretKey:          "${JWT_SECRET_KEY}"
+      Jwt__Issuer:             besql
+      Jwt__Audience:           besql
+      Jwt__AccessTokenMinutes: "15"
+    depends_on:
+      postgres:         { condition: service_healthy }
+      postgres_sandbox: { condition: service_healthy }
+      redis:            { condition: service_healthy }
+      rabbitmq:         { condition: service_healthy }
+
+  # ── React frontend ────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  sandbox_data:
