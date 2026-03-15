@@ -23,11 +23,11 @@
   --t3: #3d4f66;
   --t4: #243145;
 
-  /* ---------- Green Accent (primary) ---------- */
-  --grn:   #2ec866;
-  --grn2:  #25a855;
-  --gdim:  rgba(46, 200, 102, 0.09);
-  --gdim2: rgba(46, 200, 102, 0.05);
+  /* ---------- Blue Accent (primary) ---------- */
+  --grn:   #4f8ef7;
+  --grn2:  #3a72d6;
+  --gdim:  rgba(79, 142, 247, 0.09);
+  --gdim2: rgba(79, 142, 247, 0.05);
 
   /* ---------- Indigo / Blue ---------- */
   --ind:   #4f8ef7;
@@ -49,7 +49,7 @@
   --r3: 12px;
 
   /* ---------- Typography ---------- */
-  --sans: 'Sora', system-ui, sans-serif;
+  --sans: 'Poppins', system-ui, sans-serif;
   --mono: 'JetBrains Mono', 'Fira Code', monospace;
 
   /* ---------- Shadows ---------- */
@@ -78,10 +78,10 @@ body.light {
   --t2: #546078;
   --t3: #8595ae;
   --t4: #adbac7;
-  --grn:   #1a9e50;
-  --grn2:  #158040;
-  --gdim:  rgba(26, 158, 80, 0.10);
-  --gdim2: rgba(26, 158, 80, 0.06);
+  --grn:   #2563eb;
+  --grn2:  #1d4ed8;
+  --gdim:  rgba(37, 99, 235, 0.10);
+  --gdim2: rgba(37, 99, 235, 0.06);
   --ind:   #2563eb;
   --ind2:  #1d4ed8;
   --idim:  rgba(37, 99, 235, 0.10);
