@@ -51,7 +51,7 @@
       <button class="tnav" data-view="admin" id="nav-admin" style="display:none">Admin</button>
     </nav>
 
-    <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode">◑</button>
+    <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode">☀</button>
     <div class="topright" id="topright"></div>
   </header>
 
@@ -66,29 +66,29 @@
     <aside id="sidebar">
       <div class="sidebar-section">Navigation</div>
       <div class="slink on" data-view="home">
-        <span class="slink-ico">&#9632;</span>Dashboard
+        <span class="slink-ico">🏠</span>Dashboard
       </div>
       <div class="slink" data-view="contests">
-        <span class="slink-ico">&#9679;</span>Contests
+        <span class="slink-ico">🏆</span>Contests
         <span class="badge" id="sb-live-count">0</span>
       </div>
       <div class="slink" data-view="custom">
-        <span class="slink-ico">&#9670;</span>Custom Contest
+        <span class="slink-ico">✨</span>Custom Contest
       </div>
       <div class="slink" data-view="practice">
-        <span class="slink-ico">&#8801;</span>Daily Practice
+        <span class="slink-ico">📚</span>Daily Practice
       </div>
       <div class="slink" data-view="submissions">
-        <span class="slink-ico">&#8984;</span>Submissions
+        <span class="slink-ico">📋</span>Submissions
       </div>
 
       <div class="sidebar-divider"></div>
       <div class="sidebar-section">Account</div>
       <div class="slink" data-view="profile">
-        <span class="slink-ico">&#9711;</span>Profile
+        <span class="slink-ico">👤</span>Profile
       </div>
       <div class="slink" data-view="admin" id="sb-admin" style="display:none">
-        <span class="slink-ico">&#9671;</span>Admin Panel
+        <span class="slink-ico">⚙️</span>Admin Panel
       </div>
 
       <div style="flex:1"></div>
@@ -219,10 +219,11 @@
           <!-- Right: editor + actions + results -->
           <div class="judge-right">
             <div class="judge-topbar">
-              <span style="font-size:10px;letter-spacing:2px;color:var(--t2)">SQL EDITOR</span>
+              <span>SQL Editor</span>
               <div class="fx ic gap2">
                 <span style="font-size:11px;color:var(--t3)" id="judge-row-count"></span>
                 <span class="fx ic gap2" id="judge-timer-small"></span>
+                <button class="btn-copy" id="btn-copy-sql" onclick="judgeCopySQL()" title="Copy SQL">Copy</button>
               </div>
             </div>
             <div class="judge-editor-wrap">
@@ -231,14 +232,14 @@
                 id="judge-editor"
                 rows="8"
                 spellcheck="false"
-                placeholder="-- Write your SQL query here&#10;-- Ctrl+Enter to run, Tab to indent"
+                placeholder="-- Write your SQL query here&#10;-- Ctrl+Enter to run · Tab to indent"
               ></textarea>
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg2);border:1px solid var(--line);border-top:none;border-radius:0 0 5px 5px;font-size:10px;color:var(--t3)">
-                <span style="font-family:var(--mono);font-size:10.5px">Ctrl+Enter to run · Tab to indent</span>
-                <span id="judge-chars">0</span>
+              <div class="judge-editor-bar">
+                <span>Ctrl+Enter to run · Tab to indent · Ctrl+/ to comment</span>
+                <span id="judge-chars">0 chars</span>
               </div>
-              <div class="fx ic gap3" style="flex-wrap:wrap">
-                <button class="btn btn-teal btn-md" id="btn-judge-run"    onclick="judgeRun()">Run &amp; Test</button>
+              <div class="judge-actions">
+                <button class="btn btn-teal btn-md" id="btn-judge-run"    onclick="judgeRun()">▷ Run & Test</button>
                 <button class="btn btn-blue btn-md" id="btn-judge-submit" onclick="judgeSubmit()">Submit</button>
                 <button class="btn btn-ghost btn-sm" onclick="judgeEditorClear()">Clear</button>
                 <button class="btn btn-success btn-md" id="btn-judge-next" style="display:none;margin-left:4px">Next →</button>
@@ -347,11 +348,11 @@
 
   <!-- BOTTOM NAV (mobile) -->
   <nav id="bottom-nav" style="display:none">
-    <button class="bnav on" onclick="nav('home')"        data-bnav="home">        <span class="bnav-ico">⊞</span>Home</button>
-    <button class="bnav" onclick="nav('contests')"       data-bnav="contests">    <span class="bnav-ico">◉</span>Contests</button>
-    <button class="bnav" onclick="nav('practice')"       data-bnav="practice">    <span class="bnav-ico">≡</span>Practice</button>
-    <button class="bnav" onclick="nav('submissions')"    data-bnav="submissions"> <span class="bnav-ico">⌘</span>History</button>
-    <button class="bnav" onclick="nav('profile')"        data-bnav="profile">     <span class="bnav-ico">○</span>Profile</button>
+    <button class="bnav on" onclick="nav('home')"        data-bnav="home">        <span class="bnav-ico">🏠</span>Home</button>
+    <button class="bnav" onclick="nav('contests')"       data-bnav="contests">    <span class="bnav-ico">🏆</span>Contests</button>
+    <button class="bnav" onclick="nav('practice')"       data-bnav="practice">    <span class="bnav-ico">📚</span>Practice</button>
+    <button class="bnav" onclick="nav('submissions')"    data-bnav="submissions"> <span class="bnav-ico">📋</span>History</button>
+    <button class="bnav" onclick="nav('profile')"        data-bnav="profile">     <span class="bnav-ico">👤</span>Profile</button>
   </nav>
 
 </div><!-- /app -->

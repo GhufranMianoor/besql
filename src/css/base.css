@@ -17,19 +17,25 @@ html, body {
   font-size: 13.5px;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
 }
 
 /* ---------- Scrollbars ---------- */
 ::-webkit-scrollbar          { width: 5px; height: 5px; }
-::-webkit-scrollbar-track    { background: var(--bg1); }
+::-webkit-scrollbar-track    { background: transparent; }
 ::-webkit-scrollbar-thumb    { background: var(--bg4); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--bg5); }
-body.light ::-webkit-scrollbar-track { background: var(--bg2); }
+
+/* Firefox */
+* { scrollbar-width: thin; scrollbar-color: var(--bg4) transparent; }
 
 /* ---------- Text selection ---------- */
-::selection        { background: rgba(46, 200, 102, 0.2); color: var(--t0); }
+::selection        { background: rgba(46, 200, 102, 0.22); color: var(--t0); }
 body.light ::selection { background: rgba(26, 158, 80, 0.18); }
+
+/* ---------- Focus styles ---------- */
+:focus-visible { outline: 2px solid var(--grn); outline-offset: 2px; border-radius: 3px; }
 
 /* ---------- Utility: hidden ---------- */
 .hidden { display: none !important; }
@@ -68,3 +74,4 @@ body.light ::selection { background: rgba(26, 158, 80, 0.18); }
 
 /* ---------- Misc ---------- */
 .divider { height: 1px; background: var(--line); margin: 14px 0; }
+.mono    { font-family: var(--mono); }

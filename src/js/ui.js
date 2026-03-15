@@ -25,7 +25,7 @@ function toast(msg, type = 'info') {
   const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : type === 'warn' ? '⚠' : 'ℹ';
   const cls  = type === 'success' ? 't-ok' : type === 'error' ? 't-err' : type === 'warn' ? 't-warn' : 't-inf';
   t.className = `toast ${cls}`;
-  t.innerHTML = `<span>${icon}</span><span>${esc(msg)}</span>`;
+  t.innerHTML = `<span class="toast-icon">${icon}</span><span>${esc(msg)}</span>`;
   el('toasts').appendChild(t);
   setTimeout(() => t.remove(), CONFIG.TOAST_DURATION_MS);
 }
@@ -34,10 +34,15 @@ function toast(msg, type = 'info') {
 function toggleTheme() {
   const isLight = document.body.classList.toggle('light');
   LS.set('theme', isLight ? 'light' : 'dark');
+  const btn = el('theme-btn');
+  if (btn) btn.textContent = isLight ? '🌙' : '☀';
 }
 
 function applyStoredTheme() {
-  if (LS.get('theme') === 'light') document.body.classList.add('light');
+  const isLight = LS.get('theme') === 'light';
+  if (isLight) document.body.classList.add('light');
+  const btn = el('theme-btn');
+  if (btn) btn.textContent = isLight ? '🌙' : '☀';
 }
 
 /* ── Formatters ────────────────────────────────────────── */
