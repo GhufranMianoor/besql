@@ -2,13 +2,14 @@
  * app.js — Application bootstrap and initialisation.
  *
  * Execution order (enforced by <script> tags in index.html):
- *   config.js → state.js → storage.js → sql-engine.js
- *   → validator.js → data/problems.js → ui.js → auth.js
+ *   config.js → state.js → storage.js → supabase-client.js
+ *   → sql-engine.js → validator.js → data/problems.js
+ *   → supabase-data.js → ui.js → auth.js
  *   → views/*.js → router.js → app.js  ← THIS FILE (last)
  *
  * Responsibilities:
  *  1. Load persisted problems/contests or seed with defaults.
- *  2. Restore user session from localStorage.
+ *  2. Restore user session from localStorage (or Supabase).
  *  3. Wire static [data-view] nav buttons.
  *  4. Start "online users" simulation.
  *  5. Boot into the home view and remove the loading screen.
@@ -23,14 +24,26 @@
  */
 function persistProblems() {
   LS.set('problems', stripValidators(S.problems));
+  if (CONFIG.USE_SUPABASE && supabase) {
+    S.problems.forEach(p => SB.saveProblem(p));
+  }
 }
 
 /**
  * Load the problem bank from storage (or seed with defaults),
  * then rebuild the validate() functions.
  */
-function loadProblems() {
-  const stored = LS.get('problems');
+async function loadProblems() {
+  let stored = null;
+
+  if (CONFIG.USE_SUPABASE && supabase) {
+    stored = await SB.fetchProblems();
+  }
+
+  if (!stored || !stored.length) {
+    stored = LS.get('problems');
+  }
+
   S.problems = stored && stored.length
     ? rebuildValidators(stored)
     : PROBLEMS_DEFAULT.map(p => ({
@@ -42,8 +55,17 @@ function loadProblems() {
 /**
  * Load contests from storage (or seed with defaults).
  */
-function loadContests() {
-  const stored = LS.get('contests');
+async function loadContests() {
+  let stored = null;
+
+  if (CONFIG.USE_SUPABASE && supabase) {
+    stored = await SB.fetchContests();
+  }
+
+  if (!stored || !stored.length) {
+    stored = LS.get('contests');
+  }
+
   S.contests = stored && stored.length ? stored : CONTESTS_DEFAULT.slice();
 
   // Dynamically update live/upcoming/ended based on wall clock
@@ -60,6 +82,29 @@ function loadContests() {
     : [];
 }
 
+/**
+ * Restore user session. When Supabase is enabled, check for an
+ * active Supabase auth session and load the profile.
+ */
+async function restoreSessionAsync() {
+  if (CONFIG.USE_SUPABASE && supabase) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const profile = await SB.fetchProfile(session.user.id);
+      if (profile) {
+        S.user = profile;
+        const subs = await SB.fetchSubmissions(profile.userId);
+        S.submissions = subs || [];
+        renderTopRight();
+        renderSidebar();
+        return;
+      }
+    }
+  }
+  // Fall back to localStorage session
+  restoreSession();
+}
+
 /* ── Simulated online count ────────────────────────────── */
 function startOnlineSimulation() {
   const tick = () => {
@@ -74,13 +119,16 @@ function startOnlineSimulation() {
 }
 
 /* ── Application entry point ───────────────────────────── */
-function bootstrap() {
-  // 1. Load data
-  loadProblems();
-  loadContests();
+async function bootstrap() {
+  // 0. Initialise Supabase client (no-op if USE_SUPABASE is false)
+  initSupabase();
+
+  // 1. Load data (async when Supabase is enabled)
+  await loadProblems();
+  await loadContests();
 
   // 2. Restore auth session
-  restoreSession();
+  await restoreSessionAsync();
 
   // 3. Wire nav listeners
   initNavListeners();

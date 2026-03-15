@@ -1,0 +1,120 @@
+/* ============================================================
+   RESPONSIVE — Additional breakpoints for full device coverage
+   ============================================================ */
+
+/* ── Medium screens (tablets, ≤1024px) ──────────────────── */
+@media (max-width: 1024px) {
+  /* Home: stack the two-column grid */
+  .home-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .home-right-col {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+  }
+  .home-right-col > .card {
+    flex: 1 1 240px;
+    min-width: 0;
+  }
+
+  /* Practice: stack the side panel below */
+  .practice-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Admin stat grids */
+  .g4 { grid-template-columns: repeat(2, 1fr) !important; }
+  .g3 { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* ── Small screens (phones, ≤768px) ─────────────────────── */
+@media (max-width: 768px) {
+  /* Home stats: 2 columns */
+  #home-stats { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Home right column: stack vertically */
+  .home-right-col {
+    flex-direction: column !important;
+  }
+
+  /* Contest detail: stack header */
+  #view-contest-detail > .fx.ic.gap3 {
+    flex-wrap: wrap;
+  }
+  #cd-timer-wrap {
+    width: 100%;
+    margin-top: 6px;
+  }
+
+  /* Submissions filter row */
+  #view-submissions > .fx.ic.sb {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Admin grids */
+  .g2 { grid-template-columns: 1fr !important; }
+  .g3 { grid-template-columns: 1fr !important; }
+  .g4 { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Tables: horizontal scroll */
+  .tw, .card .tw { -webkit-overflow-scrolling: touch; }
+  .tbl { min-width: 540px; }
+
+  /* Tabs: scroll horizontally */
+  .tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+
+  /* Modals: full-width on small screens */
+  .modal { width: 98vw !important; max-height: 95vh; }
+  .modal-wide { width: 98vw !important; }
+
+  /* Problem rows: wrap tags below title */
+  .prob-row {
+    flex-wrap: wrap;
+  }
+  .prob-row .prob-tags {
+    width: 100%;
+    margin-top: 4px;
+  }
+}
+
+/* ── Extra-small screens (≤480px) ───────────────────────── */
+@media (max-width: 480px) {
+  /* Home stats: single column */
+  #home-stats { grid-template-columns: 1fr !important; }
+
+  /* Stat grids: single column */
+  .g2, .g3, .g4 { grid-template-columns: 1fr !important; }
+
+  /* Buttons: smaller on mobile */
+  .btn-md { font-size: 12px; padding: 6px 12px; }
+  .btn-lg { font-size: 12.5px; padding: 7px 16px; }
+
+  /* Views: reduce padding */
+  #main-content { padding: 14px !important; }
+
+  /* Page titles: smaller on mobile */
+  #view-home #home-greeting,
+  #view-contests > .fx > div:first-child,
+  #view-practice > .fx > div > div:first-child,
+  #view-submissions > .fx > div:first-child,
+  #view-admin > .fx > div:first-child {
+    font-size: 20px !important;
+  }
+
+  /* Toast: full width */
+  #toasts { left: 10px; right: 10px; bottom: 68px; }
+  .toast { max-width: 100%; min-width: 0; }
+
+  /* Contest card: tighter padding */
+  .contest-card { padding: 14px 16px; }
+
+  /* Card body: tighter padding */
+  .card-body { padding: 12px; }
+  .card-hdr { padding: 10px 12px; }
+}

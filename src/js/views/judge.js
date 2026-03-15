@@ -268,6 +268,7 @@ function judgeSubmit() {
     };
     S.submissions.unshift(sub);
     LS.set(`subs:${S.user.userId}`, S.submissions);
+    if (CONFIG.USE_SUPABASE && supabase) SB.insertSubmission(sub);
 
     if (verdict === 'AC' && !alreadySolved) {
       const bonus = S.judgeElapsed < 60 ? 50 : S.judgeElapsed < 120 ? 30 : S.judgeElapsed < 300 ? 10 : 0;

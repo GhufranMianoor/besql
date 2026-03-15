@@ -1,8 +1,8 @@
 /**
- * auth.js — User authentication (localStorage-based for demo mode).
+ * auth.js — User authentication.
  *
- * In production, replace these functions with Supabase Auth calls.
- * See supabase/schema.sql for the recommended database structure.
+ * When CONFIG.USE_SUPABASE is true the module delegates to Supabase Auth
+ * (email/password).  Otherwise the localStorage-based demo auth is used.
  */
 'use strict';
 
@@ -22,6 +22,7 @@ function openAuth(mode = 'login') {
       <button class="btn btn-blue btn-md" onclick="doLogin()">Sign In</button>
     </div>` : `
     <div class="fg"><label class="lbl">Username (min 3 chars)</label><input class="inp" id="ru" placeholder="choose_username" autocomplete="off"></div>
+    ${CONFIG.USE_SUPABASE ? '<div class="fg"><label class="lbl">Email</label><input class="inp" type="email" id="re" placeholder="you@example.com" autocomplete="off"></div>' : ''}
     <div class="fg"><label class="lbl">Password (min 4 chars)</label><input class="inp" type="password" id="rp" placeholder="••••••••"></div>
     <div id="r-err" class="hidden" style="color:var(--rose);font-size:11px;margin-bottom:10px"></div>
     <div class="mfooter" style="padding:14px 0 0;border-top:1px solid var(--line);margin-top:14px;justify-content:flex-end;display:flex;gap:9px">
@@ -36,6 +37,16 @@ function doLogin() {
   const u = (el('au') || {}).value?.trim();
   const p = (el('ap') || {}).value;
   if (!u || !p) { _showAuthErr('a-err', 'Enter username and password.'); return; }
+
+  if (CONFIG.USE_SUPABASE && supabase) {
+    // Supabase Auth: treat username as email
+    SB.signIn(u, p).then(({ user, error }) => {
+      if (error || !user) { _showAuthErr('a-err', error || 'Invalid credentials.'); return; }
+      _finishLogin(user);
+    });
+    return;
+  }
+
   const stored = LS.get(`user:${u}`);
   if (!stored || stored.password !== p) { _showAuthErr('a-err', 'Invalid credentials.'); return; }
   _finishLogin(stored);
@@ -46,6 +57,19 @@ function doRegister() {
   const p = (el('rp') || {}).value;
   if (!u || u.length < 3) { _showAuthErr('r-err', 'Username must be at least 3 characters.'); return; }
   if (!p || p.length < 4) { _showAuthErr('r-err', 'Password must be at least 4 characters.'); return; }
+
+  if (CONFIG.USE_SUPABASE && supabase) {
+    const email = (el('re') || {}).value?.trim();
+    if (!email) { _showAuthErr('r-err', 'Email is required.'); return; }
+    SB.signUp(email, p, u).then(({ user, error }) => {
+      if (error || !user) { _showAuthErr('r-err', error || 'Registration failed.'); return; }
+      _finishLogin(user);
+      closeModal('modal-auth');
+      toast(`Welcome, ${u}!`, 'success');
+    });
+    return;
+  }
+
   if (LS.get(`user:${u}`))  { _showAuthErr('r-err', 'Username already taken.'); return; }
   const newUser = {
     userId: genId(), username: u, password: p,
@@ -69,6 +93,7 @@ function quickLogin(uname, role) {
 }
 
 function doLogout() {
+  if (CONFIG.USE_SUPABASE && supabase) SB.signOut();
   S.user = null;
   LS.del('session');
   S.submissions = [];
@@ -87,7 +112,15 @@ function _showAuthErr(id, msg) {
 function _finishLogin(user) {
   S.user = user;
   LS.set('session', user.username);
-  S.submissions = LS.get(`subs:${user.userId}`) || [];
+
+  if (CONFIG.USE_SUPABASE && supabase) {
+    SB.fetchSubmissions(user.userId).then(subs => {
+      S.submissions = subs || LS.get(`subs:${user.userId}`) || [];
+    });
+  } else {
+    S.submissions = LS.get(`subs:${user.userId}`) || [];
+  }
+
   closeModal('modal-auth');
   renderTopRight();
   renderSidebar();
