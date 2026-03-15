@@ -1,8 +1,9 @@
 /**
- * auth.js — User authentication (localStorage-based for demo mode).
+ * auth.js — User authentication.
  *
- * In production, replace these functions with Supabase Auth calls.
- * See supabase/schema.sql for the recommended database structure.
+ * When CONFIG.USE_SUPABASE is true, authentication is delegated to
+ * Supabase Auth (SB.signUp / SB.signIn / SB.signOut / SB.getSession).
+ * Otherwise the localStorage-based demo mode is used.
  */
 'use strict';
 
@@ -44,20 +45,43 @@ function openAuth(mode = 'login') {
   }, 100);
 }
 
-function doLogin() {
+async function doLogin() {
   const u = (el('au') || {}).value?.trim();
   const p = (el('ap') || {}).value;
   if (!u || !p) { _showAuthErr('a-err', 'Enter username and password.'); return; }
+
+  if (CONFIG.USE_SUPABASE && supabaseClient) {
+    try {
+      const user = await SB.signIn(u, p);
+      S.submissions = await SB.getSubmissions(user.userId);
+      _finishLogin(user);
+    } catch (err) {
+      _showAuthErr('a-err', err.message || 'Invalid credentials.');
+    }
+    return;
+  }
+
   const stored = LS.get(`user:${u}`);
   if (!stored || stored.password !== p) { _showAuthErr('a-err', 'Invalid credentials.'); return; }
   _finishLogin(stored);
 }
 
-function doRegister() {
+async function doRegister() {
   const u = (el('ru') || {}).value?.trim();
   const p = (el('rp') || {}).value;
   if (!u || u.length < 3) { _showAuthErr('r-err', 'Username must be at least 3 characters.'); return; }
   if (!p || p.length < 4) { _showAuthErr('r-err', 'Password must be at least 4 characters.'); return; }
+
+  if (CONFIG.USE_SUPABASE && supabaseClient) {
+    try {
+      const user = await SB.signUp(u, p);
+      _finishLogin(user, `Welcome, ${u}!`);
+    } catch (err) {
+      _showAuthErr('r-err', err.message || 'Registration failed.');
+    }
+    return;
+  }
+
   if (LS.get(`user:${u}`))  { _showAuthErr('r-err', 'Username already taken.'); return; }
   const newUser = {
     userId: genId(), username: u, password: p,
@@ -78,7 +102,10 @@ function quickLogin(uname, role) {
   closeModal('modal-auth');
 }
 
-function doLogout() {
+async function doLogout() {
+  if (CONFIG.USE_SUPABASE && supabaseClient) {
+    try { await SB.signOut(); } catch (e) { console.warn('[BeSQL] Sign-out error:', e); }
+  }
   S.user = null;
   LS.del('session');
   S.submissions = [];
@@ -96,8 +123,10 @@ function _showAuthErr(id, msg) {
 
 function _finishLogin(user, toastMsg) {
   S.user = user;
-  LS.set('session', user.username);
-  S.submissions = LS.get(`subs:${user.userId}`) || [];
+  if (!CONFIG.USE_SUPABASE) {
+    LS.set('session', user.username);
+    S.submissions = LS.get(`subs:${user.userId}`) || [];
+  }
   closeModal('modal-auth');
   renderTopRight();
   renderSidebar();
@@ -106,8 +135,19 @@ function _finishLogin(user, toastMsg) {
   toast(toastMsg || `Signed in as ${user.username}`, 'success');
 }
 
-/** Restore session from localStorage on page load (no toast or render) */
-function restoreSession() {
+/** Restore session from Supabase token or localStorage on page load. */
+async function restoreSession() {
+  if (CONFIG.USE_SUPABASE && supabaseClient) {
+    try {
+      const profile = await SB.getSession();
+      if (!profile) return;
+      S.user = profile;
+      S.submissions = await SB.getSubmissions(profile.userId);
+    } catch (e) {
+      console.warn('[BeSQL] Session restore error:', e);
+    }
+    return;
+  }
   const saved = LS.get('session');
   if (!saved) return;
   const user = LS.get(`user:${saved}`);

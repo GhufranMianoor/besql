@@ -19,11 +19,11 @@ const CONFIG = Object.freeze({
    * uses Row-Level Security (RLS) to protect data — the anon key only
    * grants access to what RLS policies allow.
    */
-  SUPABASE_URL:      '', // e.g. 'https://wygmzlutbayohnodtexy.supabase.co'
-  SUPABASE_ANON_KEY: '', // e.g. 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+  SUPABASE_URL:      'https://wygmzlutbayohnodtexy.supabase.co',
+  SUPABASE_ANON_KEY: '', // Paste your anon/public key from the Supabase dashboard
 
   /** Feature flags */
-  USE_SUPABASE: false, // Set to true once Supabase credentials are configured
+  USE_SUPABASE: false, // Set to true once SUPABASE_ANON_KEY is filled in above
 
   /** Local storage namespace prefix */
   LS_PREFIX: 'besql_',

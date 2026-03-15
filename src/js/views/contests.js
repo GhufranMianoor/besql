@@ -278,6 +278,9 @@ function saveCustomContest() {
   };
   S.customContests.push(c);
   LS.set(`custom:${S.user.userId}`, S.customContests);
+  if (CONFIG.USE_SUPABASE && supabaseClient) {
+    SB.saveContest(c).catch(e => console.error('[BeSQL] Custom contest save failed:', e));
+  }
   closeModal('modal-custom');
   renderCustom();
   toast('Custom contest created!', 'success');
