@@ -39,7 +39,7 @@ function doLogin() {
   if (!u || !p) { _showAuthErr('a-err', 'Enter username and password.'); return; }
 
   if (CONFIG.USE_SUPABASE && supabase) {
-    // Supabase Auth: treat username as email
+    // Supabase Auth: use the username field value as the email
     SB.signIn(u, p).then(({ user, error }) => {
       if (error || !user) { _showAuthErr('a-err', error || 'Invalid credentials.'); return; }
       _finishLogin(user);

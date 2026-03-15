@@ -277,11 +277,11 @@ const SB = {
      ANNOUNCEMENTS
   ────────────────────────────────────────────────────────── */
 
-  /** Fetch the latest global announcement (stored as contest_id = NULL hack
-   *  or we can use a dedicated 'settings' table). For simplicity, we use
-   *  localStorage for global announcement alongside Supabase for the rest. */
+  /**
+   * Global announcement. Kept in localStorage for simplicity since
+   * announcements are not modelled as a standalone table in schema.sql.
+   */
   async fetchAnnouncement() {
-    // Global announcement is kept in localStorage for simplicity
     return LS.get('announcement') || '';
   },
 
