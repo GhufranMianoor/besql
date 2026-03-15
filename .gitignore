@@ -10,6 +10,17 @@ backend/**/obj/
 backend/**/.vs/
 *.user
 
+# ── Python / API ─────────────────────────────────────────────────────────
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
 # ── Docker volumes ────────────────────────────────────────────────────────
 .docker-volumes/
 
