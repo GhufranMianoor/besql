@@ -112,7 +112,8 @@ function renderJudge(ctx) {
 
   const prevSub = S.submissions.filter(s => s.problemId === p.id).sort((a, b) => b.at - a.at)[0];
   ed.value = prevSub?.code || '';
-  el('judge-chars').textContent = `${(prevSub?.code || '').length}`;
+  const initLen = (prevSub?.code || '').length;
+  el('judge-chars').textContent = `${initLen} ${initLen === 1 ? 'char' : 'chars'}`;
 
   ed.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); judgeRun(); }
@@ -123,7 +124,11 @@ function renderJudge(ctx) {
       ed.selectionStart = ed.selectionEnd = s + 2;
     }
   });
-  ed.addEventListener('input', () => { el('judge-chars').textContent = ed.value.length; });
+  ed.addEventListener('input', () => {
+    const n = ed.value.length;
+    const chEl = el('judge-chars');
+    if (chEl) chEl.textContent = n + ' ' + (n === 1 ? 'char' : 'chars');
+  });
 
   el('btn-judge-submit').disabled  = isSolved;
   el('btn-judge-submit').innerHTML = isSolved ? '✓ Solved' : 'Submit';
@@ -167,7 +172,7 @@ function judgeRun() {
     const result = runSQL(sql, DB);
     showJudgeResult(result);
     runTestCases(p, result, false);
-    btnRun.innerHTML = '▷ Run';
+    btnRun.innerHTML = '▷ Run & Test';
     btnRun.disabled  = false;
   }, 120);
 }
@@ -348,7 +353,7 @@ function judgeCopySQL() {
 /* ── Editor clear button ────────────────────────────────── */
 function judgeEditorClear() {
   el('judge-editor').value = '';
-  el('judge-chars').textContent = '0';
+  el('judge-chars').textContent = '0 chars';
   clearJudgeState();
   const p = S.problems.find(x => x.id === S.judgeCtx?.problemId);
   if (p) p.testCases.forEach(tc => resetTC(tc.id));
