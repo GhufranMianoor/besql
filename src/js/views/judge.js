@@ -82,8 +82,7 @@ function renderJudge(ctx) {
     <div class="tc-row tc-pending mb2" id="tc-row-${tc.id}">
       <span style="font-size:10px;font-weight:700;color:var(--t3);font-family:var(--mono);width:22px;flex-shrink:0;text-align:center">${i + 1}</span>
       <div style="flex:1">
-        <div style="font-size:12px;color:var(--t1);font-weight:500">${esc(tc.name)}</div>
-        <div style="font-size:11px;color:var(--t3);margin-top:1px">${esc(tc.desc)}</div>
+        <div style="font-size:12px;color:var(--t1);font-weight:500">Test Case ${i + 1}</div>
       </div>
       <span style="font-size:14px;font-weight:700;font-family:var(--mono);color:var(--t3);width:20px;text-align:center" id="tc-status-${tc.id}">–</span>
     </div>`).join('');
