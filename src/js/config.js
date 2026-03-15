@@ -19,7 +19,7 @@ const CONFIG = Object.freeze({
    * uses Row-Level Security (RLS) to protect data — the anon key only
    * grants access to what RLS policies allow.
    */
-  SUPABASE_URL:      '', // e.g. 'https://xyzcompany.supabase.co'
+  SUPABASE_URL:      '', // e.g. 'https://wygmzlutbayohnodtexy.supabase.co'
   SUPABASE_ANON_KEY: '', // e.g. 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
 
   /** Feature flags */
