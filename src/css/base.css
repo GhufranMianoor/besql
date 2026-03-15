@@ -28,8 +28,8 @@ html, body {
 body.light ::-webkit-scrollbar-track { background: var(--bg2); }
 
 /* ---------- Text selection ---------- */
-::selection        { background: rgba(46, 200, 102, 0.2); color: var(--t0); }
-body.light ::selection { background: rgba(26, 158, 80, 0.18); }
+::selection        { background: rgba(79, 142, 247, 0.2); color: var(--t0); }
+body.light ::selection { background: rgba(37, 99, 235, 0.18); }
 
 /* ---------- Utility: hidden ---------- */
 .hidden { display: none !important; }

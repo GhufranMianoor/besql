@@ -55,6 +55,9 @@ function loadContests() {
     return { ...c, status: 'upcoming' };
   });
 
+  // Persist the updated contest statuses
+  LS.set('contests', S.contests);
+
   S.customContests = S.user
     ? (LS.get(`custom:${S.user.userId}`) || [])
     : [];
@@ -82,21 +85,26 @@ function bootstrap() {
   // 2. Restore auth session
   restoreSession();
 
-  // 3. Wire nav listeners
+  // 3. Load custom contests (needs user to be set first)
+  if (S.user) {
+    S.customContests = LS.get(`custom:${S.user.userId}`) || [];
+  }
+
+  // 4. Wire nav listeners
   initNavListeners();
 
-  // 4. Start simulated presence
+  // 5. Start simulated presence
   startOnlineSimulation();
 
-  // 5. Apply saved theme
+  // 6. Apply saved theme
   applyStoredTheme();
 
-  // 6. Render initial view
+  // 7. Render initial view
   renderTopRight();
   renderSidebar();
   nav('home');
 
-  // 7. Remove loading screen
+  // 8. Remove loading screen
   const init = document.getElementById('init');
   if (init) {
     init.style.opacity = '0';

@@ -13,17 +13,17 @@ const CONFIG = Object.freeze({
   /**
    * Supabase configuration.
    * Replace with your project URL and anon key from
-   * https://supabase.com/dashboard/project/<id>/settings/api
+   * https://wygmzlutbayohnodtexy.supabase.co/settings/api
    *
    * These values are safe to expose in browser code because Supabase
    * uses Row-Level Security (RLS) to protect data — the anon key only
    * grants access to what RLS policies allow.
    */
-  SUPABASE_URL:      '', // e.g. 'https://xyzcompany.supabase.co'
-  SUPABASE_ANON_KEY: '', // e.g. 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+  SUPABASE_URL:      'https://wygmzlutbayohnodtexy.supabase.co', // e.g. 'https://wygmzlutbayohnodtexy.supabase.co'
+  SUPABASE_ANON_KEY: 'sb_publishable_2T1ZvoLssJKHQVTVyMxIDQ_Phv-t0wg', // e.g. 'sb_publishable_2T1ZvoLssJKHQVTVyMxIDQ_Phv-t0wg'
 
   /** Feature flags */
-  USE_SUPABASE: false, // Set to true once Supabase credentials are configured
+  USE_SUPABASE: true, // Set to true once Supabase credentials are configured
 
   /** Local storage namespace prefix */
   LS_PREFIX: 'besql_',

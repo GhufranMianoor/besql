@@ -212,6 +212,17 @@ function openCustomCreator() {
       <input class="inp" id="cc-invite" placeholder="user1, user2, ...">
     </div>`;
   openModal('modal-custom');
+  setTimeout(() => {
+    const f = el('cc-title');
+    if (f) f.focus();
+    // Wire Enter key on single-line inputs (except cc-code-input which already has its own handler)
+    document.querySelectorAll('#custom-creator-body .inp').forEach(inp => {
+      if (inp.id === 'cc-code-input') return; // already handled inline
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); saveCustomContest(); }
+      });
+    });
+  }, 100);
 }
 
 function ccAddByCode() {
