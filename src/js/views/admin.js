@@ -354,6 +354,7 @@ function deleteProblem(id) {
   if (!confirm('Delete this problem?')) return;
   S.problems = S.problems.filter(p => p.id !== id);
   persistProblems();
+  if (CONFIG.USE_SUPABASE && supabase) SB.deleteProblem(id);
   renderAdminProblems();
   toast('Deleted', 'info');
 }
@@ -433,6 +434,7 @@ function saveContest() {
     S.contests.push(updated);
   }
   LS.set('contests', S.contests);
+  if (CONFIG.USE_SUPABASE && supabase) SB.saveContest(updated);
   closeModal('modal-contest');
   renderAdminContests();
   renderContests();
@@ -446,6 +448,7 @@ function launchContest(id) {
   c.startTime = Date.now();
   c.endTime   = Date.now() + c.duration * 60000;
   LS.set('contests', S.contests);
+  if (CONFIG.USE_SUPABASE && supabase) SB.saveContest(c);
   renderAdminContests(); renderContests(); renderSidebar();
   toast(`${c.title} is now LIVE!`, 'success');
 }
@@ -456,6 +459,7 @@ function endContest(id) {
   c.status  = 'ended';
   c.endTime = Date.now();
   LS.set('contests', S.contests);
+  if (CONFIG.USE_SUPABASE && supabase) SB.saveContest(c);
   renderAdminContests(); renderContests(); renderSidebar();
   toast('Contest ended', 'info');
 }
