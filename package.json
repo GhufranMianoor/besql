@@ -1,0 +1,13 @@
+{
+  "name": "besql",
+  "version": "2.0.0",
+  "description": "BeSQL — LeetCode-style SQL contest platform",
+  "main": "index.html",
+  "scripts": {
+    "test": "node tests/sql-engine.test.js && node tests/validator.test.js",
+    "test:engine": "node tests/sql-engine.test.js",
+    "test:validator": "node tests/validator.test.js"
+  },
+  "keywords": ["sql", "contest", "platform", "leet-code", "practice"],
+  "license": "MIT"
+}

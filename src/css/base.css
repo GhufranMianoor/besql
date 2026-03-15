@@ -1,0 +1,70 @@
+/* ============================================================
+   BASE — Reset, scrollbars, typography, selection
+   ============================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--t0);
+  font-family: var(--sans);
+  font-size: 13.5px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+/* ---------- Scrollbars ---------- */
+::-webkit-scrollbar          { width: 5px; height: 5px; }
+::-webkit-scrollbar-track    { background: var(--bg1); }
+::-webkit-scrollbar-thumb    { background: var(--bg4); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--bg5); }
+body.light ::-webkit-scrollbar-track { background: var(--bg2); }
+
+/* ---------- Text selection ---------- */
+::selection        { background: rgba(46, 200, 102, 0.2); color: var(--t0); }
+body.light ::selection { background: rgba(26, 158, 80, 0.18); }
+
+/* ---------- Utility: hidden ---------- */
+.hidden { display: none !important; }
+
+/* ---------- Truncation ---------- */
+.trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Flex helpers ---------- */
+.fx  { display: flex; }
+.fxc { flex-direction: column; }
+.ic  { align-items: center; }
+.sb  { justify-content: space-between; }
+.f1  { flex: 1; }
+.wf  { width: 100%; }
+.flex-wrap { flex-wrap: wrap; }
+
+/* ---------- Gap helpers ---------- */
+.gap2 { gap: 6px; }
+.gap3 { gap: 10px; }
+.gap4 { gap: 14px; }
+.gap5 { gap: 18px; }
+
+/* ---------- Margin helpers ---------- */
+.mt1 { margin-top: 4px; }
+.mt2 { margin-top: 8px; }
+.mt3 { margin-top: 14px; }
+.mt4 { margin-top: 20px; }
+.mb2 { margin-bottom: 8px; }
+.mb3 { margin-bottom: 14px; }
+.mb4 { margin-bottom: 20px; }
+
+/* ---------- Grid helpers ---------- */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+/* ---------- Misc ---------- */
+.divider { height: 1px; background: var(--line); margin: 14px 0; }
