@@ -91,7 +91,9 @@ function renderAdminContests() {
 
 /* ── User management ────────────────────────────────────── */
 function renderAdminUsers() {
-  const allUsers = LS.values('user:').filter(u => u?.userId);
+  const allUsers = (CONFIG.USE_SUPABASE && SB_CLIENT)
+    ? (S.users || []).filter(u => u?.userId)
+    : LS.values('user:').filter(u => u?.userId);
   const c = el('admin-tab-users');
   c.innerHTML = `
     <div class="card"><div class="tw"><table class="tbl">
@@ -117,16 +119,26 @@ function renderAdminUsers() {
 }
 
 function changeUserRole(username, role) {
-  const u = LS.get(`user:${username}`);
-  if (!u) return;
-  u.role = role;
-  LS.set(`user:${username}`, u);
+  if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+    const u = (S.users || []).find(x => x.username === username);
+    if (!u) return;
+    u.role = role;
+    SB.updateProfile(u.userId, { role }).catch(e => toast('Failed to update role in Supabase', 'error'));
+  } else {
+    const u = LS.get(`user:${username}`);
+    if (!u) return;
+    u.role = role;
+    LS.set(`user:${username}`, u);
+  }
   if (S.user && S.user.username === username) { S.user.role = role; renderTopRight(); }
   toast(`${username} is now ${role}`, 'success');
 }
 
 /* ── Announcements ─────────────────────────────────────── */
 function renderAdminAnnounce() {
+  const current = (CONFIG.USE_SUPABASE && SB_CLIENT)
+    ? (S.announcement || '')
+    : (LS.get('announcement') || '');
   const c = el('admin-tab-announce');
   c.innerHTML = `
     <div class="card">
@@ -135,7 +147,7 @@ function renderAdminAnnounce() {
         <div class="fg">
           <label class="lbl">Message</label>
           <textarea class="ta" rows="4" id="ann-msg"
-                    placeholder="Announcement visible to all users...">${esc(LS.get('announcement') || '')}</textarea>
+                    placeholder="Announcement visible to all users...">${esc(current)}</textarea>
         </div>
         <div class="fx gap3">
           <button class="btn btn-blue btn-md" onclick="saveAnnouncement()">Publish</button>
@@ -145,27 +157,67 @@ function renderAdminAnnounce() {
     </div>`;
 }
 
-function saveAnnouncement() {
+async function saveAnnouncement() {
   const msg = (el('ann-msg') || {}).value?.trim();
-  LS.set('announcement', msg);
-  if (msg) { el('announce-text').textContent = msg; show('announce-bar'); }
-  else hide('announce-bar');
+  if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+    try {
+      await SB.saveAnnouncement(msg);
+    } catch (e) {
+      toast('Failed to save announcement: ' + e.message, 'error');
+      return;
+    }
+  } else {
+    LS.set('announcement', msg);
+  }
+  S.announcement = msg || '';
+  if (msg) {
+    const announceTxt = el('announce-text');
+    if (announceTxt) announceTxt.textContent = msg;
+    show('announce-bar');
+  } else {
+    hide('announce-bar');
+  }
   toast('Announcement published', 'success');
 }
 
-function clearAnnouncement() { LS.del('announcement'); hide('announce-bar'); toast('Cleared', 'info'); }
+async function clearAnnouncement() {
+  if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+    SB.saveAnnouncement('').catch(e => console.error('[SB] clearAnnouncement error', e));
+  } else {
+    LS.del('announcement');
+  }
+  S.announcement = '';
+  hide('announce-bar');
+  toast('Cleared', 'info');
+}
 
 /* ── Analytics ─────────────────────────────────────────── */
-function renderAdminAnalytics() {
-  const allSubs = () => LS.values('subs:').flat();
+async function renderAdminAnalytics() {
   const c = el('admin-tab-analytics');
+
+  const userCount = (CONFIG.USE_SUPABASE && SB_CLIENT)
+    ? (S.users || []).length
+    : LS.keys('user:').length;
+
+  let allSubs;
+  if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+    // Lazy-load all submissions for admin analytics.
+    if (S.allSubmissions === null) {
+      c.innerHTML = `<div style="padding:24px;color:var(--t2);text-align:center">Loading analytics…</div>`;
+      S.allSubmissions = await SB.getAllSubmissions();
+    }
+    allSubs = () => S.allSubmissions;
+  } else {
+    allSubs = () => LS.values('subs:').flat();
+  }
+
   c.innerHTML = `
     <div class="g4 mb4">
       ${[
         ['Problems',    S.problems.length,                              'var(--ind)'],
         ['Contests',    S.contests.length,                              'var(--sky)'],
-        ['Total Users', LS.keys('user:').length,                        'var(--gold)'],
-        ['Live Now',    S.contests.filter(c => c.status === 'live').length, 'var(--grn)'],
+        ['Total Users', userCount,                                      'var(--gold)'],
+        ['Live Now',    S.contests.filter(contest => contest.status === 'live').length, 'var(--grn)'],
       ].map(([l, v, c2]) => `<div class="stat"><div class="stat-v" style="color:${c2}">${v}</div><div class="stat-l">${l}</div></div>`).join('')}
     </div>
     <div class="g2">
@@ -344,7 +396,11 @@ function saveProblem() {
     S.problems.push(updated);
   }
 
-  persistProblems();
+  if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+    SB.upsertProblem(updated).catch(e => toast('Failed to save problem in Supabase: ' + e.message, 'error'));
+  } else {
+    persistProblems();
+  }
   closeModal('modal-problem');
   renderAdminProblems();
   toast('Problem saved', 'success');
@@ -353,7 +409,11 @@ function saveProblem() {
 function deleteProblem(id) {
   if (!confirm('Delete this problem?')) return;
   S.problems = S.problems.filter(p => p.id !== id);
-  persistProblems();
+  if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+    SB.deleteProblem(id).catch(e => toast('Failed to delete problem from Supabase: ' + e.message, 'error'));
+  } else {
+    persistProblems();
+  }
   renderAdminProblems();
   toast('Deleted', 'info');
 }
@@ -432,7 +492,11 @@ function saveContest() {
   } else {
     S.contests.push(updated);
   }
-  LS.set('contests', S.contests);
+  if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+    SB.upsertContest(updated).catch(e => toast('Failed to save contest in Supabase: ' + e.message, 'error'));
+  } else {
+    LS.set('contests', S.contests);
+  }
   closeModal('modal-contest');
   renderAdminContests();
   renderContests();
@@ -445,7 +509,11 @@ function launchContest(id) {
   c.status    = 'live';
   c.startTime = Date.now();
   c.endTime   = Date.now() + c.duration * 60000;
-  LS.set('contests', S.contests);
+  if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+    SB.upsertContest(c).catch(e => toast('Failed to update contest in Supabase: ' + e.message, 'error'));
+  } else {
+    LS.set('contests', S.contests);
+  }
   renderAdminContests(); renderContests(); renderSidebar();
   toast(`${c.title} is now LIVE!`, 'success');
 }
@@ -455,7 +523,11 @@ function endContest(id) {
   if (!c) return;
   c.status  = 'ended';
   c.endTime = Date.now();
-  LS.set('contests', S.contests);
+  if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+    SB.upsertContest(c).catch(e => toast('Failed to update contest in Supabase: ' + e.message, 'error'));
+  } else {
+    LS.set('contests', S.contests);
+  }
   renderAdminContests(); renderContests(); renderSidebar();
   toast('Contest ended', 'info');
 }

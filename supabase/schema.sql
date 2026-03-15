@@ -132,15 +132,19 @@ CREATE TRIGGER trg_contests_updated_at
 -- =============================================================
 -- CONTEST ANNOUNCEMENTS
 -- =============================================================
+-- contest_id is nullable so that global (platform-wide) announcements
+-- can be stored without belonging to a specific contest.
 CREATE TABLE IF NOT EXISTS public.announcements (
     id          UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
-    contest_id  UUID        NOT NULL REFERENCES public.contests(id) ON DELETE CASCADE,
+    contest_id  UUID        REFERENCES public.contests(id) ON DELETE CASCADE,
     message     TEXT        NOT NULL,
     posted_by   UUID        REFERENCES public.profiles(user_id) ON DELETE SET NULL,
     posted_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_announcements_contest ON public.announcements (contest_id);
+CREATE INDEX IF NOT EXISTS idx_announcements_global  ON public.announcements (posted_at DESC)
+    WHERE contest_id IS NULL;
 
 -- =============================================================
 -- SUBMISSIONS
@@ -178,9 +182,20 @@ ALTER TABLE public.submissions ENABLE ROW LEVEL SECURITY;
 -- ── profiles ────────────────────────────────────────────────
 -- Anyone can read public profiles
 CREATE POLICY "profiles_read_all"  ON public.profiles FOR SELECT USING (true);
+-- New users can insert their own profile row (also handled by handle_new_user trigger)
+CREATE POLICY "profiles_insert_own" ON public.profiles FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
 -- Only the profile owner can update their own row
 CREATE POLICY "profiles_update_own" ON public.profiles FOR UPDATE
     USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+-- Admins can update any profile (e.g. to change roles)
+CREATE POLICY "profiles_update_admin" ON public.profiles FOR UPDATE
+    USING (
+        EXISTS (SELECT 1 FROM public.profiles WHERE user_id = auth.uid() AND role = 'admin')
+    )
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM public.profiles WHERE user_id = auth.uid() AND role = 'admin')
+    );
 
 -- ── problems ────────────────────────────────────────────────
 CREATE POLICY "problems_read_public" ON public.problems FOR SELECT
@@ -196,10 +211,30 @@ CREATE POLICY "problems_update_master" ON public.problems FOR UPDATE
         EXISTS (SELECT 1 FROM public.profiles WHERE user_id = auth.uid() AND role IN ('master', 'admin'))
     );
 
+CREATE POLICY "problems_delete_master" ON public.problems FOR DELETE
+    USING (
+        EXISTS (SELECT 1 FROM public.profiles WHERE user_id = auth.uid() AND role IN ('master', 'admin'))
+    );
+
 -- ── test_cases ───────────────────────────────────────────────
 CREATE POLICY "test_cases_read_public" ON public.test_cases FOR SELECT
     USING (
         EXISTS (SELECT 1 FROM public.problems p WHERE p.id = problem_id AND (p.is_public = true OR auth.uid() = p.created_by))
+    );
+
+CREATE POLICY "test_cases_write_master" ON public.test_cases FOR INSERT
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM public.profiles WHERE user_id = auth.uid() AND role IN ('master', 'admin'))
+    );
+
+CREATE POLICY "test_cases_update_master" ON public.test_cases FOR UPDATE
+    USING (
+        EXISTS (SELECT 1 FROM public.profiles WHERE user_id = auth.uid() AND role IN ('master', 'admin'))
+    );
+
+CREATE POLICY "test_cases_delete_master" ON public.test_cases FOR DELETE
+    USING (
+        EXISTS (SELECT 1 FROM public.profiles WHERE user_id = auth.uid() AND role IN ('master', 'admin'))
     );
 
 -- ── contests ────────────────────────────────────────────────
@@ -211,8 +246,27 @@ CREATE POLICY "contests_insert_master" ON public.contests FOR INSERT
         EXISTS (SELECT 1 FROM public.profiles WHERE user_id = auth.uid() AND role IN ('master', 'admin'))
     );
 
+CREATE POLICY "contests_update_master" ON public.contests FOR UPDATE
+    USING (
+        EXISTS (SELECT 1 FROM public.profiles WHERE user_id = auth.uid() AND role IN ('master', 'admin'))
+    );
+
+CREATE POLICY "contests_delete_master" ON public.contests FOR DELETE
+    USING (
+        EXISTS (SELECT 1 FROM public.profiles WHERE user_id = auth.uid() AND role IN ('master', 'admin'))
+    );
+
 -- ── announcements ───────────────────────────────────────────
 CREATE POLICY "announcements_read_all" ON public.announcements FOR SELECT USING (true);
+
+-- Admins can create, modify, and delete any announcement
+CREATE POLICY "announcements_manage_admin" ON public.announcements FOR ALL
+    USING (
+        EXISTS (SELECT 1 FROM public.profiles WHERE user_id = auth.uid() AND role = 'admin')
+    )
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM public.profiles WHERE user_id = auth.uid() AND role = 'admin')
+    );
 
 -- ── submissions ─────────────────────────────────────────────
 -- Users can read their own; admins can read all
@@ -316,3 +370,31 @@ $$;
 CREATE TRIGGER trg_update_streak
     AFTER INSERT ON public.submissions
     FOR EACH ROW EXECUTE FUNCTION public.update_streak();
+
+-- =============================================================
+-- AUTO-CREATE PROFILE ON NEW USER SIGN-UP
+-- =============================================================
+-- This trigger fires whenever a new row is inserted into auth.users
+-- (i.e. when someone registers via Supabase Auth).  The client sends
+-- username + role in user_metadata during signUp(); the trigger reads
+-- those values and populates the profiles table automatically so the
+-- application never has to make a separate INSERT from the browser.
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public AS $$
+BEGIN
+    INSERT INTO public.profiles (user_id, username, role)
+    VALUES (
+        NEW.id,
+        COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
+        COALESCE(NEW.raw_user_meta_data->>'role', 'contestant')
+    )
+    ON CONFLICT (user_id) DO NOTHING;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();

@@ -113,7 +113,10 @@ function getUserRank() {
 }
 
 function buildLeaderboard() {
-  return LS.values('user:')
+  const source = (CONFIG.USE_SUPABASE && SB_CLIENT)
+    ? (S.users || [])
+    : LS.values('user:');
+  return source
     .filter(u => u && u.userId)
     .map(u => ({ userId: u.userId, username: u.username, score: u.score || 0, solved: u.solved || 0, role: u.role }))
     .sort((a, b) => b.score - a.score);
