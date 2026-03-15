@@ -267,13 +267,28 @@ function judgeSubmit() {
       tcTotal:  p.testCases.length,
     };
     S.submissions.unshift(sub);
-    LS.set(`subs:${S.user.userId}`, S.submissions);
+    if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+      // Persist to Supabase asynchronously; the update_streak trigger handles
+      // score / solved / streak updates in the DB automatically for AC verdicts.
+      SB.insertSubmission(sub).catch(e => console.error('[SB] insertSubmission error', e));
+    } else {
+      LS.set(`subs:${S.user.userId}`, S.submissions);
+    }
 
     if (verdict === 'AC' && !alreadySolved) {
       const bonus = S.judgeElapsed < 60 ? 50 : S.judgeElapsed < 120 ? 30 : S.judgeElapsed < 300 ? 10 : 0;
       S.user.score  = (S.user.score  || 0) + p.points + bonus;
       S.user.solved = (S.user.solved || 0) + 1;
-      LS.set(`user:${S.user.username}`, S.user);
+      if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+        // Sync the speed bonus to Supabase (the trigger already handles base
+        // points; we add the bonus on top via an explicit profile update).
+        if (bonus > 0) {
+          SB.updateProfile(S.user.userId, { score: S.user.score })
+            .catch(e => console.error('[SB] updateProfile error', e));
+        }
+      } else {
+        LS.set(`user:${S.user.username}`, S.user);
+      }
       clearInterval(S.judgeTimer);
     }
 
@@ -300,7 +315,9 @@ function judgeSubmit() {
     fb.classList.remove('hidden');
 
     if (verdict === 'AC') {
-      LS.set(`user:${S.user.username}`, S.user);
+      if (!CONFIG.USE_SUPABASE || !SB_CLIENT) {
+        LS.set(`user:${S.user.username}`, S.user);
+      }
       renderTopRight();
       const btnNext = document.getElementById('btn-judge-next');
       const nextIdx = S.problems.findIndex(x => x.id === p.id) + 1;

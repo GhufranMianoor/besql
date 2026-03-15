@@ -42,4 +42,24 @@ const S = {
 
   /** Elapsed seconds in the current judge session */
   judgeElapsed: 0,
+
+  /**
+   * All user profiles (populated from Supabase in Supabase mode).
+   * Used for leaderboard and admin user-management views.
+   * In localStorage mode this stays empty; LS.values('user:') is used instead.
+   */
+  users: [],
+
+  /**
+   * Current global platform announcement text (populated on bootstrap).
+   * In localStorage mode, read directly from LS.get('announcement').
+   */
+  announcement: '',
+
+  /**
+   * All submissions across all users (lazy-loaded for admin analytics).
+   * null means not yet loaded; [] means loaded but empty.
+   * Only populated in Supabase mode when an admin opens the analytics tab.
+   */
+  allSubmissions: null,
 };

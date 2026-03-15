@@ -2,13 +2,14 @@
  * app.js — Application bootstrap and initialisation.
  *
  * Execution order (enforced by <script> tags in index.html):
- *   config.js → state.js → storage.js → sql-engine.js
- *   → validator.js → data/problems.js → ui.js → auth.js
+ *   config.js → state.js → storage.js → supabase-client.js
+ *   → supabase-data.js → sql-engine.js → validator.js
+ *   → data/problems.js → ui.js → auth.js
  *   → views/*.js → router.js → app.js  ← THIS FILE (last)
  *
  * Responsibilities:
- *  1. Load persisted problems/contests or seed with defaults.
- *  2. Restore user session from localStorage.
+ *  1. Load persisted problems/contests (Supabase or localStorage).
+ *  2. Restore user session.
  *  3. Wire static [data-view] nav buttons.
  *  4. Start "online users" simulation.
  *  5. Boot into the home view and remove the loading screen.
@@ -20,14 +21,33 @@
 /**
  * Persist the current problem bank to localStorage (strips
  * non-serialisable validate() functions first).
+ * No-op in Supabase mode; problems are persisted per-save via
+ * SB.upsertProblem() in admin.js.
  */
 function persistProblems() {
+  if (CONFIG.USE_SUPABASE && SB_CLIENT) return;
   LS.set('problems', stripValidators(S.problems));
 }
 
 /**
- * Load the problem bank from storage (or seed with defaults),
+ * Normalise contest statuses based on the current wall-clock time.
+ * @param {Array} contests
+ * @returns {Array}
+ */
+function _normaliseContestStatuses(contests) {
+  const now = Date.now();
+  return contests.map(c => {
+    if (c.status === 'ended') return c;
+    if (c.endTime   < now)   return { ...c, status: 'ended' };
+    if (c.startTime < now)   return { ...c, status: 'live' };
+    return { ...c, status: 'upcoming' };
+  });
+}
+
+/**
+ * Load the problem bank from localStorage (or seed with defaults),
  * then rebuild the validate() functions.
+ * Only used in localStorage mode; Supabase mode loads inside bootstrap().
  */
 function loadProblems() {
   const stored = LS.get('problems');
@@ -40,20 +60,13 @@ function loadProblems() {
 }
 
 /**
- * Load contests from storage (or seed with defaults).
+ * Load contests from localStorage (or seed with defaults).
+ * Only used in localStorage mode; Supabase mode loads inside bootstrap().
  */
 function loadContests() {
   const stored = LS.get('contests');
-  S.contests = stored && stored.length ? stored : CONTESTS_DEFAULT.slice();
-
-  // Dynamically update live/upcoming/ended based on wall clock
-  const now = Date.now();
-  S.contests = S.contests.map(c => {
-    if (c.status === 'ended') return c;
-    if (c.endTime < now)   return { ...c, status: 'ended' };
-    if (c.startTime < now) return { ...c, status: 'live' };
-    return { ...c, status: 'upcoming' };
-  });
+  const raw    = stored && stored.length ? stored : CONTESTS_DEFAULT.slice();
+  S.contests   = _normaliseContestStatuses(raw);
 
   S.customContests = S.user
     ? (LS.get(`custom:${S.user.userId}`) || [])
@@ -74,13 +87,49 @@ function startOnlineSimulation() {
 }
 
 /* ── Application entry point ───────────────────────────── */
-function bootstrap() {
+async function bootstrap() {
   // 1. Load data
-  loadProblems();
-  loadContests();
+  if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+    // Load problems, contests, all user profiles, and the global
+    // announcement in parallel from Supabase.
+    const [probs, contests, profiles, ann] = await Promise.all([
+      SB.getProblems(),
+      SB.getContests(),
+      SB.getProfiles(),
+      SB.getAnnouncement(),
+    ]);
 
-  // 2. Restore auth session
-  restoreSession();
+    S.problems     = rebuildValidators(probs);
+    S.contests     = _normaliseContestStatuses(contests);
+    S.users        = profiles;
+    S.announcement = ann || '';
+
+    // 2. Restore Supabase auth session (must follow data load)
+    const profile = await SB.getSession();
+    if (profile) {
+      await _finishLoginSB(profile, false);
+    }
+
+    // Show announcement bar if a message is set
+    if (S.announcement) {
+      const announceTxt = el('announce-text');
+      if (announceTxt) announceTxt.textContent = S.announcement;
+      show('announce-bar');
+    }
+  } else {
+    // localStorage mode
+    loadProblems();
+    loadContests();
+    restoreSession();
+
+    // Restore announcement bar from localStorage
+    const ann = LS.get('announcement');
+    if (ann) {
+      const announceTxt = el('announce-text');
+      if (announceTxt) announceTxt.textContent = ann;
+      show('announce-bar');
+    }
+  }
 
   // 3. Wire nav listeners
   initNavListeners();

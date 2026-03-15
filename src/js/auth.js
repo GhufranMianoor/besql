@@ -1,8 +1,9 @@
 /**
- * auth.js — User authentication (localStorage-based for demo mode).
+ * auth.js — User authentication.
  *
- * In production, replace these functions with Supabase Auth calls.
- * See supabase/schema.sql for the recommended database structure.
+ * When CONFIG.USE_SUPABASE is true, authentication is handled via the
+ * Supabase Auth API (supabase-data.js → SB.signIn / SB.signUp / SB.signOut).
+ * When false, the localStorage-based demo mode is used.
  */
 'use strict';
 
@@ -32,20 +33,49 @@ function openAuth(mode = 'login') {
   setTimeout(() => { const f = el('au') || el('ru'); if (f) f.focus(); }, 100);
 }
 
-function doLogin() {
+async function doLogin() {
   const u = (el('au') || {}).value?.trim();
   const p = (el('ap') || {}).value;
   if (!u || !p) { _showAuthErr('a-err', 'Enter username and password.'); return; }
+
+  if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+    const btn = document.querySelector('#auth-body .btn-blue');
+    if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
+    try {
+      const profile = await SB.signIn(u, p);
+      await _finishLoginSB(profile);
+    } catch (e) {
+      _showAuthErr('a-err', e.message || 'Invalid credentials.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
+    }
+    return;
+  }
+
   const stored = LS.get(`user:${u}`);
   if (!stored || stored.password !== p) { _showAuthErr('a-err', 'Invalid credentials.'); return; }
   _finishLogin(stored);
 }
 
-function doRegister() {
+async function doRegister() {
   const u = (el('ru') || {}).value?.trim();
   const p = (el('rp') || {}).value;
   if (!u || u.length < 3) { _showAuthErr('r-err', 'Username must be at least 3 characters.'); return; }
   if (!p || p.length < 4) { _showAuthErr('r-err', 'Password must be at least 4 characters.'); return; }
+
+  if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+    const btn = document.querySelector('#auth-body .btn-blue');
+    if (btn) { btn.disabled = true; btn.textContent = 'Creating account…'; }
+    try {
+      const profile = await SB.signUp(u, p);
+      await _finishLoginSB(profile);
+      toast(`Welcome, ${u}!`, 'success');
+    } catch (e) {
+      _showAuthErr('r-err', e.message || 'Registration failed. Please try again.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Create Account'; }
+    }
+    return;
+  }
+
   if (LS.get(`user:${u}`))  { _showAuthErr('r-err', 'Username already taken.'); return; }
   const newUser = {
     userId: genId(), username: u, password: p,
@@ -57,8 +87,12 @@ function doRegister() {
   toast(`Welcome, ${u}!`, 'success');
 }
 
-/** One-click demo login (creates the account if it doesn't exist) */
+/** One-click demo login (creates the account if it doesn't exist). Only available in localStorage mode. */
 function quickLogin(uname, role) {
+  if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+    toast('Quick-login is not available in Supabase mode.', 'warn');
+    return;
+  }
   let u = LS.get(`user:${uname}`);
   if (!u) {
     u = { userId: genId(), username: uname, password: 'demo', role, score: 0, solved: 0, streak: 0, joinedAt: Date.now() };
@@ -68,9 +102,13 @@ function quickLogin(uname, role) {
   closeModal('modal-auth');
 }
 
-function doLogout() {
+async function doLogout() {
+  if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+    SB.signOut().catch(e => console.error('[SB] signOut error', e));
+  } else {
+    LS.del('session');
+  }
   S.user = null;
-  LS.del('session');
   S.submissions = [];
   renderTopRight();
   renderSidebar();
@@ -84,6 +122,7 @@ function _showAuthErr(id, msg) {
   if (e) { e.textContent = msg; show(e); }
 }
 
+/** Finish login for localStorage mode */
 function _finishLogin(user) {
   S.user = user;
   LS.set('session', user.username);
@@ -95,7 +134,19 @@ function _finishLogin(user) {
   toast(`Signed in as ${user.username}`, 'success');
 }
 
-/** Restore session from localStorage on page load */
+/** Finish login for Supabase mode */
+async function _finishLoginSB(profile, showToast = true) {
+  S.user = profile;
+  S.submissions = await SB.getSubmissions(profile.userId);
+  S.customContests = [];
+  closeModal('modal-auth');
+  renderTopRight();
+  renderSidebar();
+  renderHome();
+  if (showToast) toast(`Signed in as ${profile.username}`, 'success');
+}
+
+/** Restore session from localStorage on page load (localStorage mode only) */
 function restoreSession() {
   const saved = LS.get('session');
   if (!saved) return;

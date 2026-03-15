@@ -266,7 +266,11 @@ function saveCustomContest() {
     invitees: ((el('cc-invite') || {}).value || '').split(',').map(u => u.trim()).filter(Boolean),
   };
   S.customContests.push(c);
-  LS.set(`custom:${S.user.userId}`, S.customContests);
+  if (CONFIG.USE_SUPABASE && SB_CLIENT) {
+    SB.upsertContest(c).catch(e => console.error('[SB] upsertContest (custom) error', e));
+  } else {
+    LS.set(`custom:${S.user.userId}`, S.customContests);
+  }
   closeModal('modal-custom');
   renderCustom();
   toast('Custom contest created!', 'success');
