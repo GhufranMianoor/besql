@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS problems (
     init_script    TEXT        NOT NULL,   -- DDL + seed SQL for sandbox schema
     golden_solution TEXT       NOT NULL,  -- Authoritative correct query
     tags           JSONB       NOT NULL DEFAULT '[]'::JSONB,
+    schema_diagram TEXT,                         -- Optional table/schema description shown in the IDE
     accept_count   INTEGER     NOT NULL DEFAULT 0,
     submit_count   INTEGER     NOT NULL DEFAULT 0,
     is_published   BOOLEAN     NOT NULL DEFAULT FALSE,

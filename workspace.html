@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BeSQL — Workspace</title>
+  <meta name="description" content="BeSQL SQL problem workspace — write, run, and submit SQL queries." />
+
+  <!-- Tailwind CSS Play CDN — for development/prototyping.
+       NOTE: cdn.tailwindcss.com generates CSS dynamically from page classes
+       and does not support Subresource Integrity (SRI). For production,
+       replace with a pre-built Tailwind CSS file and add an integrity attribute. -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+          },
+          colors: {
+            surface: {
+              DEFAULT: '#0d1117',
+              elevated: '#161b22',
+              border: '#21262d',
+            },
+            accent: {
+              DEFAULT: '#58a6ff',
+              hover: '#79b8ff',
+            },
+            success: '#3fb950',
+            error: '#f85149',
+            warning: '#d29922',
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Monaco Editor (CDN)
+       NOTE: For production deployments, add an integrity="sha384-…" attribute
+       computed from the actual file bytes to enable Subresource Integrity. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.47.0/min/vs/loader.min.js"
+          crossorigin="anonymous"></script>
+
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #161b22; }
+    ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+    /* Resizable panes */
+    #pane-divider {
+      cursor: col-resize;
+      user-select: none;
+    }
+    #vertical-divider {
+      cursor: row-resize;
+      user-select: none;
+    }
+
+    /* Monaco editor must fill its container */
+    #editor-container { min-height: 0; }
+
+    /* Verdict badges */
+    .badge-accepted  { @apply bg-green-900 text-green-300 border border-green-700; }
+    .badge-wrong     { @apply bg-red-900   text-red-300   border border-red-700;   }
+    .badge-error     { @apply bg-orange-900 text-orange-300 border border-orange-700; }
+    .badge-pending   { @apply bg-gray-700   text-gray-300   border border-gray-600; }
+
+    /* Difficulty pills */
+    .diff-easy   { @apply text-green-400 bg-green-900/40 border border-green-800; }
+    .diff-medium { @apply text-yellow-400 bg-yellow-900/40 border border-yellow-800; }
+    .diff-hard   { @apply text-red-400   bg-red-900/40   border border-red-800;   }
+
+    /* Result table */
+    #result-table th { @apply sticky top-0 bg-surface-elevated; }
+  </style>
+</head>
+
+<body class="bg-surface text-gray-200 font-sans flex flex-col h-screen overflow-hidden">
+
+<!-- ═══════════════════════════════════════ TOP BAR ════════════════════════ -->
+<header class="flex items-center justify-between px-4 py-2 bg-surface-elevated border-b border-surface-border shrink-0 z-10">
+
+  <!-- Logo + problem title -->
+  <div class="flex items-center gap-4">
+    <a href="index.html" class="flex items-center gap-1 font-bold text-lg select-none">
+      <span class="text-white">Be</span><span class="text-accent">SQL</span>
+    </a>
+    <span class="text-surface-border">|</span>
+    <span id="problem-title" class="text-sm font-medium text-gray-300 truncate max-w-xs">Loading…</span>
+    <span id="difficulty-badge" class="text-xs px-2 py-0.5 rounded-full font-semibold hidden"></span>
+  </div>
+
+  <!-- Actions -->
+  <div class="flex items-center gap-2">
+    <button id="run-btn"
+      class="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium bg-gray-700 hover:bg-gray-600 text-white transition-colors"
+      onclick="runQuery()">
+      ▶ Run
+    </button>
+    <button id="submit-btn"
+      class="flex items-center gap-1.5 px-4 py-1.5 rounded text-sm font-semibold bg-accent hover:bg-accent-hover text-gray-900 transition-colors"
+      onclick="submitQuery()">
+      Submit
+    </button>
+    <div id="auth-area" class="flex items-center gap-2 ml-2">
+      <span id="username-display" class="text-xs text-gray-400 hidden"></span>
+      <button id="logout-btn" onclick="logout()"
+        class="text-xs text-gray-400 hover:text-white transition-colors hidden">
+        Sign out
+      </button>
+      <a href="index.html" id="login-link"
+        class="text-xs text-accent hover:text-accent-hover transition-colors">
+        Sign in
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- ════════════════════════════════ MAIN WORKSPACE ═══════════════════════ -->
+<main class="flex flex-1 overflow-hidden" id="workspace">
+
+  <!-- ── LEFT PANE: Problem description ─────────────────────────────────── -->
+  <aside id="left-pane"
+    class="flex flex-col bg-surface-elevated border-r border-surface-border overflow-hidden"
+    style="width: 38%; min-width: 260px; max-width: 55%;">
+
+    <!-- Tab bar -->
+    <div class="flex shrink-0 border-b border-surface-border text-xs font-medium">
+      <button class="tab-btn active-tab px-4 py-2" onclick="switchTab('description', this)">Description</button>
+      <button class="tab-btn px-4 py-2 text-gray-500 hover:text-gray-300" onclick="switchTab('schema', this)">Schema</button>
+      <button class="tab-btn px-4 py-2 text-gray-500 hover:text-gray-300" onclick="switchTab('submissions', this)">My Submissions</button>
+    </div>
+
+    <!-- Tab content -->
+    <div class="flex-1 overflow-y-auto p-4 text-sm leading-relaxed" id="tab-description">
+      <div id="problem-description" class="prose prose-invert max-w-none text-gray-300">
+        <div class="animate-pulse space-y-2">
+          <div class="h-4 bg-surface-border rounded w-3/4"></div>
+          <div class="h-4 bg-surface-border rounded w-full"></div>
+          <div class="h-4 bg-surface-border rounded w-5/6"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 text-sm hidden" id="tab-schema">
+      <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Database Schema</h3>
+      <pre id="schema-content"
+        class="font-mono text-xs text-gray-300 bg-surface p-3 rounded border border-surface-border whitespace-pre-wrap">
+Loading schema…</pre>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-2 hidden" id="tab-submissions">
+      <div id="my-submissions-list" class="space-y-1 text-xs">
+        <p class="text-gray-500 p-2">Sign in to see your submissions.</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── DRAG HANDLE ─────────────────────────────────────────────────────── -->
+  <div id="pane-divider" class="w-1 bg-surface-border hover:bg-accent/60 transition-colors shrink-0"></div>
+
+  <!-- ── RIGHT PANE: Editor + Console ───────────────────────────────────── -->
+  <section class="flex flex-col flex-1 overflow-hidden min-w-0">
+
+    <!-- Editor area -->
+    <div id="editor-container" class="flex-1 overflow-hidden" style="min-height: 120px;"></div>
+
+    <!-- Vertical drag handle -->
+    <div id="vertical-divider" class="h-1 bg-surface-border hover:bg-accent/60 transition-colors shrink-0"></div>
+
+    <!-- Console / result pane -->
+    <div id="console-pane"
+      class="bg-surface-elevated border-t border-surface-border flex flex-col overflow-hidden"
+      style="height: 220px; min-height: 80px;">
+
+      <!-- Console header -->
+      <div class="flex items-center justify-between px-3 py-1.5 border-b border-surface-border shrink-0">
+        <div class="flex items-center gap-3 text-xs font-medium">
+          <span class="text-gray-400">Console</span>
+          <span id="verdict-badge" class="px-2 py-0.5 rounded-full text-xs font-semibold hidden"></span>
+          <span id="exec-time" class="text-gray-500 hidden"></span>
+        </div>
+        <button onclick="clearConsole()" class="text-xs text-gray-500 hover:text-gray-300 transition-colors">Clear</button>
+      </div>
+
+      <!-- Result content -->
+      <div id="console-content" class="flex-1 overflow-auto p-2 font-mono text-xs">
+        <p class="text-gray-600 select-none">— Press Run or Submit to execute your query —</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ════════════════════════════════ AUTH MODAL ═══════════════════════════ -->
+<div id="auth-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden">
+  <div class="bg-surface-elevated border border-surface-border rounded-xl w-full max-w-sm p-6 shadow-2xl">
+    <h2 class="text-lg font-bold mb-1">Sign in to BeSQL</h2>
+    <p class="text-xs text-gray-500 mb-4">You need an account to submit solutions.</p>
+
+    <div id="auth-tabs" class="flex gap-2 mb-4 text-sm font-medium">
+      <button class="auth-tab-btn text-accent border-b-2 border-accent pb-1" onclick="showAuthForm('login')">Login</button>
+      <button class="auth-tab-btn text-gray-500 pb-1 hover:text-gray-300" onclick="showAuthForm('register')">Register</button>
+    </div>
+
+    <form id="auth-form" onsubmit="handleAuth(event)" class="space-y-3">
+      <div id="register-fields" class="hidden">
+        <input name="email" type="email" placeholder="Email address"
+          class="w-full bg-surface border border-surface-border rounded px-3 py-2 text-sm focus:outline-none focus:border-accent" />
+      </div>
+      <input name="username" type="text" placeholder="Username" required
+        class="w-full bg-surface border border-surface-border rounded px-3 py-2 text-sm focus:outline-none focus:border-accent" />
+      <input name="password" type="password" placeholder="Password" required
+        class="w-full bg-surface border border-surface-border rounded px-3 py-2 text-sm focus:outline-none focus:border-accent" />
+      <p id="auth-error" class="text-error text-xs hidden"></p>
+      <button type="submit"
+        class="w-full bg-accent hover:bg-accent-hover text-gray-900 font-semibold py-2 rounded text-sm transition-colors">
+        Continue
+      </button>
+    </form>
+
+    <button onclick="closeAuthModal()"
+      class="mt-3 w-full text-xs text-gray-500 hover:text-gray-300 transition-colors">Cancel</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ APP SCRIPT ═══════════════════════════ -->
+<script src="src/js/workspace.js"></script>
+
+</body>
+</html>

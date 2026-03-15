@@ -218,8 +218,8 @@ User submits query
 ### Prerequisites
 
 - Docker & Docker Compose
-- Node 22+ (frontend dev)
-- .NET 9 SDK (backend dev)
+- Python 3.12+ (API dev)
+- Node 22+ (optional, for running JS tests)
 
 ### Run with Docker Compose
 
@@ -232,24 +232,32 @@ docker compose up --build
 
 | Service | URL |
 |---|---|
-| Frontend | http://localhost:3000 |
-| API (Swagger) | http://localhost:5000/swagger |
-| RabbitMQ UI | http://localhost:15672 (besql / change_me_in_production) |
+| Frontend | http://localhost:5500 |
+| API (Swagger) | http://localhost:8000/docs |
+| API (ReDoc) | http://localhost:8000/redoc |
 
-### Backend development
+### Python API development
 
 ```bash
-cd backend
-dotnet restore
-dotnet run --project BeSQL.WebAPI
+# Copy and configure environment variables
+cp api/.env.example api/.env
+# Edit api/.env with your database credentials and JWT secret
+
+# Install dependencies
+pip install -r api/requirements.txt
+
+# Run the API server with hot-reload
+uvicorn api.main:app --reload --port 8000
 ```
 
-### Frontend development
+### Run tests
 
 ```bash
-cd frontend
-npm install
-npm run dev   # http://localhost:5173
+# JavaScript tests (in-browser SQL engine, auth, validator)
+npm test
+
+# Python API tests (security, grading logic)
+python tests/test_api.py
 ```
 
 ---
