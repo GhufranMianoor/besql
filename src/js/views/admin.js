@@ -255,6 +255,16 @@ function openProblemEditor(id) {
       <input class="inp" id="pe-daily" type="date" value="${p.dailyDate || ''}" style="width:180px">
     </div>`;
   openModal('modal-problem');
+  setTimeout(() => {
+    const f = el('pe-title');
+    if (f) f.focus();
+    // Wire Enter key on single-line inputs to save the problem
+    document.querySelectorAll('#prob-editor-body .inp').forEach(inp => {
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); saveProblem(); }
+      });
+    });
+  }, 100);
 }
 
 function renderTCEditor(tcs) {
@@ -345,6 +355,9 @@ function saveProblem() {
   }
 
   persistProblems();
+  if (CONFIG.USE_SUPABASE && supabaseClient) {
+    SB.saveProblem(updated).catch(e => console.error('[BeSQL] Problem save failed:', e));
+  }
   closeModal('modal-problem');
   renderAdminProblems();
   toast('Problem saved', 'success');
@@ -354,6 +367,9 @@ function deleteProblem(id) {
   if (!confirm('Delete this problem?')) return;
   S.problems = S.problems.filter(p => p.id !== id);
   persistProblems();
+  if (CONFIG.USE_SUPABASE && supabaseClient) {
+    SB.deleteProblem(id).catch(e => console.error('[BeSQL] Problem delete failed:', e));
+  }
   renderAdminProblems();
   toast('Deleted', 'info');
 }
@@ -405,6 +421,16 @@ function openContestCreator(id) {
       </label>
     </div>`;
   openModal('modal-contest');
+  setTimeout(() => {
+    const f = el('ce-title');
+    if (f) f.focus();
+    // Wire Enter key on single-line inputs to save the contest
+    document.querySelectorAll('#contest-editor-body .inp').forEach(inp => {
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); saveContest(); }
+      });
+    });
+  }, 100);
 }
 
 function saveContest() {
@@ -433,6 +459,9 @@ function saveContest() {
     S.contests.push(updated);
   }
   LS.set('contests', S.contests);
+  if (CONFIG.USE_SUPABASE && supabaseClient) {
+    SB.saveContest(updated).catch(e => console.error('[BeSQL] Contest save failed:', e));
+  }
   closeModal('modal-contest');
   renderAdminContests();
   renderContests();
@@ -446,6 +475,9 @@ function launchContest(id) {
   c.startTime = Date.now();
   c.endTime   = Date.now() + c.duration * 60000;
   LS.set('contests', S.contests);
+  if (CONFIG.USE_SUPABASE && supabaseClient) {
+    SB.saveContest(c).catch(e => console.error('[BeSQL] Contest launch failed:', e));
+  }
   renderAdminContests(); renderContests(); renderSidebar();
   toast(`${c.title} is now LIVE!`, 'success');
 }
@@ -456,6 +488,9 @@ function endContest(id) {
   c.status  = 'ended';
   c.endTime = Date.now();
   LS.set('contests', S.contests);
+  if (CONFIG.USE_SUPABASE && supabaseClient) {
+    SB.saveContest(c).catch(e => console.error('[BeSQL] Contest end failed:', e));
+  }
   renderAdminContests(); renderContests(); renderSidebar();
   toast('Contest ended', 'info');
 }

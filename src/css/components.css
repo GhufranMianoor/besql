@@ -37,8 +37,8 @@
 .btn-danger { background: var(--rdim); color: var(--rose); border: 1px solid rgba(240, 80, 96, 0.2); }
 .btn-danger:hover:not(:disabled) { background: rgba(240, 80, 96, 0.14); }
 
-.btn-success { background: var(--gdim); color: var(--grn); border: 1px solid rgba(46, 200, 102, 0.2); }
-.btn-success:hover:not(:disabled) { background: rgba(46, 200, 102, 0.14); }
+.btn-success { background: var(--gdim); color: var(--grn); border: 1px solid rgba(79, 142, 247, 0.2); }
+.btn-success:hover:not(:disabled) { background: rgba(79, 142, 247, 0.14); }
 
 .btn-outline { background: transparent; border: 1px solid var(--line3); color: var(--t1); }
 .btn-outline:hover:not(:disabled) { border-color: var(--grn); color: var(--grn); }
@@ -105,7 +105,7 @@
 .rb-admin      { background: rgba(240, 80, 96, 0.12);   color: #f07080; border: 1px solid rgba(240, 80, 96, 0.25); }
 .rb-master     { background: rgba(155, 114, 240, 0.10); color: #b09ae8; border: 1px solid rgba(155, 114, 240, 0.25); }
 .rb-user       { background: var(--idim);               color: #7aabe8; border: 1px solid rgba(79, 142, 247, 0.25); }
-.rb-contestant { background: var(--gdim);               color: var(--grn); border: 1px solid rgba(46, 200, 102, 0.22); }
+.rb-contestant { background: var(--gdim);               color: var(--grn); border: 1px solid rgba(79, 142, 247, 0.22); }
 
 /* ---------- Difficulty Tags ---------- */
 .tag {
@@ -119,7 +119,7 @@
   border: 1px solid var(--line2);
   font-family: var(--mono);
 }
-.diff-easy   { font-size: 11px; padding: 2px 8px; border-radius: 3px; font-weight: 600; font-family: var(--mono); background: rgba(46,  200, 102, 0.10); color: #2ec866; border: 1px solid rgba(46, 200, 102, 0.2); }
+.diff-easy   { font-size: 11px; padding: 2px 8px; border-radius: 3px; font-weight: 600; font-family: var(--mono); background: rgba(79, 142, 247, 0.10); color: #4f8ef7; border: 1px solid rgba(79, 142, 247, 0.2); }
 .diff-med    { font-size: 11px; padding: 2px 8px; border-radius: 3px; font-weight: 600; font-family: var(--mono); background: rgba(240, 160, 48,  0.10); color: #f0a030; border: 1px solid rgba(240, 160, 48, 0.2); }
 .diff-hard   { font-size: 11px; padding: 2px 8px; border-radius: 3px; font-weight: 600; font-family: var(--mono); background: rgba(240, 80,  96,  0.10); color: #f06070; border: 1px solid rgba(240, 80, 96, 0.2); }
 .diff-expert { font-size: 11px; padding: 2px 8px; border-radius: 3px; font-weight: 600; font-family: var(--mono); background: rgba(155, 114, 240, 0.10); color: #a98fe8; border: 1px solid rgba(155, 114, 240, 0.2); }
@@ -142,7 +142,7 @@
 }
 .inp:focus, .sel:focus, .ta:focus {
   border-color: var(--grn);
-  box-shadow: 0 0 0 3px rgba(46, 200, 102, 0.1);
+  box-shadow: 0 0 0 3px rgba(79, 142, 247, 0.1);
 }
 .inp::placeholder, .ta::placeholder { color: var(--t3); }
 .sel  { appearance: none; cursor: pointer; }
@@ -159,7 +159,7 @@
 }
 .code-ta:focus {
   border-color: var(--grn) !important;
-  box-shadow: 0 0 0 3px rgba(46, 200, 102, 0.08) !important;
+  box-shadow: 0 0 0 3px rgba(79, 142, 247, 0.08) !important;
 }
 body.light .code-ta { background: var(--bg1) !important; }
 
@@ -267,7 +267,7 @@ body.light .sample-table tbody tr:nth-child(even) { background: var(--bg1); }
   min-width: 220px;
   max-width: 360px;
 }
-.t-ok   { border-color: rgba(46, 200, 102, 0.3); background: rgba(10, 28, 18, 0.95); color: #2ec866; }
+.t-ok   { border-color: rgba(79, 142, 247, 0.3); background: rgba(10, 16, 36, 0.95); color: #4f8ef7; }
 .t-err  { border-color: rgba(240, 80, 96, 0.3);  background: rgba(28, 10, 14, 0.95); color: #f07080; }
 .t-inf  { border-color: rgba(79, 142, 247, 0.25); background: rgba(10, 16, 36, 0.95); color: #7aabe8; }
 .t-warn { border-color: rgba(240, 160, 48, 0.25); background: rgba(28, 20, 8, 0.95);  color: #f0b040; }
@@ -310,7 +310,7 @@ body.light .sample-table tbody tr:nth-child(even) { background: var(--bg1); }
   border-radius: 10px;
   background: var(--gdim);
   color: var(--grn);
-  border: 1px solid rgba(46, 200, 102, 0.2);
+  border: 1px solid rgba(79, 142, 247, 0.2);
   font-weight: 700;
   font-family: var(--mono);
   letter-spacing: 0.3px;
@@ -401,7 +401,7 @@ body.light .sample-table tbody tr:nth-child(even) { background: var(--bg1); }
   margin-bottom: 4px;
   border-radius: 0 4px 4px 0;
 }
-.tc-pass    { border-left-color: var(--grn);  background: rgba(46, 200, 102, 0.04); }
+.tc-pass    { border-left-color: var(--grn);  background: rgba(79, 142, 247, 0.04); }
 .tc-fail    { border-left-color: var(--rose); background: rgba(240, 80, 96, 0.04); }
 .tc-pending { border-left-color: var(--line2); }
 
@@ -411,7 +411,7 @@ body.light .sample-table tbody tr:nth-child(even) { background: var(--bg1); }
 
 /* ---------- Streak Calendar ---------- */
 .streak-day { width: 28px; height: 28px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; font-family: var(--mono); }
-.sd-done    { background: rgba(46, 200, 102, 0.15); color: var(--grn);  border: 1px solid rgba(46, 200, 102, 0.3); }
+.sd-done    { background: rgba(79, 142, 247, 0.15); color: var(--grn);  border: 1px solid rgba(79, 142, 247, 0.3); }
 .sd-today   { background: var(--idim);              color: var(--ind);  border: 1px solid rgba(79, 142, 247, 0.3); }
 .sd-miss    { background: var(--bg3);               color: var(--t4);   border: 1px solid var(--line2); }
 

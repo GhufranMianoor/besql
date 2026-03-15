@@ -268,12 +268,19 @@ function judgeSubmit() {
     };
     S.submissions.unshift(sub);
     LS.set(`subs:${S.user.userId}`, S.submissions);
+    if (CONFIG.USE_SUPABASE && supabaseClient) {
+      SB.saveSubmission(sub).catch(e => console.error('[BeSQL] Submission save failed:', e));
+    }
 
     if (verdict === 'AC' && !alreadySolved) {
       const bonus = S.judgeElapsed < 60 ? 50 : S.judgeElapsed < 120 ? 30 : S.judgeElapsed < 300 ? 10 : 0;
       S.user.score  = (S.user.score  || 0) + p.points + bonus;
       S.user.solved = (S.user.solved || 0) + 1;
       LS.set(`user:${S.user.username}`, S.user);
+      if (CONFIG.USE_SUPABASE && supabaseClient) {
+        SB.updateProfile(S.user.userId, { score: S.user.score, solved: S.user.solved })
+          .catch(e => console.error('[BeSQL] Profile update failed:', e));
+      }
       clearInterval(S.judgeTimer);
     }
 
@@ -300,7 +307,6 @@ function judgeSubmit() {
     fb.classList.remove('hidden');
 
     if (verdict === 'AC') {
-      LS.set(`user:${S.user.username}`, S.user);
       renderTopRight();
       const btnNext = document.getElementById('btn-judge-next');
       const nextIdx = S.problems.findIndex(x => x.id === p.id) + 1;

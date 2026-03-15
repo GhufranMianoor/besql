@@ -212,6 +212,17 @@ function openCustomCreator() {
       <input class="inp" id="cc-invite" placeholder="user1, user2, ...">
     </div>`;
   openModal('modal-custom');
+  setTimeout(() => {
+    const f = el('cc-title');
+    if (f) f.focus();
+    // Wire Enter key on single-line inputs (except cc-code-input which already has its own handler)
+    document.querySelectorAll('#custom-creator-body .inp').forEach(inp => {
+      if (inp.id === 'cc-code-input') return; // already handled inline
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); saveCustomContest(); }
+      });
+    });
+  }, 100);
 }
 
 function ccAddByCode() {
@@ -267,6 +278,9 @@ function saveCustomContest() {
   };
   S.customContests.push(c);
   LS.set(`custom:${S.user.userId}`, S.customContests);
+  if (CONFIG.USE_SUPABASE && supabaseClient) {
+    SB.saveContest(c).catch(e => console.error('[BeSQL] Custom contest save failed:', e));
+  }
   closeModal('modal-custom');
   renderCustom();
   toast('Custom contest created!', 'success');
