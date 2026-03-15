@@ -29,7 +29,19 @@ function openAuth(mode = 'login') {
       <button class="btn btn-blue btn-md" onclick="doRegister()">Create Account</button>
     </div>`;
   openModal('modal-auth');
-  setTimeout(() => { const f = el('au') || el('ru'); if (f) f.focus(); }, 100);
+  setTimeout(() => {
+    const f = el('au') || el('ru');
+    if (f) f.focus();
+    // Wire Enter key to submit the auth form
+    document.querySelectorAll('#auth-body .inp').forEach(inp => {
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (mode === 'login') doLogin(); else doRegister();
+        }
+      });
+    });
+  }, 100);
 }
 
 function doLogin() {
