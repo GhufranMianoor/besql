@@ -125,8 +125,8 @@ function renderJudge(ctx) {
   });
   ed.addEventListener('input', () => { el('judge-chars').textContent = ed.value.length; });
 
-  el('btn-judge-submit').disabled    = isSolved;
-  el('btn-judge-submit').textContent = isSolved ? 'Solved ✓' : 'Submit';
+  el('btn-judge-submit').disabled  = isSolved;
+  el('btn-judge-submit').innerHTML = isSolved ? '✓ Solved' : 'Submit';
 }
 
 /* ── Clear panel state between problems ─────────────────── */
@@ -159,15 +159,16 @@ function judgeRun() {
   const sql = el('judge-editor').value;
   if (!sql.trim()) { toast('Write a query first', 'warn'); return; }
 
-  el('btn-judge-run').textContent = 'Running…';
-  el('btn-judge-run').disabled    = true;
+  const btnRun = el('btn-judge-run');
+  btnRun.innerHTML = '<span class="spinner-sm"></span> Running…';
+  btnRun.disabled  = true;
 
   setTimeout(() => {
     const result = runSQL(sql, DB);
     showJudgeResult(result);
     runTestCases(p, result, false);
-    el('btn-judge-run').textContent = 'Run & Test';
-    el('btn-judge-run').disabled    = false;
+    btnRun.innerHTML = '▷ Run';
+    btnRun.disabled  = false;
   }, 120);
 }
 
@@ -195,23 +196,25 @@ function runTestCases(p, result, isSubmit) {
 /* ── Result table renderer ─────────────────────────────── */
 function showJudgeResult(result) {
   const panel = el('judge-result');
-  el('judge-row-count').textContent = result.error ? '' : `${result.rowCount} rows`;
+  el('judge-row-count').textContent = result.error ? '' : `${result.rowCount} row${result.rowCount !== 1 ? 's' : ''}`;
 
   if (result.error) {
     panel.innerHTML = `
       <div class="res-panel">
-        <div class="res-hdr"><span style="color:var(--rose);font-weight:600">SQL ERROR</span></div>
-        <div style="padding:10px 12px;font-family:var(--mono);font-size:12px;color:var(--rose)">${esc(result.error)}</div>
+        <div class="res-hdr">
+          <span style="color:var(--rose);font-weight:700">⚠ SYNTAX ERROR</span>
+        </div>
+        <div style="padding:12px 14px;font-family:var(--mono);font-size:12px;color:var(--rose);line-height:1.6;white-space:pre-wrap">${esc(result.error)}</div>
       </div>`;
   } else if (!result.columns.length) {
     panel.innerHTML = `
       <div class="res-panel">
-        <div class="res-hdr"><span style="color:var(--t2)">NO ROWS RETURNED</span></div>
+        <div class="res-hdr"><span style="color:var(--t3)">NO ROWS RETURNED</span></div>
       </div>`;
   } else {
     const ths = result.columns.map(c => `<th>${esc(c)}</th>`).join('');
     const trs = result.rows.slice(0, 50).map((row, i) =>
-      `<tr style="animation:rowIn .12s ease ${i * 0.015}s both">
+      `<tr style="animation:rowIn .12s ease ${i * 0.012}s both">
         ${row.map(cell =>
           cell === null
             ? '<td><span class="tbl-null">NULL</span></td>'
@@ -243,8 +246,8 @@ function judgeSubmit() {
   const sql = el('judge-editor').value;
   if (!sql.trim()) { toast('Write a query first', 'warn'); return; }
 
-  el('btn-judge-submit').disabled    = true;
-  el('btn-judge-submit').textContent = 'Judging…';
+  el('btn-judge-submit').disabled   = true;
+  el('btn-judge-submit').innerHTML  = '<span class="spinner-sm"></span> Judging…';
 
   setTimeout(() => {
     const result     = runSQL(sql, DB);
@@ -279,21 +282,23 @@ function judgeSubmit() {
 
     // ── Verdict banner ───────────────────────────────────
     const vColor = verdict === 'AC' ? 'var(--grn)' : verdict === 'CE' ? 'var(--violet)' : verdict === 'TLE' ? 'var(--gold)' : 'var(--rose)';
+    const vIcon  = verdict === 'AC' ? '✓' : verdict === 'CE' ? '⚠' : verdict === 'TLE' ? '⏱' : '✗';
     el('judge-verdict').innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:5px;background:${vColor}18;border:1px solid ${vColor}44">
-        <span style="color:${vColor};font-size:15px;font-weight:800">${verdict}</span>
+      <div class="judge-verdict-banner" style="background:${vColor}15;border-color:${vColor}40">
+        <span style="color:${vColor};font-size:16px;font-weight:800">${vIcon}</span>
+        <span style="color:${vColor};font-size:13px;font-weight:700">${verdict}</span>
         <span style="font-size:11px;color:var(--t2)">${sub.tcPassed}/${sub.tcTotal} tests</span>
       </div>`;
     el('judge-verdict').classList.remove('hidden');
 
     const fb = el('judge-feedback');
     fb.innerHTML = `
-      <div class="fx ic gap2" style="padding:10px 14px;border-radius:5px;background:${vColor}10;border:1px solid ${vColor}30">
-        <span style="color:${vColor};font-size:16px">${verdict === 'AC' ? '✓' : '✗'}</span>
-        <span style="color:${vColor};font-size:12px;font-weight:500">
-          ${verdict === 'AC'  ? `Accepted! ${sub.tcPassed}/${sub.tcTotal} test cases passed.`
-          : verdict === 'CE'  ? `Runtime Error: ${result.error}`
-          : verdict === 'TLE' ? `Time Limit Exceeded (${S.judgeElapsed}s)`
+      <div class="judge-feedback-strip" style="background:${vColor}08;border-color:${vColor}28">
+        <span style="color:${vColor};font-size:15px">${vIcon}</span>
+        <span style="color:${vColor};font-size:12.5px;font-weight:500">
+          ${verdict === 'AC'  ? `Accepted! ${sub.tcPassed}/${sub.tcTotal} test cases passed. Time: ${fmtT(sub.timeTaken)}.`
+          : verdict === 'CE'  ? `Syntax / Runtime Error — check your SQL: ${esc(result.error)}`
+          : verdict === 'TLE' ? `Time Limit Exceeded (${fmtT(S.judgeElapsed)})`
           :                     `Wrong Answer — ${sub.tcPassed}/${sub.tcTotal} test cases passed.`}
         </span>
       </div>`;
@@ -312,13 +317,32 @@ function judgeSubmit() {
           : null;
       }
       toast(`Accepted! +${p.points}${p.points !== sub.tcTotal ? ' points' : ''}`, 'success');
-      el('btn-judge-submit').textContent = 'Solved ✓';
+      el('btn-judge-submit').innerHTML  = '✓ Solved';
     } else {
-      el('btn-judge-submit').disabled    = false;
-      el('btn-judge-submit').textContent = 'Submit';
+      el('btn-judge-submit').disabled   = false;
+      el('btn-judge-submit').innerHTML  = 'Submit';
       toast(verdict === 'CE' ? 'Error in query' : verdict === 'TLE' ? 'Time limit exceeded' : 'Wrong answer', 'error');
     }
   }, 300);
+}
+
+/* ── Copy SQL button ────────────────────────────────────── */
+function judgeCopySQL() {
+  const sql = el('judge-editor').value;
+  if (!sql.trim()) { toast('Nothing to copy', 'warn'); return; }
+  navigator.clipboard.writeText(sql).then(() => {
+    const btn = el('btn-copy-sql');
+    if (btn) {
+      btn.textContent = '✓ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Copy';
+        btn.classList.remove('copied');
+      }, 2000);
+    }
+  }).catch(() => {
+    toast('Copy failed', 'error');
+  });
 }
 
 /* ── Editor clear button ────────────────────────────────── */

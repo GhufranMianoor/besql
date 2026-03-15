@@ -55,9 +55,17 @@
   /* ---------- Shadows ---------- */
   --sh:  0 1px 3px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.3);
   --sh2: 0 2px 8px rgba(0, 0, 0, 0.6), 0 12px 40px rgba(0, 0, 0, 0.4);
+  --sh-grn:  0 0 0 3px rgba(46, 200, 102, 0.18);
+  --sh-ind:  0 0 0 3px rgba(79, 142, 247, 0.18);
 
   /* ---------- Transitions ---------- */
-  --tr: 0.14s ease;
+  --tr:  0.14s ease;
+  --tr2: 0.22s ease;
+
+  /* ---------- Gradients ---------- */
+  --grad-grn: linear-gradient(135deg, #2ec866 0%, #25c2a0 100%);
+  --grad-ind: linear-gradient(135deg, #4f8ef7 0%, #7c6ff7 100%);
+  --grad-gold: linear-gradient(135deg, #f0a030 0%, #f0c040 100%);
 }
 
 /* ============================================================

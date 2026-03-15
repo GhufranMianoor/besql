@@ -14,23 +14,24 @@ function renderHome() {
 
   // Stats row
   el('home-stats').innerHTML = [
-    { l: 'Problems',      v: total,                                    c: 'var(--ind)' },
-    { l: 'Your Solved',   v: solved.size,                              c: 'var(--grn)' },
-    { l: 'Live Contests', v: S.contests.filter(c => c.status === 'live').length, c: 'var(--rose)' },
-    { l: 'Your Rank',     v: getUserRank(),                            c: 'var(--gold)' },
+    { l: 'Problems',      v: total,                                           icon: '📋', c: 'var(--ind)' },
+    { l: 'Solved',        v: solved.size,                                     icon: '✓',  c: 'var(--grn)' },
+    { l: 'Live Contests', v: S.contests.filter(c => c.status === 'live').length, icon: '🏆', c: 'var(--rose)' },
+    { l: 'Your Rank',     v: getUserRank(),                                   icon: '🥇', c: 'var(--gold)' },
   ].map(s => `
     <div class="stat">
-      <div style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin-bottom:7px">${s.l}</div>
+      <div style="font-size:18px;margin-bottom:6px">${s.icon}</div>
       <div class="stat-v" style="color:${s.c}">${s.v}</div>
+      <div class="stat-l">${s.l}</div>
     </div>`).join('');
 
   // Streak widget
   el('home-streak').innerHTML = S.user ? `
     <div class="fx ic gap2">
-      <span style="font-size:20px">🔥</span>
+      <span style="font-size:24px">🔥</span>
       <div>
-        <div style="font-size:22px;font-weight:800;color:var(--gold)">${S.user.streak || 0}</div>
-        <div style="font-size:10px;color:var(--t3);letter-spacing:1px">DAY STREAK</div>
+        <div style="font-size:24px;font-weight:800;color:var(--gold);line-height:1">${S.user.streak || 0}</div>
+        <div style="font-size:10px;color:var(--t3);letter-spacing:1px;margin-top:2px">DAY STREAK</div>
       </div>
     </div>` : '';
 
@@ -38,7 +39,7 @@ function renderHome() {
   const active = S.contests.filter(c => c.status === 'live' || c.status === 'upcoming').slice(0, 4);
   el('home-contests').innerHTML = active.length
     ? active.map(c => `
-      <div style="display:flex;align-items:center;gap:12px;padding:11px 15px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .1s"
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 15px;border-bottom:1px solid var(--line);cursor:pointer;transition:background var(--tr)"
            onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''"
            onclick="nav('contest-detail','${c.id}')">
         ${c.status === 'live' ? '<div class="live-dot"></div>' : '<span style="font-size:14px">📋</span>'}
@@ -50,58 +51,59 @@ function renderHome() {
         </div>
         ${c.status === 'live' ? '<span class="live-pill"><div class="live-dot" style="width:6px;height:6px"></div>LIVE</span>' : ''}
       </div>`).join('')
-    : '<div class="empty"><div class="empty-ico">📋</div><div class="empty-lbl">No active contests</div></div>';
+    : '<div class="empty"><div class="empty-ico">📋</div><div class="empty-lbl">No active contests right now</div></div>';
 
   // Daily problem
   const daily = S.problems.find(p => p.dailyDate === getTodayStr()) || S.problems[0];
   el('daily-badge').className = daily ? diffCls(daily.difficulty) : 'diff-easy';
   el('home-daily').innerHTML = daily ? `
-    <div style="font-size:17px;font-weight:800;margin-bottom:6px">${esc(daily.title)}</div>
-    <div style="font-size:12px;color:var(--t1);line-height:1.7;margin-bottom:12px">
-      ${esc(daily.description.slice(0, 140))}${daily.description.length > 140 ? '...' : ''}
+    <div style="font-size:17px;font-weight:800;margin-bottom:6px;line-height:1.25">${esc(daily.title)}</div>
+    <div style="font-size:12.5px;color:var(--t1);line-height:1.7;margin-bottom:14px">
+      ${esc(daily.description.slice(0, 150))}${daily.description.length > 150 ? '…' : ''}
     </div>
-    <div class="fx ic gap3">
+    <div class="fx ic sb flex-wrap gap3">
       <div class="fx gap2 flex-wrap">${daily.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
       <button class="btn btn-blue btn-md" onclick="nav('judge',{problemId:'${daily.id}',backView:'home'})">Solve →</button>
-    </div>` : '<div class="empty"><div class="empty-ico">—</div></div>';
+    </div>` : '<div class="empty"><div class="empty-ico">📚</div><div class="empty-lbl">No problem today</div></div>';
 
   // Mini scoreboard
   const lb = buildLeaderboard().slice(0, 8);
-  el('home-scoreboard').innerHTML = lb.map((p, i) => `
+  el('home-scoreboard').innerHTML = lb.length ? lb.map((p, i) => `
     <div class="fx ic gap2 ${S.user && p.userId === S.user.userId ? 'sb-me' : ''}"
-         style="padding:9px 14px;border-bottom:1px solid var(--line)">
+         style="padding:9px 14px;${i < lb.length - 1 ? 'border-bottom:1px solid var(--line);' : ''}">
       <div class="rm ${i === 0 ? 'rm1' : i === 1 ? 'rm2' : i === 2 ? 'rm3' : 'rmn'}">${i + 1}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:12px;color:${S.user && p.userId === S.user.userId ? 'var(--ind)' : 'var(--t0)'}" class="trunc">
+        <div style="font-size:12.5px;color:${S.user && p.userId === S.user.userId ? 'var(--ind)' : 'var(--t0)'};font-weight:500" class="trunc">
           ${esc(p.username)}
         </div>
         <div style="font-size:10px;color:var(--t3)">${p.solved} solved</div>
       </div>
-      <div style="font-size:14px;font-weight:800;color:var(--gold)">${fmtN(p.score)}</div>
-    </div>`).join('') || '<div class="empty"><div class="empty-ico">🏆</div></div>';
+      <div style="font-size:13.5px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums">${fmtN(p.score)}</div>
+    </div>`).join('') : '<div class="empty"><div class="empty-ico">🏆</div><div class="empty-lbl">No scores yet</div></div>';
 
   // Progress card
   const pct = total ? Math.round(solved.size / total * 100) : 0;
   el('home-progress').innerHTML = `
-    <div style="margin-bottom:14px">
-      <div class="fx ic sb mb1" style="font-size:11px;color:var(--t2)">
-        <span>OVERALL PROGRESS</span><span>${solved.size}/${total}</span>
+    <div style="margin-bottom:16px">
+      <div class="fx ic sb" style="font-size:11px;color:var(--t2);margin-bottom:6px">
+        <span style="font-weight:600;letter-spacing:.4px;text-transform:uppercase">Overall</span>
+        <span style="font-weight:700;color:var(--t1)">${solved.size}<span style="color:var(--t3)">/${total}</span></span>
       </div>
-      <div class="pbar"><div class="pfill" style="width:${pct}%;background:var(--ind)"></div></div>
+      <div class="pbar"><div class="pfill" style="width:${pct}%;background:var(--grad-ind)"></div></div>
     </div>
     ${['Easy', 'Medium', 'Hard', 'Expert'].map(d => {
-      const dp  = S.problems.filter(p => p.difficulty === d);
-      const ds  = dp.filter(p => solved.has(p.id)).length;
-      const dp2 = Math.round(dp.length ? ds / dp.length * 100 : 0);
+      const dp   = S.problems.filter(p => p.difficulty === d);
+      const ds   = dp.filter(p => solved.has(p.id)).length;
+      const dp2  = Math.round(dp.length ? ds / dp.length * 100 : 0);
       const color = d === 'Easy' ? 'var(--grn)' : d === 'Medium' ? 'var(--gold)' : d === 'Hard' ? 'var(--rose)' : 'var(--violet)';
-      return `
+      return dp.length ? `
         <div style="margin-bottom:10px">
-          <div class="fx ic sb mb1">
+          <div class="fx ic sb" style="margin-bottom:5px">
             <span class="${diffCls(d)}">${d}</span>
-            <span style="font-size:11px;color:var(--t2)">${ds}/${dp.length}</span>
+            <span style="font-size:11px;color:var(--t3)">${ds}/${dp.length}</span>
           </div>
           <div class="pbar"><div class="pfill" style="width:${dp2}%;background:${color}"></div></div>
-        </div>`;
+        </div>` : '';
     }).join('')}`;
 }
 
