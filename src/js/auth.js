@@ -1,8 +1,8 @@
 /**
  * auth.js — User authentication (localStorage-based for demo mode).
  *
- * In production, replace these functions with Supabase Auth calls.
- * See supabase/schema.sql for the recommended database structure.
+ * In production, replace these functions with MongoDB-backed API calls.
+ * See mongodb/schema.js for the recommended database structure.
  */
 'use strict';
 
@@ -52,9 +52,7 @@ function doRegister() {
     role: 'contestant', score: 0, solved: 0, streak: 0, joinedAt: Date.now(),
   };
   LS.set(`user:${u}`, newUser);
-  _finishLogin(newUser);
-  closeModal('modal-auth');
-  toast(`Welcome, ${u}!`, 'success');
+  _finishLogin(newUser, `Welcome, ${u}!`);
 }
 
 /** One-click demo login (creates the account if it doesn't exist) */
@@ -84,21 +82,24 @@ function _showAuthErr(id, msg) {
   if (e) { e.textContent = msg; show(e); }
 }
 
-function _finishLogin(user) {
+function _finishLogin(user, toastMsg) {
   S.user = user;
   LS.set('session', user.username);
   S.submissions = LS.get(`subs:${user.userId}`) || [];
   closeModal('modal-auth');
   renderTopRight();
   renderSidebar();
-  renderHome();
-  toast(`Signed in as ${user.username}`, 'success');
+  // Re-render the current view so the signed-in state is reflected
+  nav(S.currentView);
+  toast(toastMsg || `Signed in as ${user.username}`, 'success');
 }
 
-/** Restore session from localStorage on page load */
+/** Restore session from localStorage on page load (no toast or render) */
 function restoreSession() {
   const saved = LS.get('session');
   if (!saved) return;
   const user = LS.get(`user:${saved}`);
-  if (user) _finishLogin(user);
+  if (!user) return;
+  S.user = user;
+  S.submissions = LS.get(`subs:${user.userId}`) || [];
 }

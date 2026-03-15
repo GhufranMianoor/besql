@@ -1,7 +1,7 @@
 /**
  * config.js — Application-wide constants and configuration.
  *
- * Keep environment-specific values (e.g. Supabase keys) in environment
+ * Keep environment-specific values (e.g. MongoDB URI) in environment
  * variables / a .env file and never commit secrets to source control.
  */
 'use strict';
@@ -11,19 +11,19 @@ const CONFIG = Object.freeze({
   APP_VERSION: '2.0.0',
 
   /**
-   * Supabase configuration.
-   * Replace with your project URL and anon key from
-   * https://supabase.com/dashboard/project/<id>/settings/api
+   * MongoDB configuration.
+   * Set MONGODB_URI to your connection string and MONGODB_DB to the
+   * database name.  In production these should come from environment
+   * variables served by your backend API.
    *
-   * These values are safe to expose in browser code because Supabase
-   * uses Row-Level Security (RLS) to protect data — the anon key only
-   * grants access to what RLS policies allow.
+   * See mongodb/schema.js for the recommended collection structure
+   * and validation rules.
    */
-  SUPABASE_URL:      '', // e.g. 'https://xyzcompany.supabase.co'
-  SUPABASE_ANON_KEY: '', // e.g. 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+  MONGODB_URI: '', // e.g. 'mongodb+srv://user:pass@cluster.mongodb.net'
+  MONGODB_DB:  '', // e.g. 'besql'
 
   /** Feature flags */
-  USE_SUPABASE: false, // Set to true once Supabase credentials are configured
+  USE_MONGODB: false, // Set to true once a backend API with MongoDB is configured
 
   /** Local storage namespace prefix */
   LS_PREFIX: 'besql_',
