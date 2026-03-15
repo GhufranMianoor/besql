@@ -1,8 +1,8 @@
 /**
  * auth.js — User authentication (localStorage-based for demo mode).
  *
- * In production, replace these functions with Supabase Auth calls.
- * See supabase/schema.sql for the recommended database structure.
+ * In production, replace these functions with MongoDB-backed API calls.
+ * See mongodb/schema.js for the recommended database structure.
  */
 'use strict';
 
