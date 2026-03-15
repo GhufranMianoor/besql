@@ -416,11 +416,16 @@ test('WHERE with string equality', () => {
 
 /* ── Print results ────────────────────────────────────── */
 console.log('\n BeSQL — sql-engine.test.js\n');
-results.forEach(r => {
+const pad = String(results.length).length;
+results.forEach((r, i) => {
+  const num  = String(i + 1).padStart(pad);
   const icon = r.ok ? '✓' : '✗';
-  const msg  = r.ok ? r.name : `${r.name}\n    → ${r.error}`;
-  console.log(`  ${icon} ${msg}`);
+  const tag  = r.ok ? 'PASS' : 'FAIL';
+  console.log(`  ${num}. ${icon} [${tag}] ${r.name}`);
+  if (!r.ok) {
+    console.log(`  ${' '.repeat(pad)}       → ${r.error}`);
+  }
 });
 
-console.log(`\n  ${passed} passed, ${failed} failed\n`);
+console.log(`\n  Total: ${results.length} | Passed: ${passed} | Failed: ${failed}\n`);
 process.exit(failed > 0 ? 1 : 0);
