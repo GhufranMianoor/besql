@@ -236,6 +236,13 @@ function _evalWhere(cond, row) {
   const orParts = _splitLogical(cond, /\bOR\b/i);
   if (orParts.length > 1) return orParts.some(p => _evalWhere(p.trim(), row));
 
+  // BETWEEN — must be checked before AND split because BETWEEN x AND y uses AND
+  const btM = cond.match(/^([^\s]+)\s+BETWEEN\s+(.+?)\s+AND\s+(.+)$/i);
+  if (btM) {
+    const v = parseFloat(_col(row, btM[1]));
+    return v >= parseFloat(btM[2]) && v <= parseFloat(btM[3]);
+  }
+
   // AND
   const andParts = _splitLogical(cond, /\bAND\b/i);
   if (andParts.length > 1) return andParts.every(p => _evalWhere(p.trim(), row));
@@ -253,13 +260,6 @@ function _evalWhere(cond, row) {
   if (/IS\s+NULL/i.test(cond)) {
     const c = cond.match(/^([^\s]+)/)[1];
     return _col(row, c) == null;
-  }
-
-  // BETWEEN
-  const btM = cond.match(/^([^\s]+)\s+BETWEEN\s+(.+?)\s+AND\s+(.+)$/i);
-  if (btM) {
-    const v = parseFloat(_col(row, btM[1]));
-    return v >= parseFloat(btM[2]) && v <= parseFloat(btM[3]);
   }
 
   // (NOT) IN

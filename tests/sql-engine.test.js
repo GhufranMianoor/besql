@@ -152,11 +152,16 @@ test('WHERE salary IN list', () => {
 });
 
 test('WHERE salary BETWEEN low AND high', () => {
-  const r = runSQL('SELECT name FROM employees WHERE salary BETWEEN 80000 AND 100000', DB);
+  const r = runSQL('SELECT name, salary FROM employees WHERE salary BETWEEN 80000 AND 100000', DB);
   assert(!r.error, r.error);
   assert(r.rowCount > 0, 'Should have rows in range');
-  const salIdx = r.columns.indexOf('name');
-  assert(r.rows.every(() => true), 'Placeholder for row check');
+  const salIdx = r.columns.indexOf('salary');
+  assert(
+    r.rows.every(row => { const s = Number(row[salIdx]); return s >= 80000 && s <= 100000; }),
+    'All returned salaries must be between 80000 and 100000'
+  );
+  // employees with salary in [80k, 100k]: Alice(90k), Grace(80k), Eve(95k), Jack(88k) = 4
+  assertEq(r.rowCount, 4, '4 employees in [80000, 100000]');
 });
 
 test('WHERE with AND', () => {
