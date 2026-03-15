@@ -15,6 +15,18 @@ const tog  = (id, cond) => cond ? show(id) : hide(id);
 function openModal(id)  { show(id); }
 function closeModal(id) { hide(id); }
 
+/* ── Global keyboard shortcuts ─────────────────────────── */
+document.addEventListener('keydown', e => {
+  // Escape → close the top-most open modal
+  if (e.key === 'Escape') {
+    const modals = ['modal-custom', 'modal-contest', 'modal-problem', 'modal-auth'];
+    for (const id of modals) {
+      const m = document.getElementById(id);
+      if (m && !m.classList.contains('hidden')) { closeModal(id); e.preventDefault(); return; }
+    }
+  }
+});
+
 /* ── Toast notifications ───────────────────────────────── */
 /**
  * @param {string} msg
