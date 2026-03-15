@@ -300,7 +300,6 @@ function judgeSubmit() {
     fb.classList.remove('hidden');
 
     if (verdict === 'AC') {
-      LS.set(`user:${S.user.username}`, S.user);
       renderTopRight();
       const btnNext = document.getElementById('btn-judge-next');
       const nextIdx = S.problems.findIndex(x => x.id === p.id) + 1;
