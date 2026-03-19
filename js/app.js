@@ -573,6 +573,19 @@ function canCreate(){return S.user&&(S.user.role==='admin'||S.user.role==='maste
 function isAdmin(){return S.user?.role==='admin';}
 function isMaster(){return S.user?.role==='admin'||S.user?.role==='master';}
 function getSolvedIds(){return new Set(S.submissions.filter(s=>s.verdict==='AC').map(s=>s.problemId));}
+function normalizeBsqCode(raw){
+  const code=String(raw||'').trim().toUpperCase();
+  return /^BSQ-\d+$/.test(code)?code:'';
+}
+function getNextBsqCode(){
+  const used=S.problems
+    .map(p=>normalizeBsqCode(p.code||p.id))
+    .filter(Boolean)
+    .map(c=>parseInt(c.split('-')[1],10))
+    .filter(n=>Number.isFinite(n));
+  const next=(used.length?Math.max(...used):0)+1;
+  return `BSQ-${String(next).padStart(3,'0')}`;
+}
 
 function validateUsername(u){
   if(!u||u.length<3)return 'Username must be at least 3 characters.';
@@ -2268,7 +2281,9 @@ function renderAdminAnalytics(){
 /* Problem Editor Modal */
 function openProblemEditor(id){
   if(!isMaster()){toast('Permission denied','error');return;}
-  S.editingProblem=id?{...S.problems.find(p=>p.id===id),_existing:true}:{id:genId(),title:'',difficulty:'Easy',points:100,timeLimit:300,category:'Filtering',tags:[],description:'',solution:'',testCases:[],dailyDate:null,_existing:false};
+  S.editingProblem=id
+    ?{...S.problems.find(p=>p.id===id),_existing:true}
+    :{id:getNextBsqCode(),code:getNextBsqCode(),title:'',difficulty:'Easy',points:100,timeLimit:300,category:'Filtering',tags:[],description:'',solution:'',testCases:[],dailyDate:null,_existing:false};
   el('prob-editor-title').textContent=id?'EDIT PROBLEM':'NEW PROBLEM';
   const p=S.editingProblem;
   el('prob-editor-body').innerHTML=`
@@ -2368,8 +2383,12 @@ function saveProblem(){
     {id:genId(),name:'No SQL Error',desc:'Query must execute without errors',validate:(r)=>!r.error},
   ];
 
+  const existingCode=normalizeBsqCode(S.editingProblem.code||S.editingProblem.id);
+  const ensuredCode=existingCode||getNextBsqCode();
+
   const updated={
     ...S.editingProblem,title,solution,
+    code:ensuredCode,
     difficulty:(el('pe-diff')||{}).value||'Easy',
     points:parseInt((el('pe-pts')||{}).value)||100,
     timeLimit:parseInt((el('pe-tl')||{}).value)||300,

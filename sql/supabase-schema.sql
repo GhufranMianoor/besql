@@ -124,6 +124,20 @@ CREATE INDEX IF NOT EXISTS idx_problems_active ON public.problems(is_active);
 CREATE INDEX IF NOT EXISTS idx_problems_difficulty ON public.problems(difficulty);
 CREATE INDEX IF NOT EXISTS idx_problems_daily_date ON public.problems(daily_date);
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'problems_code_format_chk'
+      AND conrelid = 'public.problems'::regclass
+  ) THEN
+    ALTER TABLE public.problems
+      ADD CONSTRAINT problems_code_format_chk
+      CHECK (code IS NULL OR code ~ '^BSQ-[0-9]+$');
+  END IF;
+END $$;
+
 -- Insert submissions as needed
 
 -- =====================================================
