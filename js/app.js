@@ -347,47 +347,46 @@ const SUPABASE_CONFIG={
   kvTable:'besql_kv',
 };
 let SB=null;
-let STORAGE_MODE='local';
+let STORAGE_MODE='memory';
 let STORAGE_DIAGNOSTIC='';
-const LOCAL_KV_SNAPSHOT_KEY='besql:kv-snapshot';
 const storageCache=new Map();
 const pendingUpserts=new Map();
 const pendingDeletes=new Set();
 let flushTimer=null;
 let flushInFlight=false;
 let flushRetryDelay=500;
+const CLIENT_ONLY_KEYS=new Set(['session','theme','practiceLab','practiceLabTaskDone']);
 
 function cloneVal(v){
   if(v==null)return v;
   try{return JSON.parse(JSON.stringify(v));}catch{return v;}
 }
 
-function canUseLocalStorage(){
-  try{return typeof window.localStorage!=='undefined';}catch{return false;}
+function canUseSessionStorage(){
+  try{return typeof window.sessionStorage!=='undefined';}catch{return false;}
 }
 
-function hydrateCacheFromLocalSnapshot(){
-  if(!canUseLocalStorage())return;
+function getClientOnlyValue(k){
+  if(!canUseSessionStorage())return null;
   try{
-    const raw=window.localStorage.getItem(LOCAL_KV_SNAPSHOT_KEY);
-    if(!raw)return;
-    const parsed=JSON.parse(raw);
-    if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))return;
-    Object.entries(parsed).forEach(([k,v])=>storageCache.set(k,cloneVal(v)));
-  }catch(err){
-    console.warn('Failed to read local storage snapshot:',err?.message||err);
+    const raw=window.sessionStorage.getItem(`besql:${k}`);
+    if(raw==null)return null;
+    return JSON.parse(raw);
+  }catch{
+    return null;
   }
 }
 
-function writeLocalSnapshot(){
-  if(!canUseLocalStorage())return;
+function setClientOnlyValue(k,v){
+  if(!canUseSessionStorage())return;
   try{
-    const payload={};
-    storageCache.forEach((v,k)=>{payload[k]=cloneVal(v);});
-    window.localStorage.setItem(LOCAL_KV_SNAPSHOT_KEY,JSON.stringify(payload));
-  }catch(err){
-    console.warn('Failed to write local storage snapshot:',err?.message||err);
-  }
+    window.sessionStorage.setItem(`besql:${k}`,JSON.stringify(cloneVal(v)));
+  }catch{}
+}
+
+function delClientOnlyValue(k){
+  if(!canUseSessionStorage())return;
+  try{window.sessionStorage.removeItem(`besql:${k}`);}catch{}
 }
 
 function explainSupabaseError(error,phase){
@@ -406,7 +405,7 @@ function explainSupabaseError(error,phase){
 }
 
 function setStorageFallback(reason){
-  STORAGE_MODE='local';
+  STORAGE_MODE='memory';
   STORAGE_DIAGNOSTIC=reason;
 }
 
@@ -480,7 +479,7 @@ async function flushCloudWrites(){
 }
 
 async function initStorage(){
-  hydrateCacheFromLocalSnapshot();
+  storageCache.clear();
   const canUseSupabase=typeof window.supabase!=='undefined'&&typeof window.supabase.createClient==='function';
   if(!canUseSupabase||!SUPABASE_CONFIG.url||!SUPABASE_CONFIG.anonKey){
     const reason='Supabase is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY.';
@@ -512,7 +511,6 @@ async function initStorage(){
   STORAGE_DIAGNOSTIC='';
   storageCache.clear();
   (data||[]).forEach(row=>storageCache.set(row.k,cloneVal(row.v)));
-  writeLocalSnapshot();
 }
 
 async function cloudUpsert(k,v){
@@ -530,15 +528,24 @@ async function cloudDelete(k){
 }
 
 const LS={
-  get(k){return storageCache.has(k)?cloneVal(storageCache.get(k)):null;},
+  get(k){
+    if(CLIENT_ONLY_KEYS.has(k))return cloneVal(getClientOnlyValue(k));
+    return storageCache.has(k)?cloneVal(storageCache.get(k)):null;
+  },
   set(k,v){
+    if(CLIENT_ONLY_KEYS.has(k)){
+      setClientOnlyValue(k,v);
+      return;
+    }
     storageCache.set(k,cloneVal(v));
-    writeLocalSnapshot();
     void cloudUpsert(k,cloneVal(v));
   },
   del(k){
+    if(CLIENT_ONLY_KEYS.has(k)){
+      delClientOnlyValue(k);
+      return;
+    }
     storageCache.delete(k);
-    writeLocalSnapshot();
     void cloudDelete(k);
   },
   keys(p=''){return [...storageCache.keys()].filter(k=>k.startsWith(p));},
@@ -692,6 +699,116 @@ async function syncSubmissionToRelational(sub,result,problem){
     if(error)console.warn('Supabase submissions sync failed:',error.message||error);
   }catch(err){
     console.warn('Supabase relational submission sync exception:',err?.message||err);
+  }
+}
+
+function serializeProblemTestCases(testCases){
+  return (testCases||[]).map(tc=>{
+    const {validate,...rest}=tc;
+    return rest;
+  });
+}
+
+function hydrateProblemFromRelationalRow(row){
+  const solution=row.solution||'SELECT 1';
+  const rawCases=Array.isArray(row.test_cases)?row.test_cases:[];
+  const testCases=rawCases.map((tc,idx)=>({
+    id:tc.id||`${row.id}-tc-${idx+1}`,
+    name:tc.name||`Test ${idx+1}`,
+    desc:tc.desc||'',
+    hint:tc.hint||'',
+    hidden:tc.hidden===true,
+    validate:(r)=>{
+      if(r.error||!r.rows)return false;
+      const ref=runSQL(solution,DB);
+      if(ref.error||!ref.rows)return false;
+      return r.rowCount===ref.rowCount;
+    },
+  }));
+
+  return {
+    id:row.id,
+    code:row.code||String(row.id||'').toUpperCase(),
+    title:row.title||'Untitled Problem',
+    difficulty:row.difficulty||'Easy',
+    points:Number(row.points||100),
+    timeLimit:row.time_limit==null?null:Number(row.time_limit),
+    category:row.category||'General',
+    tags:Array.isArray(row.tags)?row.tags:[],
+    description:row.description||'',
+    solution,
+    sampleOutput:row.sample_output||null,
+    schemaHint:row.schema_hint||null,
+    testCases,
+    dailyDate:row.daily_date||null,
+  };
+}
+
+async function loadProblemsFromRelational(){
+  if(!SB||STORAGE_MODE!=='supabase')return null;
+  try{
+    const {data,error}=await SB
+      .from('problems')
+      .select('*')
+      .eq('is_active',true)
+      .order('created_at',{ascending:true});
+    if(error){
+      console.warn('Supabase problems load failed:',error.message||error);
+      return null;
+    }
+    return (data||[]).map(hydrateProblemFromRelationalRow);
+  }catch(err){
+    console.warn('Supabase problems load exception:',err?.message||err);
+    return null;
+  }
+}
+
+async function syncProblemToRelational(problem){
+  if(!SB||STORAGE_MODE!=='supabase'||!problem?.id)return;
+  try{
+    const payload={
+      id:problem.id,
+      code:problem.code||String(problem.id).toUpperCase(),
+      title:problem.title||'Untitled Problem',
+      difficulty:problem.difficulty||'Easy',
+      points:Number(problem.points||100),
+      time_limit:problem.timeLimit==null?null:Number(problem.timeLimit),
+      category:problem.category||'General',
+      tags:Array.isArray(problem.tags)?problem.tags:[],
+      description:problem.description||'',
+      solution:problem.solution||'SELECT 1',
+      sample_output:problem.sampleOutput||null,
+      schema_hint:problem.schemaHint||null,
+      test_cases:serializeProblemTestCases(problem.testCases),
+      daily_date:problem.dailyDate||null,
+      is_active:true,
+      created_by:S.user?.username||'system',
+      updated_at:new Date().toISOString(),
+    };
+    const {error}=await SB.from('problems').upsert(payload,{onConflict:'id'});
+    if(error)console.warn('Supabase problem sync failed:',error.message||error);
+  }catch(err){
+    console.warn('Supabase problem sync exception:',err?.message||err);
+  }
+}
+
+async function deactivateProblemInRelational(problemId){
+  if(!SB||STORAGE_MODE!=='supabase'||!problemId)return;
+  try{
+    const {error}=await SB
+      .from('problems')
+      .update({is_active:false,updated_at:new Date().toISOString()})
+      .eq('id',problemId);
+    if(error)console.warn('Supabase problem deactivate failed:',error.message||error);
+  }catch(err){
+    console.warn('Supabase problem deactivate exception:',err?.message||err);
+  }
+}
+
+async function seedProblemsToRelational(problems){
+  if(!SB||STORAGE_MODE!=='supabase'||!Array.isArray(problems)||!problems.length)return;
+  for(const p of problems){
+    await syncProblemToRelational(p);
   }
 }
 
@@ -2268,6 +2385,7 @@ function saveProblem(){
   } else S.problems.push(updated);
 
   persistProblems();
+  void syncProblemToRelational(updated);
   closeModal('modal-problem');
   renderAdminProblems();
   toast('Problem saved','success');
@@ -2276,6 +2394,7 @@ function saveProblem(){
 function deleteProblem(id){
   if(!confirm('Delete this problem?'))return;
   S.problems=S.problems.filter(p=>p.id!==id);
+  void deactivateProblemInRelational(id);
   persistProblems(); renderAdminProblems();
   toast('Deleted','info');
 }
@@ -2374,19 +2493,29 @@ function applyTheme(){
 ══════════════════════════════════════════════════════════ */
 async function init(){
   applyTheme();
-  // Load problems — always merge with PROBLEMS_DEFAULT to get latest metadata
-  // (sampleOutput, schemaHint, description updates etc.)
-  const savedP=LS.get('problems');
-  if(savedP&&savedP.length>0){
-    // Merge: use default problem metadata but keep any admin-added problems
-    const defaultIds=new Set(PROBLEMS_DEFAULT.map(p=>p.id));
-    const customProblems=savedP.filter(p=>!defaultIds.has(p.id));
-    // Use fresh defaults (with sampleOutput/schemaHint) + custom admin problems
-    S.problems=[
-      ...PROBLEMS_DEFAULT,
-      ...customProblems.map(p=>({...p,testCases:p.testCases.map(tc=>({...tc,validate:(r)=>{const ref=runSQL(p.solution||'SELECT 1',DB);if(ref.error||r.error||!r.rows)return false;return r.rowCount===ref.rowCount;}}))}))
-    ];
-  } else {S.problems=[...PROBLEMS_DEFAULT];persistProblems();}
+  // Load problems from relational table first when available.
+  const relProblems=await loadProblemsFromRelational();
+  if(Array.isArray(relProblems)&&relProblems.length>0){
+    S.problems=relProblems;
+    persistProblems();
+  } else {
+    // Fallback: merge local cached problems with defaults.
+    const savedP=LS.get('problems');
+    if(savedP&&savedP.length>0){
+      const defaultIds=new Set(PROBLEMS_DEFAULT.map(p=>p.id));
+      const customProblems=savedP.filter(p=>!defaultIds.has(p.id));
+      S.problems=[
+        ...PROBLEMS_DEFAULT,
+        ...customProblems.map(p=>({...p,testCases:p.testCases.map(tc=>({...tc,validate:(r)=>{const ref=runSQL(p.solution||'SELECT 1',DB);if(ref.error||r.error||!r.rows)return false;return r.rowCount===ref.rowCount;}}))}))
+      ];
+    } else {
+      S.problems=[...PROBLEMS_DEFAULT];
+      persistProblems();
+    }
+    if(Array.isArray(relProblems)&&relProblems.length===0){
+      await seedProblemsToRelational(S.problems);
+    }
+  }
   S.problems=injectHiddenStrongTestCases(S.problems);
 
   // Load contests

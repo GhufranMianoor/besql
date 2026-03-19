@@ -96,6 +96,34 @@ CREATE INDEX IF NOT EXISTS idx_submissions_user_problem ON public.submissions(us
 CREATE INDEX IF NOT EXISTS idx_submissions_verdict ON public.submissions(verdict);
 CREATE INDEX IF NOT EXISTS idx_submissions_submitted_at ON public.submissions(submitted_at DESC);
 
+-- =====================================================
+-- PROBLEMS TABLE (Proper Problemset Storage)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.problems (
+  id VARCHAR(50) PRIMARY KEY,
+  code VARCHAR(50),
+  title VARCHAR(255) NOT NULL,
+  difficulty VARCHAR(20) NOT NULL DEFAULT 'Easy',
+  points INTEGER NOT NULL DEFAULT 100,
+  time_limit INTEGER,
+  category VARCHAR(100) DEFAULT 'General',
+  tags TEXT[] NOT NULL DEFAULT '{}',
+  description TEXT NOT NULL,
+  solution TEXT NOT NULL,
+  sample_output JSONB,
+  schema_hint JSONB,
+  test_cases JSONB NOT NULL DEFAULT '[]'::jsonb,
+  daily_date DATE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_by VARCHAR(100),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_problems_active ON public.problems(is_active);
+CREATE INDEX IF NOT EXISTS idx_problems_difficulty ON public.problems(difficulty);
+CREATE INDEX IF NOT EXISTS idx_problems_daily_date ON public.problems(daily_date);
+
 -- Insert submissions as needed
 
 -- =====================================================
@@ -291,6 +319,7 @@ AND NOT EXISTS (
 GRANT SELECT, INSERT, UPDATE ON TABLE public.users TO anon, authenticated;
 GRANT SELECT, INSERT ON TABLE public.user_roles TO anon, authenticated;
 GRANT SELECT, INSERT ON TABLE public.submissions TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.problems TO anon, authenticated;
 
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
@@ -340,6 +369,33 @@ CREATE POLICY "submissions_insert" ON public.submissions
   FOR INSERT
   TO anon, authenticated
   WITH CHECK (true);
+
+ALTER TABLE public.problems ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "problems_read" ON public.problems;
+CREATE POLICY "problems_read" ON public.problems
+  FOR SELECT
+  TO anon, authenticated
+  USING (is_active = true);
+
+DROP POLICY IF EXISTS "problems_insert" ON public.problems;
+CREATE POLICY "problems_insert" ON public.problems
+  FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "problems_update" ON public.problems;
+CREATE POLICY "problems_update" ON public.problems
+  FOR UPDATE
+  TO anon, authenticated
+  USING (true)
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "problems_delete" ON public.problems;
+CREATE POLICY "problems_delete" ON public.problems
+  FOR DELETE
+  TO anon, authenticated
+  USING (true);
 
 -- =====================================================
 -- OPTIONAL: SAMPLE DATA FOR KV STORE
