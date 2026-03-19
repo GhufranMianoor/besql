@@ -1,0 +1,43 @@
+const PROBLEMS_DEFAULT = [
+  {
+    id:'p1',code:'BSQ-001',title:'High Salary Filter',difficulty:'Easy',points:100,timeLimit:300,
+    category:'Filtering',tags:['WHERE','ORDER BY'],
+    description:'Find all employees with a salary greater than $85,000.\n\nReturn the columns: name, salary, level.\nOrder results by salary in descending order.',
+    sampleOutput:{columns:['name','salary','level'],rows:[['Henry Zhao','115000','Staff'],['Carol White','110000','Staff'],['Frank Kim','105000','Senior']]},
+    schemaHint:{table:'employees',columns:[['id','INT'],['name','VARCHAR'],['dept_id','INT'],['salary','INT'],['hire_year','INT'],['age','INT'],['level','VARCHAR']]},
+    testCases:[
+      {id:'tc1',name:'Row Count',desc:'Must return exactly 6 rows',
+       validate:r=>r.rowCount===6, hint:'WHERE salary > 85000', hidden: true},
+      {id:'tc2',name:'Salary Filter',desc:'All returned salaries must be > 85000',
+       validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase()==='salary');return r.rows.every(row=>Number(row[i])>85000);},hint:'Check your WHERE condition', hidden: true},
+      {id:'tc3',name:'Ordered Descending',desc:'Must be ordered by salary DESC',
+       validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase()==='salary');for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])>Number(r.rows[x-1][i]))return false;return true;},hint:'Add ORDER BY salary DESC', hidden: true},
+      {id:'tc4',name:'Correct Columns',desc:'Must return name, salary, and level columns',
+       validate:r=>r.columns.length === 3 && r.columns.includes('name') && r.columns.includes('salary') && r.columns.includes('level'), hint:'Check your SELECT statement', hidden: true},
+      {id:'tc5',name:'Top Earner',desc:'The first row should be Henry Zhao',
+       validate:r=>r.rows[0][r.columns.indexOf('name')] === 'Henry Zhao', hint:'Is your data ordered correctly?', hidden: true},
+    ],
+    solution:'SELECT name, salary, level FROM employees WHERE salary > 85000 ORDER BY salary DESC',
+    dailyDate: getTodayStr(),
+  },
+  {
+    id:'p2',code:'BSQ-002',title:'Department Employee Count',difficulty:'Easy',points:150,timeLimit:300,
+    category:'Aggregation',tags:['GROUP BY','COUNT'],
+    description:'Count the number of employees in each department.\n\nReturn the columns: dept_id, total_employees.\nOrder results by total_employees in descending order.',
+    sampleOutput:{columns:['dept_id','total_employees'],rows:[['1','3'],['2','3'],['4','2'],['3','2']]},
+    schemaHint:{table:'employees',columns:[['id','INT'],['name','VARCHAR'],['dept_id','INT'],['salary','INT']]},
+    testCases:[
+        {id:'tc1', name:'Row Count', desc:'Must return a row for each department',
+         validate:r=>r.rowCount === 4, hint:'Ensure you are grouping by department', hidden: true},
+        {id:'tc2', name:'Correct Columns', desc:'Must return dept_id and total_employees',
+         validate:r=>r.columns.length === 2 && r.columns.includes('dept_id') && r.columns.includes('total_employees'), hint:'Check your SELECT statement and aliases', hidden: true},
+        {id:'tc3', name:'Engineering Count', desc:'Engineering department (ID 1) should have 3 employees',
+         validate:r=>{const i_dept = r.columns.indexOf('dept_id'); const i_count = r.columns.indexOf('total_employees'); return r.rows.some(row => row[i_dept] == 1 && row[i_count] == 3)}, hint:'Check your COUNT aggregation', hidden: true},
+        {id:'tc4', name:'Marketing Count', desc:'Marketing department (ID 2) should have 3 employees',
+         validate:r=>{const i_dept = r.columns.indexOf('dept_id'); const i_count = r.columns.indexOf('total_employees'); return r.rows.some(row => row[i_dept] == 2 && row[i_count] == 3)}, hint:'Check your COUNT aggregation', hidden: true},
+        {id:'tc5', name:'Order Descending', desc:'Results must be ordered by total_employees DESC',
+         validate:r=>{const i=r.columns.indexOf('total_employees'); for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])>Number(r.rows[x-1][i]))return false;return true;}, hint:'Add ORDER BY total_employees DESC', hidden: true},
+    ],
+    solution:'SELECT dept_id, COUNT(*) as total_employees FROM employees GROUP BY dept_id ORDER BY total_employees DESC',
+  }
+];
