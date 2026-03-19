@@ -342,53 +342,205 @@ const S = {
    STORAGE
 ══════════════════════════════════════════════════════════ */
 const SUPABASE_CONFIG={
-  url:window.SUPABASE_URL||'',
-  anonKey:window.SUPABASE_ANON_KEY||'',
+  url:window.SUPABASE_URL||'https://yaqukpmixbhiyxdkgmwl.supabase.co',
+  anonKey:window.SUPABASE_ANON_KEY||'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhcXVrcG1peGJoaXl4ZGtnbXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MzI1NDksImV4cCI6MjA4OTUwODU0OX0.8mckbWLNNjVMNjxH4BCRnXh1-GaAN1xgWlbEPopG_Co',
   kvTable:'besql_kv',
 };
 let SB=null;
-let STORAGE_MODE='memory';
+let STORAGE_MODE='local';
+let STORAGE_DIAGNOSTIC='';
+const LOCAL_KV_SNAPSHOT_KEY='besql:kv-snapshot';
 const storageCache=new Map();
+const pendingUpserts=new Map();
+const pendingDeletes=new Set();
+let flushTimer=null;
+let flushInFlight=false;
+let flushRetryDelay=500;
 
 function cloneVal(v){
   if(v==null)return v;
   try{return JSON.parse(JSON.stringify(v));}catch{return v;}
 }
 
+function canUseLocalStorage(){
+  try{return typeof window.localStorage!=='undefined';}catch{return false;}
+}
+
+function hydrateCacheFromLocalSnapshot(){
+  if(!canUseLocalStorage())return;
+  try{
+    const raw=window.localStorage.getItem(LOCAL_KV_SNAPSHOT_KEY);
+    if(!raw)return;
+    const parsed=JSON.parse(raw);
+    if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))return;
+    Object.entries(parsed).forEach(([k,v])=>storageCache.set(k,cloneVal(v)));
+  }catch(err){
+    console.warn('Failed to read local storage snapshot:',err?.message||err);
+  }
+}
+
+function writeLocalSnapshot(){
+  if(!canUseLocalStorage())return;
+  try{
+    const payload={};
+    storageCache.forEach((v,k)=>{payload[k]=cloneVal(v);});
+    window.localStorage.setItem(LOCAL_KV_SNAPSHOT_KEY,JSON.stringify(payload));
+  }catch(err){
+    console.warn('Failed to write local storage snapshot:',err?.message||err);
+  }
+}
+
+function explainSupabaseError(error,phase){
+  const msg=String(error?.message||error||'Unknown error');
+  const lower=msg.toLowerCase();
+  if(lower.includes('relation')&&lower.includes('does not exist')){
+    return `Supabase ${phase} failed: table '${SUPABASE_CONFIG.kvTable}' does not exist. Run sql/supabase-schema.sql in Supabase SQL editor.`;
+  }
+  if(lower.includes('row-level security')||lower.includes('permission denied')||lower.includes('not allowed')){
+    return `Supabase ${phase} failed: RLS/permissions are blocking writes on '${SUPABASE_CONFIG.kvTable}'. Enable a policy for anon/authenticated users.`;
+  }
+  if(lower.includes('invalid api key')||lower.includes('jwt')){
+    return `Supabase ${phase} failed: invalid anon key. Check SUPABASE_ANON_KEY.`;
+  }
+  return `Supabase ${phase} failed: ${msg}`;
+}
+
+function setStorageFallback(reason){
+  STORAGE_MODE='local';
+  STORAGE_DIAGNOSTIC=reason;
+}
+
+function isFatalSupabaseError(error){
+  const msg=String(error?.message||error||'').toLowerCase();
+  return (
+    (msg.includes('relation')&&msg.includes('does not exist'))
+    || msg.includes('row-level security')
+    || msg.includes('permission denied')
+    || msg.includes('not allowed')
+    || msg.includes('invalid api key')
+    || msg.includes('jwt')
+  );
+}
+
+function scheduleCloudFlush(delay=0){
+  if(STORAGE_MODE!=='supabase'||!SB)return;
+  if(flushTimer)clearTimeout(flushTimer);
+  flushTimer=setTimeout(()=>{void flushCloudWrites();},delay);
+}
+
+async function flushCloudWrites(){
+  if(STORAGE_MODE!=='supabase'||!SB)return;
+  if(flushInFlight)return;
+  if(!pendingUpserts.size&&!pendingDeletes.size)return;
+  flushInFlight=true;
+  try{
+    if(pendingUpserts.size){
+      const rows=[...pendingUpserts.entries()].map(([k,v])=>({k,v}));
+      const {error}=await SB.from(SUPABASE_CONFIG.kvTable).upsert(rows,{onConflict:'k'});
+      if(error){
+        if(isFatalSupabaseError(error)){
+          const reason=explainSupabaseError(error,'write');
+          console.error('Supabase batch upsert failed:',reason);
+          setStorageFallback(reason);
+          return;
+        }
+        console.warn('Transient Supabase upsert error. Retrying...',error?.message||error);
+        scheduleCloudFlush(flushRetryDelay);
+        flushRetryDelay=Math.min(flushRetryDelay*2,8000);
+        return;
+      }
+      pendingUpserts.clear();
+    }
+
+    if(pendingDeletes.size){
+      const keys=[...pendingDeletes];
+      const {error}=await SB.from(SUPABASE_CONFIG.kvTable).delete().in('k',keys);
+      if(error){
+        if(isFatalSupabaseError(error)){
+          const reason=explainSupabaseError(error,'delete');
+          console.error('Supabase batch delete failed:',reason);
+          setStorageFallback(reason);
+          return;
+        }
+        console.warn('Transient Supabase delete error. Retrying...',error?.message||error);
+        scheduleCloudFlush(flushRetryDelay);
+        flushRetryDelay=Math.min(flushRetryDelay*2,8000);
+        return;
+      }
+      pendingDeletes.clear();
+    }
+
+    flushRetryDelay=500;
+  } finally {
+    flushInFlight=false;
+    if(STORAGE_MODE==='supabase'&&(pendingUpserts.size||pendingDeletes.size)){
+      scheduleCloudFlush(flushRetryDelay);
+    }
+  }
+}
+
 async function initStorage(){
+  hydrateCacheFromLocalSnapshot();
   const canUseSupabase=typeof window.supabase!=='undefined'&&typeof window.supabase.createClient==='function';
   if(!canUseSupabase||!SUPABASE_CONFIG.url||!SUPABASE_CONFIG.anonKey){
-    console.warn('Supabase is not configured. Set BESQL_SUPABASE_URL and BESQL_SUPABASE_ANON_KEY.');
-    STORAGE_MODE='memory';
+    const reason='Supabase is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY.';
+    console.warn(reason);
+    setStorageFallback(reason);
     return;
   }
   SB=window.supabase.createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey);
   const {data,error}=await SB.from(SUPABASE_CONFIG.kvTable).select('k,v');
   if(error){
-    console.error('Supabase storage load failed:',error.message);
-    STORAGE_MODE='memory';
+    const reason=explainSupabaseError(error,'read');
+    console.error(reason);
+    setStorageFallback(reason);
     return;
   }
+
+  const probeKey=`__besql_probe__${Date.now()}`;
+  const probePayload={at:Date.now(),ok:true};
+  const {error:probeErr}=await SB.from(SUPABASE_CONFIG.kvTable).upsert({k:probeKey,v:probePayload},{onConflict:'k'});
+  if(probeErr){
+    const reason=explainSupabaseError(probeErr,'write');
+    console.error(reason);
+    setStorageFallback(reason);
+    return;
+  }
+  await SB.from(SUPABASE_CONFIG.kvTable).delete().eq('k',probeKey);
+
   STORAGE_MODE='supabase';
+  STORAGE_DIAGNOSTIC='';
+  storageCache.clear();
   (data||[]).forEach(row=>storageCache.set(row.k,cloneVal(row.v)));
+  writeLocalSnapshot();
 }
 
 async function cloudUpsert(k,v){
-  if(!SB)return;
-  const {error}=await SB.from(SUPABASE_CONFIG.kvTable).upsert({k,v},{onConflict:'k'});
-  if(error)console.error('Supabase upsert failed for key:',k,error.message);
+  if(!SB||STORAGE_MODE!=='supabase')return;
+  pendingDeletes.delete(k);
+  pendingUpserts.set(k,cloneVal(v));
+  scheduleCloudFlush(50);
 }
 
 async function cloudDelete(k){
-  if(!SB)return;
-  const {error}=await SB.from(SUPABASE_CONFIG.kvTable).delete().eq('k',k);
-  if(error)console.error('Supabase delete failed for key:',k,error.message);
+  if(!SB||STORAGE_MODE!=='supabase')return;
+  pendingUpserts.delete(k);
+  pendingDeletes.add(k);
+  scheduleCloudFlush(50);
 }
 
 const LS={
   get(k){return storageCache.has(k)?cloneVal(storageCache.get(k)):null;},
-  set(k,v){storageCache.set(k,cloneVal(v));void cloudUpsert(k,cloneVal(v));},
-  del(k){storageCache.delete(k);void cloudDelete(k);},
+  set(k,v){
+    storageCache.set(k,cloneVal(v));
+    writeLocalSnapshot();
+    void cloudUpsert(k,cloneVal(v));
+  },
+  del(k){
+    storageCache.delete(k);
+    writeLocalSnapshot();
+    void cloudDelete(k);
+  },
   keys(p=''){return [...storageCache.keys()].filter(k=>k.startsWith(p));},
 };
 
@@ -441,6 +593,106 @@ async function hashPassword(raw){
   const bytes=new TextEncoder().encode(String(raw||''));
   const digest=await crypto.subtle.digest('SHA-256',bytes);
   return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function getRoleId(role){
+  if(role==='admin')return 1;
+  if(role==='master')return 3;
+  return 2;
+}
+
+async function getRelationalUserId(username){
+  if(!SB||STORAGE_MODE!=='supabase'||!username)return null;
+  const {data,error}=await SB.from('users').select('id').eq('username',username).maybeSingle();
+  if(error)return null;
+  return data?.id??null;
+}
+
+async function getRoleFromRelationalUserId(userId){
+  if(!SB||STORAGE_MODE!=='supabase'||!userId)return 'contestant';
+  const {data,error}=await SB.from('user_roles').select('role_id').eq('user_id',userId);
+  if(error||!data?.length)return 'contestant';
+  const roleIds=data.map(r=>Number(r.role_id));
+  if(roleIds.includes(1))return 'admin';
+  if(roleIds.includes(3))return 'master';
+  return 'contestant';
+}
+
+async function fetchRelationalAuthUser(username){
+  if(!SB||STORAGE_MODE!=='supabase'||!username)return null;
+  const {data,error}=await SB
+    .from('users')
+    .select('id,username,email,password_hash,is_active,created_at')
+    .eq('username',username)
+    .maybeSingle();
+  if(error||!data||data.is_active===false)return null;
+  const role=await getRoleFromRelationalUserId(data.id);
+  return {
+    userId:`db-${data.id}`,
+    username:data.username,
+    email:data.email||`${data.username}@besql.local`,
+    passwordHash:data.password_hash||'',
+    role,
+    score:0,
+    solved:0,
+    streak:0,
+    joinedAt:data.created_at?new Date(data.created_at).getTime():Date.now(),
+  };
+}
+
+async function syncUserToRelational(user){
+  if(!SB||STORAGE_MODE!=='supabase'||!user?.username||!user?.email)return;
+  try{
+    const payload={
+      username:user.username,
+      email:user.email,
+      password_hash:user.passwordHash||'',
+      full_name:user.username,
+      is_active:true,
+      updated_at:new Date().toISOString(),
+    };
+    const {data,error}=await SB.from('users').upsert(payload,{onConflict:'username'}).select('id').maybeSingle();
+    if(error){
+      console.warn('Supabase users sync failed:',error.message||error);
+      return;
+    }
+    const userId=data?.id??await getRelationalUserId(user.username);
+    if(!userId)return;
+    const role_id=getRoleId(user.role);
+    const {error:roleErr}=await SB.from('user_roles').upsert({user_id:userId,role_id},{onConflict:'user_id,role_id'});
+    if(roleErr)console.warn('Supabase user_roles sync failed:',roleErr.message||roleErr);
+  }catch(err){
+    console.warn('Supabase relational user sync exception:',err?.message||err);
+  }
+}
+
+async function syncSubmissionToRelational(sub,result,problem){
+  if(!SB||STORAGE_MODE!=='supabase'||!S.user?.username||!sub)return;
+  try{
+    const uid=await getRelationalUserId(S.user.username);
+    if(!uid)return;
+    const verdictMap={AC:'accepted',WA:'wrong_answer',TLE:'time_limit',CE:'error'};
+    const verdict=verdictMap[sub.verdict]||String(sub.verdict||'pending').toLowerCase();
+    const contestIdNum=Number(sub.contestId);
+    const payload={
+      user_id:uid,
+      problem_id:problem?.code||sub.problemId,
+      contest_id:Number.isFinite(contestIdNum)?contestIdNum:null,
+      submitted_code:sub.code||'',
+      verdict,
+      error_message:result?.error|| (sub.verdict==='WA'?'Wrong Answer':null),
+      runtime_ms:Math.max(0,Number(sub.timeTaken||0))*1000,
+      memory_mb:null,
+      tests_passed:Number(sub.tcPassed||0),
+      total_tests:Number(sub.tcTotal||0),
+      score:sub.verdict==='AC'?(Number(problem?.points||0)):0,
+      judged_at:new Date().toISOString(),
+    };
+    const {error}=await SB.from('submissions').insert(payload);
+    if(error)console.warn('Supabase submissions sync failed:',error.message||error);
+  }catch(err){
+    console.warn('Supabase relational submission sync exception:',err?.message||err);
+  }
 }
 
 function toast(msg,type='info'){
@@ -893,12 +1145,32 @@ async function doLogin(){
   if(!u||!p){showAErr('Enter username and password.');return;}
   const userErr=validateUsername(u);
   if(userErr){showAErr(userErr);return;}
-  const stored=LS.get(`user:${u}`);
-  if(!stored){showAErr('Invalid credentials.');return;}
-
   const hp=await hashPassword(p);
+  let stored=LS.get(`user:${u}`);
+
+  if(!stored){
+    const dbUser=await fetchRelationalAuthUser(u);
+    if(!dbUser||!dbUser.passwordHash||dbUser.passwordHash!==hp){
+      showAErr('Invalid credentials.');
+      return;
+    }
+    LS.set(`user:${u}`,dbUser);
+    finishLogin(dbUser);
+    return;
+  }
+
   const ok=stored.passwordHash?stored.passwordHash===hp:stored.password===p;
-  if(!ok){showAErr('Invalid credentials.');return;}
+  if(!ok){
+    const dbUser=await fetchRelationalAuthUser(u);
+    if(!dbUser||!dbUser.passwordHash||dbUser.passwordHash!==hp){
+      showAErr('Invalid credentials.');
+      return;
+    }
+    const merged={...stored,...dbUser,passwordHash:dbUser.passwordHash};
+    LS.set(`user:${u}`,merged);
+    finishLogin(merged);
+    return;
+  }
 
   if(!stored.passwordHash){
     stored.passwordHash=hp;
@@ -933,6 +1205,7 @@ async function doRegister(){
     joinedAt:Date.now(),
   };
   LS.set(`user:${u}`,nu);
+  await syncUserToRelational(nu);
   finishLogin(nu);
   closeModal('modal-auth');
   toast(`Welcome, ${u}!`,'success');
@@ -952,6 +1225,7 @@ async function quickLogin(uname,role){
       joinedAt:Date.now(),
     };
     LS.set(`user:${uname}`,u);
+    await syncUserToRelational(u);
   }
   finishLogin(u); closeModal('modal-auth');
 }
@@ -959,6 +1233,7 @@ function showAErr(m){const e=el('a-err');if(e){e.textContent=m;show(e);}}
 function showRErr(m){const e=el('r-err');if(e){e.textContent=m;show(e);}}
 function finishLogin(user){
   S.user=user;
+  void syncUserToRelational(user);
   LS.set('session',user.username);
   S.submissions=LS.get(`subs:${user.userId}`)||[];
   closeModal('modal-auth');
@@ -1457,6 +1732,7 @@ function judgeSubmit(){
     };
     S.submissions.unshift(sub);
     LS.set(`subs:${S.user.userId}`,S.submissions);
+    void syncSubmissionToRelational(sub,result,p);
 
     // Update user score — only if this is the FIRST acceptance
     if(verdict==='AC'&&!alreadySolved){
@@ -2126,13 +2402,16 @@ async function init(){
 
   // Seed admin account (admin123 / 123) — always ensure it exists
   if(!LS.get('user:admin123')){
-    LS.set('user:admin123',{userId:'admin-uid-001',username:'admin123',email:'admin123@besql.local',passwordHash:await hashPassword('123'),role:'admin',score:0,solved:0,streak:0,joinedAt:Date.now()});
+    const seededAdmin={userId:'admin-uid-001',username:'admin123',email:'admin123@besql.local',passwordHash:await hashPassword('123'),role:'admin',score:0,solved:0,streak:0,joinedAt:Date.now()};
+    LS.set('user:admin123',seededAdmin);
+    await syncUserToRelational(seededAdmin);
   } else {
     // Ensure role stays admin even if tampered, and migrate plain password.
     const adm=LS.get('user:admin123');
     if(adm&&adm.password&&!adm.passwordHash){adm.passwordHash=await hashPassword(adm.password);delete adm.password;}
     if(adm&&adm.role!=='admin'){adm.role='admin';LS.set('user:admin123',adm);}
     else if(adm){LS.set('user:admin123',adm);}
+    if(adm)await syncUserToRelational(adm);
   }
 
   // Load user session
@@ -2155,7 +2434,7 @@ async function init(){
   el('btn-create-contest') && tog('btn-create-contest',isMaster());
 
   if(STORAGE_MODE!=='supabase'){
-    toast('Supabase not configured. Running in memory mode only.','warn');
+    toast(STORAGE_DIAGNOSTIC||'Supabase unavailable. Running in local browser storage mode.','warn');
   }
 
   // Online count drift

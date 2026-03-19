@@ -113,16 +113,40 @@ CREATE TABLE IF NOT EXISTS public.besql_kv (
 CREATE INDEX IF NOT EXISTS idx_besql_kv_updated ON public.besql_kv(updated_at DESC);
 
 -- =====================================================
--- OPTIONAL: Row-Level Security Policies
+-- RLS + GRANTS FOR FRONTEND ACCESS (required for anon key writes)
 -- =====================================================
--- If you want unauthenticated public access, enable this policy:
--- 
--- ALTER TABLE public.besql_kv ENABLE ROW LEVEL SECURITY;
--- 
--- CREATE POLICY "Public access" ON public.besql_kv
---   FOR SELECT, INSERT, UPDATE, DELETE
---   USING (true)
---   WITH CHECK (true);
+-- BeSQL stores app state through the browser using the anon key.
+-- These grants/policies allow that key to read/write besql_kv safely.
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.besql_kv TO anon, authenticated;
+
+ALTER TABLE public.besql_kv ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "besql_kv_read" ON public.besql_kv;
+CREATE POLICY "besql_kv_read" ON public.besql_kv
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+DROP POLICY IF EXISTS "besql_kv_insert" ON public.besql_kv;
+CREATE POLICY "besql_kv_insert" ON public.besql_kv
+  FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "besql_kv_update" ON public.besql_kv;
+CREATE POLICY "besql_kv_update" ON public.besql_kv
+  FOR UPDATE
+  TO anon, authenticated
+  USING (true)
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "besql_kv_delete" ON public.besql_kv;
+CREATE POLICY "besql_kv_delete" ON public.besql_kv
+  FOR DELETE
+  TO anon, authenticated
+  USING (true);
 
 -- =====================================================
 -- KEY NAMING CONVENTIONS (for reference)
@@ -142,9 +166,12 @@ CREATE INDEX IF NOT EXISTS idx_besql_kv_updated ON public.besql_kv(updated_at DE
 -- ADMIN USER SETUP (Run this to create initial admin)
 -- =====================================================
 
--- Step 1: Insert Admin Role
+-- Step 1: Insert platform roles
 INSERT INTO public.roles (id, name, description)
-VALUES (1, 'admin', 'Administrator with full access')
+VALUES
+  (1, 'admin', 'Administrator with full access'),
+  (2, 'contestant', 'Regular contestant role'),
+  (3, 'master', 'Contest master role')
 ON CONFLICT (id) DO NOTHING;
 
 -- Step 2: Create Admin User
@@ -182,6 +209,137 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO public.role_privileges (role_id, privilege_id)
 SELECT 1, id FROM public.privileges
 ON CONFLICT (role_id, privilege_id) DO NOTHING;
+
+-- Step 6: Minimal privileges for contestant/master roles
+INSERT INTO public.role_privileges (role_id, privilege_id)
+SELECT 2, id
+FROM public.privileges
+WHERE code IN ('PERM_VIEW_PROBLEMS','PERM_SUBMIT','PERM_VIEW_SUBMISSIONS','PERM_VIEW_LEADERBOARD')
+ON CONFLICT (role_id, privilege_id) DO NOTHING;
+
+INSERT INTO public.role_privileges (role_id, privilege_id)
+SELECT 3, id
+FROM public.privileges
+WHERE code IN ('PERM_VIEW_PROBLEMS','PERM_SUBMIT','PERM_VIEW_SUBMISSIONS','PERM_CREATE_CONTEST','PERM_VIEW_LEADERBOARD')
+ON CONFLICT (role_id, privilege_id) DO NOTHING;
+
+-- Step 7: Dummy users
+INSERT INTO public.users (username, email, password_hash, full_name, is_active)
+VALUES
+  ('demo_user', 'demo@example.com', '2bb80d537b1da3e38bd30361aa855686bde0ba6f7f9f40c4f5e6e6b6f5f7f6c6', 'Demo User', TRUE),
+  ('contest_master', 'master@besql.local', '2bb80d537b1da3e38bd30361aa855686bde0ba6f7f9f40c4f5e6e6b6f5f7f6c6', 'Contest Master', TRUE)
+ON CONFLICT (username) DO NOTHING;
+
+-- Step 8: Assign roles to dummy users
+INSERT INTO public.user_roles (user_id, role_id)
+SELECT u.id, 2 FROM public.users u WHERE u.username = 'demo_user'
+ON CONFLICT (user_id, role_id) DO NOTHING;
+
+INSERT INTO public.user_roles (user_id, role_id)
+SELECT u.id, 3 FROM public.users u WHERE u.username = 'contest_master'
+ON CONFLICT (user_id, role_id) DO NOTHING;
+
+-- Step 9: Dummy submissions
+INSERT INTO public.submissions (
+  user_id, problem_id, contest_id, submitted_code, verdict,
+  runtime_ms, memory_mb, tests_passed, total_tests, score, judged_at
+)
+SELECT
+  u.id,
+  'BSQ-001',
+  NULL,
+  'SELECT name, salary, level FROM employees WHERE salary > 85000 ORDER BY salary DESC;',
+  'accepted',
+  42,
+  8,
+  3,
+  3,
+  100,
+  NOW()
+FROM public.users u
+WHERE u.username='demo_user'
+AND NOT EXISTS (
+  SELECT 1 FROM public.submissions s
+  WHERE s.user_id=u.id AND s.problem_id='BSQ-001'
+);
+
+INSERT INTO public.submissions (
+  user_id, problem_id, contest_id, submitted_code, verdict,
+  error_message, runtime_ms, memory_mb, tests_passed, total_tests, score, judged_at
+)
+SELECT
+  u.id,
+  'BSQ-003',
+  NULL,
+  'SELECT * FROM employees;',
+  'wrong_answer',
+  'Expected JOIN with departments and location filter',
+  55,
+  9,
+  1,
+  3,
+  0,
+  NOW()
+FROM public.users u
+WHERE u.username='contest_master'
+AND NOT EXISTS (
+  SELECT 1 FROM public.submissions s
+  WHERE s.user_id=u.id AND s.problem_id='BSQ-003'
+);
+
+-- Step 10: Frontend access policies for users table (demo/public app)
+GRANT SELECT, INSERT, UPDATE ON TABLE public.users TO anon, authenticated;
+GRANT SELECT, INSERT ON TABLE public.user_roles TO anon, authenticated;
+GRANT SELECT, INSERT ON TABLE public.submissions TO anon, authenticated;
+
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "users_read" ON public.users;
+CREATE POLICY "users_read" ON public.users
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+DROP POLICY IF EXISTS "users_insert" ON public.users;
+CREATE POLICY "users_insert" ON public.users
+  FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "users_update" ON public.users;
+CREATE POLICY "users_update" ON public.users
+  FOR UPDATE
+  TO anon, authenticated
+  USING (true)
+  WITH CHECK (true);
+
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "user_roles_read" ON public.user_roles;
+CREATE POLICY "user_roles_read" ON public.user_roles
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+DROP POLICY IF EXISTS "user_roles_insert" ON public.user_roles;
+CREATE POLICY "user_roles_insert" ON public.user_roles
+  FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (true);
+
+ALTER TABLE public.submissions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "submissions_read" ON public.submissions;
+CREATE POLICY "submissions_read" ON public.submissions
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+DROP POLICY IF EXISTS "submissions_insert" ON public.submissions;
+CREATE POLICY "submissions_insert" ON public.submissions
+  FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (true);
 
 -- =====================================================
 -- OPTIONAL: SAMPLE DATA FOR KV STORE
