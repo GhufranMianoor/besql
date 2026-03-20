@@ -553,6 +553,22 @@ function canCreate(){return S.user&&(S.user.role==='admin'||S.user.role==='maste
 function isAdmin(){return S.user?.role==='admin';}
 function isMaster(){return S.user?.role==='admin'||S.user?.role==='master';}
 function getSolvedIds(){return new Set(S.submissions.filter(s=>s.verdict==='AC').map(s=>s.problemId));}
+function hasContestStarted(contest){
+  return Date.now()>=Number(contest?.startTime||0);
+}
+function getContestSelectableProblems(existingProblemIds=[]){
+  if(isAdmin())return [...S.problems];
+  const keep=new Set(Array.isArray(existingProblemIds)?existingProblemIds:[]);
+  return S.problems.filter(p=>p.isCustom!==true||keep.has(p.id));
+}
+function isSolvedInContest(problemId,contestId){
+  if(!problemId||!contestId)return false;
+  return S.submissions.some(s=>s.problemId===problemId&&s.contestId===contestId&&s.verdict==='AC');
+}
+function isSolvedForJudgeContext(problemId,ctx){
+  if(ctx?.contestId)return isSolvedInContest(problemId,ctx.contestId);
+  return getSolvedIds().has(problemId);
+}
 function normalizeBsqCode(raw){
   const code=String(raw||'').trim().toUpperCase();
   return /^BSQ-\d+$/.test(code)?code:'';
@@ -1578,7 +1594,9 @@ function getContestById(contestId){
 function getEmbargoedProblemIds(){
   const embargoed=new Set();
   [...S.contests,...S.customContests].forEach(c=>{
-    if(!c||c.status!=='upcoming')return;
+    // Only explicitly flagged contests should hide practice problems.
+    // User-created contests should never remove problems from daily/practice counts.
+    if(!c||c.status!=='upcoming'||c.hideInPractice!==true)return;
     (c.problemIds||[]).forEach(pid=>embargoed.add(pid));
   });
   return embargoed;
@@ -1658,8 +1676,8 @@ function isContestParticipant(contest){
 
 function getContestProblemLockReason(contest){
   if(!contest)return 'Contest not found.';
-  if(contest.status==='upcoming')return `This contest is scheduled for ${fmtDate(contest.startTime)}. Problems will unlock when the contest starts.`;
-  if(contest.status==='live'&&!isContestParticipant(contest))return 'Only participants can view problems while the contest is live.';
+  if(!hasContestStarted(contest))return `This contest is scheduled for ${fmtDate(contest.startTime)}. Problems will unlock when the contest starts.`;
+  if(contest.status!=='ended'&&!isContestParticipant(contest))return 'Only participants can view problems while the contest is live.';
   return '';
 }
 
@@ -1677,10 +1695,10 @@ function normalizeContestLifecycle(contest){
 
 function canRevealContestProblems(contest){
   if(!contest)return false;
-  if(isMaster())return true;
-  if(isOwnedByCurrentUser(contest.createdBy))return true;
+  if(isAdmin())return true;
+  if(!hasContestStarted(contest))return false;
   if(contest.status==='ended')return true;
-  if(contest.status==='upcoming')return false;
+  if(isOwnedByCurrentUser(contest.createdBy))return true;
   return isContestParticipant(contest);
 }
 
@@ -2117,7 +2135,7 @@ function renderJudge(ctx){
   ed.addEventListener('input',()=>{el('judge-chars').textContent=ed.value.length;});
 
   // Solved state
-  const isSolved=getSolvedIds().has(p.id);
+  const isSolved=isSolvedForJudgeContext(p.id,S.judgeContext);
   el('btn-judge-submit').disabled=isSolved;
   el('btn-judge-submit').textContent=isSolved?'Solved':'Submit';
   updateJudgeNextButton();
@@ -2373,6 +2391,7 @@ function openCustomCreator(id){
   const c=ex||{title:'',description:'',duration:120,isPublic:false,startTime:Date.now()+3600000,problemIds:[],invitees:[],password:''};
   const startVal=new Date(c.startTime||Date.now()+3600000).toISOString().slice(0,16);
   const selectedIds=new Set(c.problemIds||[]);
+  const selectableProblems=getContestSelectableProblems(c.problemIds||[]);
   const modalTitle=el('custom-editor-title');
   const modalBtn=el('custom-editor-save-btn');
   if(modalTitle)modalTitle.textContent=ex?'EDIT CUSTOM CONTEST':'CREATE CUSTOM CONTEST';
@@ -2393,9 +2412,10 @@ function openCustomCreator(id){
         <button class="btn btn-ghost btn-sm" onclick="ccAddByCode()">Add</button>
       </div>
       <div id="cc-selected-problems" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px"></div>
+      ${isAdmin()?'':'<div style="font-size:10px;color:var(--t3);margin-bottom:8px">Only admins can add custom problems to contests.</div>'}
       <div style="font-size:10px;color:var(--t3);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px">Or pick from list</div>
       <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto">
-        ${S.problems.map(p=>`
+        ${selectableProblems.map(p=>`
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 10px;border-radius:4px;background:var(--bg2);border:1px solid var(--line)" onclick="setTimeout(ccRefreshSelected,10)">
             <input type="checkbox" class="cc-prob-check" value="${p.id}" id="cc-chk-${p.id}" ${selectedIds.has(p.id)?'checked':''}>
             <span style="font-size:10px;font-family:var(--mono);color:var(--grn);font-weight:700;width:64px;flex-shrink:0">${p.code||p.id.toUpperCase()}</span>
@@ -2455,6 +2475,14 @@ function saveCustomContest(){
   const startTs=new Date((el('cc-start')||{}).value).getTime()||Date.now()+3600000;
   if(!isPublic&&pass.length<4){toast('Private contest password must be at least 4 characters','warn');return;}
   const existing=S.editingCustomContest;
+  if(!isAdmin()){
+    const prevIds=new Set(Array.isArray(existing?.problemIds)?existing.problemIds:[]);
+    const hasUnauthorizedCustom=ids.some(pid=>{
+      const prob=S.problems.find(p=>p.id===pid);
+      return prob?.isCustom===true&&!prevIds.has(pid);
+    });
+    if(hasUnauthorizedCustom){toast('Only admin can add custom problems to contests','error');return;}
+  }
   const c={
     id:existing?.id||genId(),title,
     description:(el('cc-desc')||{}).value?.trim()||'',
@@ -2929,6 +2957,7 @@ function openContestCreator(id){
   S.editingContest=ex?{...ex,_existing:true}:{id:genId(),title:'',description:'',type:'official',status:'upcoming',startTime:Date.now()+86400000,endTime:Date.now()+86400000+7200000,duration:120,problemIds:[],isPublic:true,maxParticipants:500,announcement:'',password:'',createdBy:S.user?.userId,_existing:false};
   el('contest-editor-title').textContent=id?'EDIT CONTEST':'CREATE CONTEST';
   const c=S.editingContest;
+  const selectableProblems=getContestSelectableProblems(c.problemIds||[]);
   const startVal=new Date(c.startTime).toISOString().slice(0,16);
   el('contest-editor-body').innerHTML=`
     <div class="fg"><label class="lbl">Title *</label><input class="inp" id="ce-title" value="${esc(c.title)}" placeholder="Contest title..."></div>
@@ -2942,8 +2971,9 @@ function openContestCreator(id){
     <div class="fg"><label class="lbl">Announcement / Message</label><textarea class="ta" rows="2" id="ce-ann">${esc(c.announcement||'')}</textarea></div>
     <div class="fg">
       <label class="lbl">Problems</label>
+      ${isAdmin()?'':'<div style="font-size:10px;color:var(--t3);margin-bottom:8px">Only admins can add custom problems to contests.</div>'}
       <div style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;padding:8px 0">
-        ${S.problems.map(p=>`
+        ${selectableProblems.map(p=>`
           <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:7px 10px;border-radius:5px;background:var(--bg2);border:1px solid var(--line)">
             <input type="checkbox" class="ce-prob-check" value="${p.id}" ${c.problemIds.includes(p.id)?'checked':''}>
             <span style="flex:1;font-size:12px;color:var(--t1)">${esc(p.title)}</span>
@@ -2976,6 +3006,15 @@ function saveContest(){
   if(!title){toast('Enter a title','warn');return;}
   const ids=[...document.querySelectorAll('.ce-prob-check:checked')].map(c=>c.value);
   if(!ids.length){toast('Select at least one problem','warn');return;}
+  if(!isAdmin()){
+    const existing=S.editingContest;
+    const prevIds=new Set(Array.isArray(existing?.problemIds)?existing.problemIds:[]);
+    const hasUnauthorizedCustom=ids.some(pid=>{
+      const prob=S.problems.find(p=>p.id===pid);
+      return prob?.isCustom===true&&!prevIds.has(pid);
+    });
+    if(hasUnauthorizedCustom){toast('Only admin can add custom problems to contests','error');return;}
+  }
   const dur=parseInt((el('ce-dur')||{}).value)||120;
   const startTs=new Date((el('ce-start')||{}).value).getTime()||Date.now()+86400000;
   const isPublic=(el('ce-pub')||{}).checked;
