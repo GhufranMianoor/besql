@@ -41,10 +41,35 @@ function canUseSessionStorage() {
   }
 }
 
-function getClientOnlyValue(k) {
-  if (!canUseSessionStorage()) return null;
+function canUseLocalStorage() {
   try {
-    const raw = window.sessionStorage.getItem(`besql:${k}`);
+    return typeof window.localStorage !== 'undefined';
+  } catch {
+    return false;
+  }
+}
+
+function getClientOnlyStorageForKey(k) {
+  // Keep auth session persistent across browser restarts.
+  if (k === 'session' && canUseLocalStorage()) return window.localStorage;
+  if (canUseSessionStorage()) return window.sessionStorage;
+  if (canUseLocalStorage()) return window.localStorage;
+  return null;
+}
+
+function getClientOnlyValue(k) {
+  const storage = getClientOnlyStorageForKey(k);
+  if (!storage) return null;
+  try {
+    let raw = storage.getItem(`besql:${k}`);
+    // Backward-compat: migrate legacy session from sessionStorage to localStorage.
+    if (raw == null && k === 'session' && canUseSessionStorage() && canUseLocalStorage()) {
+      raw = window.sessionStorage.getItem(`besql:${k}`);
+      if (raw != null) {
+        window.localStorage.setItem(`besql:${k}`, raw);
+        window.sessionStorage.removeItem(`besql:${k}`);
+      }
+    }
     if (raw == null) return null;
     return JSON.parse(raw);
   } catch {
@@ -53,16 +78,21 @@ function getClientOnlyValue(k) {
 }
 
 function setClientOnlyValue(k, v) {
-  if (!canUseSessionStorage()) return;
+  const storage = getClientOnlyStorageForKey(k);
+  if (!storage) return;
   try {
-    window.sessionStorage.setItem(`besql:${k}`, JSON.stringify(cloneVal(v)));
+    storage.setItem(`besql:${k}`, JSON.stringify(cloneVal(v)));
   } catch { }
 }
 
 function delClientOnlyValue(k) {
-  if (!canUseSessionStorage()) return;
+  const storage = getClientOnlyStorageForKey(k);
+  if (!storage) return;
   try {
-    window.sessionStorage.removeItem(`besql:${k}`);
+    storage.removeItem(`besql:${k}`);
+    // Clean both stores to avoid stale fallback data.
+    if (canUseSessionStorage()) window.sessionStorage.removeItem(`besql:${k}`);
+    if (canUseLocalStorage()) window.localStorage.removeItem(`besql:${k}`);
   } catch { }
 }
 

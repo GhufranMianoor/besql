@@ -565,6 +565,14 @@ function isSolvedInContest(problemId,contestId){
   if(!problemId||!contestId)return false;
   return S.submissions.some(s=>s.problemId===problemId&&s.contestId===contestId&&s.verdict==='AC');
 }
+function getSolvedIdsInContest(contestId){
+  if(!contestId)return new Set();
+  return new Set(
+    S.submissions
+      .filter(s=>s.contestId===contestId&&s.verdict==='AC')
+      .map(s=>s.problemId)
+  );
+}
 function isSolvedForJudgeContext(problemId,ctx){
   if(ctx?.contestId)return isSolvedInContest(problemId,ctx.contestId);
   return getSolvedIds().has(problemId);
@@ -1521,11 +1529,40 @@ async function quickLogin(uname,role){
 }
 function showAErr(m){const e=el('a-err');if(e){e.textContent=m;show(e);}}
 function showRErr(m){const e=el('r-err');if(e){e.textContent=m;show(e);}}
+function buildSessionRecord(user){
+  if(!user?.username)return null;
+  return {
+    username:user.username,
+    userId:user.userId||null,
+    passwordHash:user.passwordHash||null,
+    createdAt:Date.now(),
+  };
+}
+function restoreSessionUser(){
+  const sess=LS.get('session');
+  if(!sess)return null;
+
+  // Backward compatibility for legacy string session format.
+  if(typeof sess==='string'){
+    const u=LS.get(`user:${sess}`);
+    if(u)LS.set('session',buildSessionRecord(u));
+    return u||null;
+  }
+
+  if(typeof sess!=='object')return null;
+  const username=String(sess.username||'').trim();
+  if(!username)return null;
+  const u=LS.get(`user:${username}`);
+  if(!u)return null;
+  if(sess.userId&&u.userId&&String(sess.userId)!==String(u.userId))return null;
+  if(sess.passwordHash&&u.passwordHash&&String(sess.passwordHash)!==String(u.passwordHash))return null;
+  return u;
+}
 function finishLogin(user){
   S.user=user;
   // Sync user to Supabase in background - don't wait
   syncUserToRelational(user).catch(err=>console.warn('Background user sync failed:',err));
-  LS.set('session',user.username);
+  LS.set('session',buildSessionRecord(user));
   S.submissions=LS.get(`subs:${user.userId}`)||[];
   closeModal('modal-auth');
   renderTopRight(); renderSidebar();
@@ -1908,7 +1945,7 @@ function renderCDProblems(c,probs){
     el('cd-problems').innerHTML=`<div class="card"><div class="empty"><div class="empty-ico" style="font-size:14px;color:var(--t3)">🔒</div><div style="font-size:12px;color:var(--t2)">${esc(reason)}</div>${canJoin?`<button class="btn btn-blue btn-sm" style="margin-top:10px" onclick="joinContest('${c.id}')">Join As Participant</button>`:''}</div></div>`;
     return;
   }
-  const solved=getSolvedIds();
+  const solved=getSolvedIdsInContest(c.id);
   el('cd-problems').innerHTML=`<div class="card">${probs.length?probs.map((p,i)=>`
     <div class="prob-row ${solved.has(p.id)?'solved':''}" onclick="nav('judge',{problemId:'${p.id}',contestId:'${c.id}',backView:'contest-detail'})">
       <div class="prob-num">${String.fromCharCode(65+i)}</div>
@@ -2106,7 +2143,9 @@ function renderJudge(ctx){
   el('tc-summary').textContent=`${publicCases.length} public · ${hiddenCount} hidden`;
 
   // Previous submission (editor value set in bind editor section below)
-  const prevSub=S.submissions.filter(s=>s.problemId===p.id).sort((a,b)=>b.at-a.at)[0];
+  const prevSub=S.submissions
+    .filter(s=>s.problemId===p.id&&(ctx?.contestId?s.contestId===ctx.contestId:true))
+    .sort((a,b)=>b.at-a.at)[0];
   clearJudgeState();
 
   // Timer
@@ -2222,11 +2261,29 @@ function updateJudgeNextButton(){
   btn.onclick=next?moveToNextJudgeProblem:null;
 }
 
+function resetJudgeExecutionState(problem){
+  const verdict=el('judge-verdict');
+  const feedback=el('judge-feedback');
+  if(verdict)verdict.innerHTML='';
+  if(feedback){
+    feedback.innerHTML='';
+    feedback.classList.add('hidden');
+  }
+  if(problem?.testCases){
+    problem.testCases.forEach(tc=>resetTC(tc.id));
+    const publicTotal=problem.testCases.filter(tc=>!tc.hidden).length;
+    const hiddenCount=problem.testCases.length-publicTotal;
+    const summary=el('tc-summary');
+    if(summary)summary.textContent=`${publicTotal} public · ${hiddenCount} hidden`;
+  }
+}
+
 function judgeRun(){
   const p=S.problems.find(x=>x.id===S.judgeContext?.problemId);
   if(!p)return;
   const sql=el('judge-editor').value;
   if(!sql.trim()){toast('Write a query first','warn');return;}
+  resetJudgeExecutionState(p);
   el('btn-judge-run').textContent='Running...'; el('btn-judge-run').disabled=true;
 
   setTimeout(()=>{
@@ -2284,6 +2341,7 @@ function judgeSubmit(){
   if(!p)return;
   const sql=el('judge-editor').value;
   if(!sql.trim()){toast('Write a query first','warn');return;}
+  resetJudgeExecutionState(p);
   el('btn-judge-submit').disabled=true; el('btn-judge-submit').textContent='Judging...';
 
   setTimeout(()=>{
@@ -3148,8 +3206,11 @@ async function init(){
   }
 
   // Load user session
-  const sess=LS.get('session');
-  if(sess){const u=LS.get(`user:${sess}`);if(u){S.user=u;S.submissions=LS.get(`subs:${u.userId}`)||[];}}
+  const sessionUser=restoreSessionUser();
+  if(sessionUser){
+    S.user=sessionUser;
+    S.submissions=LS.get(`subs:${sessionUser.userId}`)||[];
+  }
 
   // Load custom contests from local fallback only when relational is unavailable/empty.
   if(!(relContestResult.success&&Array.isArray(relContestResult.contests)&&relContestResult.contests.length>0)){
