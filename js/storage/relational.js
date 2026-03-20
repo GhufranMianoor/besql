@@ -137,8 +137,44 @@ function serializeProblemTestCases(testCases) {
   });
 }
 
+function normalizeResultCell(v) {
+  if (v == null) return null;
+  const n = Number(v);
+  if (Number.isFinite(n) && String(v).trim() !== '') return n;
+  return String(v).trim().toLowerCase();
+}
+
+function normalizeResultColumns(cols) {
+  return (cols || []).map(c => String(c).trim().toLowerCase());
+}
+
+function resultsExactlyMatch(actual, expected) {
+  if (!actual || !expected) return false;
+  const actualCols = normalizeResultColumns(actual.columns);
+  const expectedCols = normalizeResultColumns(expected.columns);
+  if (actualCols.length !== expectedCols.length) return false;
+  for (let i = 0; i < expectedCols.length; i++) {
+    if (actualCols[i] !== expectedCols[i]) return false;
+  }
+
+  const actualRows = actual.rows || [];
+  const expectedRows = expected.rows || [];
+  if (actualRows.length !== expectedRows.length) return false;
+  for (let r = 0; r < expectedRows.length; r++) {
+    const a = actualRows[r] || [];
+    const b = expectedRows[r] || [];
+    if (a.length !== b.length) return false;
+    for (let c = 0; c < b.length; c++) {
+      if (normalizeResultCell(a[c]) !== normalizeResultCell(b[c])) return false;
+    }
+  }
+  return true;
+}
+
 function hydrateProblemFromRelationalRow(row) {
   const solution = row.solution || 'SELECT 1';
+  const expectedFromSolution = runSQL(solution, DB);
+  const hasReferenceResult = Boolean(expectedFromSolution && !expectedFromSolution.error && Array.isArray(expectedFromSolution.rows));
   const rawCases = Array.isArray(row.test_cases) ? row.test_cases : [];
   const testCases = rawCases.map((tc, idx) => ({
     id: tc.id || `${row.id}-tc-${idx + 1}`,
@@ -148,9 +184,8 @@ function hydrateProblemFromRelationalRow(row) {
     hidden: tc.hidden === true,
     validate: (r) => {
       if (r.error || !r.rows) return false;
-      const ref = runSQL(solution, DB);
-      if (ref.error || !ref.rows) return false;
-      return r.rowCount === ref.rowCount;
+      if (!hasReferenceResult) return false;
+      return resultsExactlyMatch(r, expectedFromSolution);
     },
   }));
 
@@ -160,7 +195,7 @@ function hydrateProblemFromRelationalRow(row) {
     title: row.title || 'Untitled Problem',
     difficulty: row.difficulty || 'Easy',
     points: Number(row.points || 100),
-    timeLimit: row.time_limit == null ? null : Number(row.time_limit),
+    timeLimit: null,
     category: row.category || 'General',
     tags: Array.isArray(row.tags) ? row.tags : [],
     description: row.description || '',
@@ -205,7 +240,7 @@ async function syncProblemToRelational(problem) {
       title: problem.title || 'Untitled Problem',
       difficulty: problem.difficulty || 'Easy',
       points: Number(problem.points || 100),
-      time_limit: problem.timeLimit == null ? null : Number(problem.timeLimit),
+      time_limit: null,
       category: problem.category || 'General',
       tags: Array.isArray(problem.tags) ? problem.tags : [],
       description: problem.description || '',

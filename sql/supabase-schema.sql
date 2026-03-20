@@ -96,6 +96,34 @@ CREATE INDEX IF NOT EXISTS idx_submissions_user_problem ON public.submissions(us
 CREATE INDEX IF NOT EXISTS idx_submissions_verdict ON public.submissions(verdict);
 CREATE INDEX IF NOT EXISTS idx_submissions_submitted_at ON public.submissions(submitted_at DESC);
 
+-- Prevent reattempts in the same contest after a user already solved a problem.
+CREATE OR REPLACE FUNCTION public.prevent_contest_reattempt_after_ac()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.contest_id IS NOT NULL
+     AND EXISTS (
+       SELECT 1
+       FROM public.submissions s
+       WHERE s.user_id = NEW.user_id
+         AND s.problem_id = NEW.problem_id
+         AND s.contest_id = NEW.contest_id
+         AND lower(coalesce(s.verdict, '')) = 'accepted'
+     ) THEN
+    RAISE EXCEPTION 'Reattempt blocked: this problem is already solved in this contest.';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_prevent_contest_reattempt_after_ac ON public.submissions;
+CREATE TRIGGER trg_prevent_contest_reattempt_after_ac
+BEFORE INSERT ON public.submissions
+FOR EACH ROW
+EXECUTE FUNCTION public.prevent_contest_reattempt_after_ac();
+
 -- =====================================================
 -- PROBLEMS TABLE (Proper Problemset Storage)
 -- =====================================================

@@ -605,6 +605,18 @@ function isSolvedForJudgeContext(problemId,ctx){
   if(ctx?.contestId)return isSolvedInContest(problemId,ctx.contestId);
   return getSolvedIds().has(problemId);
 }
+function isContestReattemptBlocked(problemId,contestId){
+  return Boolean(contestId)&&isSolvedInContest(problemId,contestId);
+}
+function getEffectiveSubmissionContestId(ctx){
+  const contestId=ctx?.contestId||null;
+  if(!contestId)return null;
+  const contest=getContestById(contestId);
+  if(!contest)return null;
+  normalizeContestLifecycle(contest);
+  if(contest.status==='ended')return null;
+  return contest.id;
+}
 function normalizeBsqCode(raw){
   const code=String(raw||'').trim().toUpperCase();
   return /^BSQ-\d+$/.test(code)?code:'';
@@ -792,7 +804,7 @@ function hydrateProblemFromRelationalRow(row){
     title:row.title||'Untitled Problem',
     difficulty:row.difficulty||'Easy',
     points:Number(row.points||100),
-    timeLimit:row.time_limit==null?null:Number(row.time_limit),
+    timeLimit:null,
     category:row.category||'General',
     tags:Array.isArray(row.tags)?row.tags:[],
     description:row.description||'',
@@ -837,7 +849,7 @@ async function syncProblemToRelational(problem){
       title:problem.title||'Untitled Problem',
       difficulty:problem.difficulty||'Easy',
       points:Number(problem.points||100),
-      time_limit:problem.timeLimit==null?null:Number(problem.timeLimit),
+      time_limit:null,
       category:problem.category||'General',
       tags:Array.isArray(problem.tags)?problem.tags:[],
       description:problem.description||'',
@@ -1009,26 +1021,34 @@ function normalizeResultCell(v){
   if(Number.isFinite(n)&&String(v).trim()!=='')return n;
   return String(v).trim().toLowerCase();
 }
-function matchesSampleOutput(result,sample){
-  if(!sample||!Array.isArray(sample.columns)||!Array.isArray(sample.rows))return true;
-  const resultCols=(result.columns||[]).map(c=>String(c).trim().toLowerCase());
-  const sampleCols=sample.columns.map(c=>String(c).trim().toLowerCase());
-  if(resultCols.length!==sampleCols.length)return false;
-  for(let i=0;i<sampleCols.length;i++){
-    if(resultCols[i]!==sampleCols[i])return false;
+function normalizeResultColumns(cols){
+  return (cols||[]).map(c=>String(c).trim().toLowerCase());
+}
+function resultsExactlyMatch(actual,expected){
+  if(!actual||!expected)return false;
+  const actualCols=normalizeResultColumns(actual.columns);
+  const expectedCols=normalizeResultColumns(expected.columns);
+  if(actualCols.length!==expectedCols.length)return false;
+  for(let i=0;i<expectedCols.length;i++){
+    if(actualCols[i]!==expectedCols[i])return false;
   }
 
-  const resultRows=result.rows||[];
-  if(resultRows.length!==sample.rows.length)return false;
-  for(let r=0;r<sample.rows.length;r++){
-    const a=resultRows[r]||[];
-    const b=sample.rows[r]||[];
+  const actualRows=actual.rows||[];
+  const expectedRows=expected.rows||[];
+  if(actualRows.length!==expectedRows.length)return false;
+  for(let r=0;r<expectedRows.length;r++){
+    const a=actualRows[r]||[];
+    const b=expectedRows[r]||[];
     if(a.length!==b.length)return false;
     for(let c=0;c<b.length;c++){
       if(normalizeResultCell(a[c])!==normalizeResultCell(b[c]))return false;
     }
   }
   return true;
+}
+function matchesSampleOutput(result,sample){
+  if(!sample||!Array.isArray(sample.columns)||!Array.isArray(sample.rows))return true;
+  return resultsExactlyMatch(result,sample);
 }
 function buildValidator(tc,prob){
   const meta=`${tc?.name||''} ${tc?.desc||''} ${tc?.hint||''} ${prob?.description||''}`.toLowerCase();
@@ -1071,11 +1091,22 @@ function buildValidator(tc,prob){
     return false;
   };
 
+  const expectedFromSolution=(prob?.solution&&typeof runSQL==='function')
+    ? runSQL(prob.solution,DB)
+    : null;
+  const hasReferenceResult=Boolean(expectedFromSolution&&!expectedFromSolution.error&&Array.isArray(expectedFromSolution.rows));
+
   return (r)=>{
     if(r.error||!r.rows)return false;
 
     let checks=0;
     const cols=(r.columns||[]).map(c=>String(c).toLowerCase());
+
+    // Canonical check: user output must match official solution output.
+    if(hasReferenceResult){
+      checks++;
+      if(!resultsExactlyMatch(r,expectedFromSolution))return false;
+    }
 
     if(prob?.sampleOutput){
       checks++;
@@ -1124,7 +1155,7 @@ function buildValidator(tc,prob){
       }
     }
 
-    if(checks===0)return r.rowCount>0;
+    if(checks===0)return false;
     return true;
   };
 }
@@ -1136,6 +1167,25 @@ function injectHiddenStrongTestCases(problems){
       hidden:tc.hidden===true,
       validate:tc.validate||buildValidator(tc,p),
     }));
+
+    const guardId=`${p.id}__hidden_wa_guard`;
+    const hasGuard=testCases.some(tc=>tc&&tc.id===guardId);
+    if(!hasGuard){
+      testCases.push({
+        id:guardId,
+        name:'Hidden WA Guard',
+        desc:'System check: output must exactly match expected result',
+        hint:'',
+        hidden:true,
+        system:true,
+        validate:(r)=>{
+          if(r.error||!Array.isArray(r.rows))return false;
+          const ref=runSQL(p.solution||'SELECT 1',DB);
+          if(ref.error||!Array.isArray(ref.rows))return false;
+          return resultsExactlyMatch(r,ref);
+        },
+      });
+    }
 
     return {...p,testCases};
   });
@@ -1483,6 +1533,14 @@ function nav(view, extra){
     if(extra?.contestId){
       const contest=getContestById(extra.contestId);
       if(!contest){toast('Contest not found','error');return;}
+      normalizeContestLifecycle(contest);
+      if(contest.status==='ended'){
+        const endedCtx={...extra,contestId:null,backView:'practice'};
+        toast('Contest ended. This will be submitted as practice.','info');
+        renderJudge(endedCtx);
+        saveRouteState('judge',S.judgeContext);
+        return;
+      }
       S.pendingContestAccess={contestId:contest.id,action:{type:'judge',extra}};
       if(!ensureContestAccess(contest))return;
       S.pendingContestAccess=null;
@@ -2125,7 +2183,7 @@ function renderCDProblems(c,probs){
   }
   const solved=getSolvedIdsInContest(c.id);
   el('cd-problems').innerHTML=`<div class="card">${probs.length?probs.map((p,i)=>`
-    <div class="prob-row ${solved.has(p.id)?'solved':''}" onclick="nav('judge',{problemId:'${p.id}',contestId:'${c.id}',backView:'contest-detail'})">
+    <div class="prob-row ${solved.has(p.id)?'solved':''}" onclick="${solved.has(p.id)?"toast('Already solved in this contest. Reattempt is disabled.','info')":`openContestProblem('${c.id}','${p.id}')`}">
       <div class="prob-num">${String.fromCharCode(65+i)}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;color:var(--t0)">${esc(p.title)}</div>
@@ -2135,9 +2193,25 @@ function renderCDProblems(c,probs){
         <span class="${diffCls(p.difficulty)}">${p.difficulty}</span>
         <span style="font-size:12px;color:var(--gold);font-weight:700">${p.points}pt</span>
         ${solved.has(p.id)?'<span style="color:var(--grn);font-weight:700;font-size:12px;margin-left:2px">AC</span>':''}
-        ${c.status!=='ended'?`<button class="btn btn-blue btn-xs" onclick="event.stopPropagation();nav('judge',{problemId:'${p.id}',contestId:'${c.id}',backView:'contest-detail'})">Solve</button>`:''}
+        ${c.status!=='ended'?(
+          solved.has(p.id)
+            ? '<button class="btn btn-ghost btn-xs" disabled>Solved</button>'
+            : `<button class="btn btn-blue btn-xs" onclick="event.stopPropagation();openContestProblem('${c.id}','${p.id}')">Solve</button>`
+        ):`<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openContestProblem('${c.id}','${p.id}')">Practice</button>`}
       </div>
     </div>`).join(''):'<div class="empty"><div class="empty-ico" style="font-size:14px;color:var(--t3)">—</div></div>'}</div>`;
+}
+
+function openContestProblem(contestId,problemId){
+  const contest=getContestById(contestId);
+  if(!contest){toast('Contest not found','error');return;}
+  normalizeContestLifecycle(contest);
+  if(contest.status==='ended'){
+    toast('Contest ended. Opening as practice problem.','info');
+    nav('judge',{problemId,contestId:null,backView:'practice'});
+    return;
+  }
+  nav('judge',{problemId,contestId:contest.id,backView:'contest-detail'});
 }
 
 function buildContestLeaderboard(contest){
@@ -2151,7 +2225,12 @@ function buildContestLeaderboard(contest){
     .map(k=>LS.get(k))
     .filter(Array.isArray)
     .flat()
-    .filter(s=>s&&s.contestId===contest.id);
+    .filter(s=>s&&s.contestId===contest.id)
+    .filter(s=>{
+      const at=Number(s.at||0);
+      if(!Number.isFinite(at)||at<=0)return false;
+      return at>=Number(contest.startTime||0)&&at<=Number(contest.endTime||0);
+    });
 
   const problemById=new Map(
     (contest.problemIds||[])
@@ -2333,8 +2412,7 @@ function renderJudge(ctx){
     S.judgeElapsed++;
     const te=el('judge-timer-small');
     if(te){
-      const urgent=p.timeLimit&&S.judgeElapsed>p.timeLimit*.8;
-      te.innerHTML=`<span style="font-size:11px;font-weight:600;font-family:var(--mono);color:${urgent?'var(--rose)':'var(--t2)'};${urgent?'animation:blink 1s infinite':''}">${fmtT(S.judgeElapsed)}</span>`;
+      te.innerHTML=`<span style="font-size:11px;font-weight:600;font-family:var(--mono);color:var(--t2)">${fmtT(S.judgeElapsed)}</span>`;
     }
   },1000);
 
@@ -2524,6 +2602,13 @@ function judgeSubmit(){
   if(!S.user){toast('Please sign in to submit','error');return;}
   const p=S.problems.find(x=>x.id===S.judgeContext?.problemId);
   if(!p)return;
+  const effectiveContestId=getEffectiveSubmissionContestId(S.judgeContext);
+  if(isContestReattemptBlocked(p.id,effectiveContestId)){
+    el('btn-judge-submit').disabled=true;
+    el('btn-judge-submit').textContent='Solved';
+    toast('Already solved in this contest. Reattempt is disabled.','info');
+    return;
+  }
   const sql=el('judge-editor').value;
   if(!sql.trim()){toast('Write a query first','warn');return;}
   resetJudgeExecutionState(p);
@@ -2538,7 +2623,13 @@ function judgeSubmit(){
     let verdict='WA';
     if(result.error) verdict='CE';
     else if(allPassed) verdict='AC';
-    else if(S.judgeElapsed>=(p.timeLimit||300)) verdict='TLE';
+
+    if(isContestReattemptBlocked(p.id,effectiveContestId)){
+      el('btn-judge-submit').disabled=true;
+      el('btn-judge-submit').textContent='Solved';
+      toast('Already solved in this contest. Reattempt is disabled.','info');
+      return;
+    }
 
     // Check if already solved BEFORE adding new submission
     const alreadySolved=getSolvedIds().has(p.id);
@@ -2548,7 +2639,7 @@ function judgeSubmit(){
     const publicPassed=p.testCases.filter(tc=>!tc.hidden&&tc.validate(result)).length;
     const sub={
       id:genId(), userId:S.user.userId, problemId:p.id,
-      contestId:S.judgeContext?.contestId||null,
+      contestId:effectiveContestId,
       code:sql, verdict, timeTaken:S.judgeElapsed,
       at:Date.now(), tcPassed:p.testCases.filter(tc=>tc.validate(result)).length,
       tcTotal:p.testCases.length,
@@ -2570,7 +2661,7 @@ function judgeSubmit(){
     }
 
     // Show verdict
-    const vColor=verdict==='AC'?'var(--grn)':verdict==='CE'?'var(--violet)':verdict==='TLE'?'var(--gold)':'var(--rose)';
+    const vColor=verdict==='AC'?'var(--grn)':verdict==='CE'?'var(--violet)':'var(--rose)';
     el('judge-verdict').innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:5px;background:${vColor}18;border:1px solid ${vColor}44">
       <span style="color:${vColor};font-size:15px;font-weight:800">${verdict}</span>
       <span style="font-size:11px;color:var(--t2)">${sub.publicPassed}/${sub.publicTotal} public · ${sub.tcPassed}/${sub.tcTotal} total</span>
@@ -2582,7 +2673,6 @@ function judgeSubmit(){
       <span style="color:${vColor};font-size:12px;font-weight:500">${
         verdict==='AC'?`Accepted! ${sub.publicPassed}/${sub.publicTotal} public tests passed (${sub.tcPassed}/${sub.tcTotal} total).`:
         verdict==='CE'?`Compilation/Runtime Error: ${result.error}`:
-        verdict==='TLE'?`Time Limit Exceeded (${S.judgeElapsed}s)`:
         `Wrong Answer — ${sub.publicPassed}/${sub.publicTotal} public tests passed (${sub.tcPassed}/${sub.tcTotal} total).`
       }</span>
     </div>`;
@@ -2598,7 +2688,7 @@ function judgeSubmit(){
     } else {
       el('btn-judge-submit').disabled=false;
       el('btn-judge-submit').textContent='Submit';
-      toast(verdict==='CE'?'Error in query':verdict==='TLE'?'Time limit exceeded':'Wrong answer','error');
+      toast(verdict==='CE'?'Error in query':'Wrong answer','error');
     }
   },300);
 }
@@ -3052,7 +3142,7 @@ function openProblemEditor(id){
   if(!canEditProblem(target)){toast('Permission denied','error');return;}
   S.editingProblem=id
     ?{...target,_existing:true}
-    :{id:getNextBsqCode(),code:getNextBsqCode(),title:'',difficulty:'Easy',points:100,timeLimit:300,category:'Filtering',tags:[],description:'',solution:'',testCases:[],dailyDate:null,isCustom:!isMaster(),createdBy:S.user?.userId,_existing:false};
+    :{id:getNextBsqCode(),code:getNextBsqCode(),title:'',difficulty:'Easy',points:100,timeLimit:null,category:'Filtering',tags:[],description:'',solution:'',testCases:[],dailyDate:null,isCustom:!isMaster(),createdBy:S.user?.userId,_existing:false};
   el('prob-editor-title').textContent=id?'EDIT PROBLEM':'NEW PROBLEM';
   const p=S.editingProblem;
   el('prob-editor-body').innerHTML=`
@@ -3063,7 +3153,7 @@ function openProblemEditor(id){
     <div class="g3">
       <div class="fg"><label class="lbl">Difficulty</label><select class="sel" id="pe-diff">${['Easy','Medium','Hard','Expert'].map(d=>`<option${p.difficulty===d?' selected':''}>${d}</option>`).join('')}</select></div>
       <div class="fg"><label class="lbl">Points</label><input class="inp" type="number" id="pe-pts" value="${p.points}"></div>
-      <div class="fg"><label class="lbl">Time Limit (s)</label><input class="inp" type="number" id="pe-tl" value="${p.timeLimit}"></div>
+      <div class="fg"><label class="lbl">Mode</label><input class="inp" value="No time limit" readonly></div>
     </div>
     <div class="fg"><label class="lbl">Tags (comma separated)</label><input class="inp" id="pe-tags" value="${esc(Array.isArray(p.tags)?p.tags.join(', '):(p.tags||''))}" placeholder="WHERE, JOIN, GROUP BY"></div>
     <div class="fg"><label class="lbl">Description *</label><textarea class="ta" rows="5" id="pe-desc" placeholder="Problem statement...">${esc(p.description)}</textarea></div>
@@ -3160,7 +3250,7 @@ function saveProblem(){
     code:ensuredCode,
     difficulty:(el('pe-diff')||{}).value||'Easy',
     points:parseInt((el('pe-pts')||{}).value)||100,
-    timeLimit:parseInt((el('pe-tl')||{}).value)||300,
+    timeLimit:null,
     category:(el('pe-cat')||{}).value?.trim()||'General',
     description:(el('pe-desc')||{}).value?.trim(),
     tags, testCases:tcs,
@@ -3168,6 +3258,7 @@ function saveProblem(){
     isCustom:S.editingProblem.isCustom===true||!isMaster(),
     createdBy:S.editingProblem.createdBy||S.user?.userId||S.user?.username,
   };
+  updated.testCases=injectHiddenStrongTestCases([updated])[0].testCases;
 
   if(S.editingProblem._existing){
     const idx=S.problems.findIndex(p=>p.id===updated.id);
