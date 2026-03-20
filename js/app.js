@@ -339,219 +339,6 @@ const S = {
 };
 
 /* ══════════════════════════════════════════════════════════
-   STORAGE
-══════════════════════════════════════════════════════════ */
-const SUPABASE_CONFIG={
-  url:window.SUPABASE_URL||'https://yaqukpmixbhiyxdkgmwl.supabase.co',
-  anonKey:window.SUPABASE_ANON_KEY||'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhcXVrcG1peGJoaXl4ZGtnbXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MzI1NDksImV4cCI6MjA4OTUwODU0OX0.8mckbWLNNjVMNjxH4BCRnXh1-GaAN1xgWlbEPopG_Co',
-  kvTable:'besql_kv',
-};
-let SB=null;
-let STORAGE_MODE='memory';
-let STORAGE_DIAGNOSTIC='';
-const storageCache=new Map();
-const pendingUpserts=new Map();
-const pendingDeletes=new Set();
-let flushTimer=null;
-let flushInFlight=false;
-let flushRetryDelay=500;
-const CLIENT_ONLY_KEYS=new Set(['session','theme','practiceLab','practiceLabTaskDone']);
-
-function cloneVal(v){
-  if(v==null)return v;
-  try{return JSON.parse(JSON.stringify(v));}catch{return v;}
-}
-
-function canUseSessionStorage(){
-  try{return typeof window.sessionStorage!=='undefined';}catch{return false;}
-}
-
-function getClientOnlyValue(k){
-  if(!canUseSessionStorage())return null;
-  try{
-    const raw=window.sessionStorage.getItem(`besql:${k}`);
-    if(raw==null)return null;
-    return JSON.parse(raw);
-  }catch{
-    return null;
-  }
-}
-
-function setClientOnlyValue(k,v){
-  if(!canUseSessionStorage())return;
-  try{
-    window.sessionStorage.setItem(`besql:${k}`,JSON.stringify(cloneVal(v)));
-  }catch{}
-}
-
-function delClientOnlyValue(k){
-  if(!canUseSessionStorage())return;
-  try{window.sessionStorage.removeItem(`besql:${k}`);}catch{}
-}
-
-function explainSupabaseError(error,phase){
-  const msg=String(error?.message||error||'Unknown error');
-  const lower=msg.toLowerCase();
-  if(lower.includes('relation')&&lower.includes('does not exist')){
-    return `Supabase ${phase} failed: table '${SUPABASE_CONFIG.kvTable}' does not exist. Run sql/supabase-schema.sql in Supabase SQL editor.`;
-  }
-  if(lower.includes('row-level security')||lower.includes('permission denied')||lower.includes('not allowed')){
-    return `Supabase ${phase} failed: RLS/permissions are blocking writes on '${SUPABASE_CONFIG.kvTable}'. Enable a policy for anon/authenticated users.`;
-  }
-  if(lower.includes('invalid api key')||lower.includes('jwt')){
-    return `Supabase ${phase} failed: invalid anon key. Check SUPABASE_ANON_KEY.`;
-  }
-  return `Supabase ${phase} failed: ${msg}`;
-}
-
-function setStorageFallback(reason){
-  STORAGE_MODE='memory';
-  STORAGE_DIAGNOSTIC=reason;
-}
-
-function isFatalSupabaseError(error){
-  const msg=String(error?.message||error||'').toLowerCase();
-  return (
-    (msg.includes('relation')&&msg.includes('does not exist'))
-    || msg.includes('row-level security')
-    || msg.includes('permission denied')
-    || msg.includes('not allowed')
-    || msg.includes('invalid api key')
-    || msg.includes('jwt')
-  );
-}
-
-function scheduleCloudFlush(delay=0){
-  if(STORAGE_MODE!=='supabase'||!SB)return;
-  if(flushTimer)clearTimeout(flushTimer);
-  flushTimer=setTimeout(()=>{void flushCloudWrites();},delay);
-}
-
-async function flushCloudWrites(){
-  if(STORAGE_MODE!=='supabase'||!SB)return;
-  if(flushInFlight)return;
-  if(!pendingUpserts.size&&!pendingDeletes.size)return;
-  flushInFlight=true;
-  try{
-    if(pendingUpserts.size){
-      const rows=[...pendingUpserts.entries()].map(([k,v])=>({k,v}));
-      const {error}=await SB.from(SUPABASE_CONFIG.kvTable).upsert(rows,{onConflict:'k'});
-      if(error){
-        if(isFatalSupabaseError(error)){
-          const reason=explainSupabaseError(error,'write');
-          console.error('Supabase batch upsert failed:',reason);
-          setStorageFallback(reason);
-          return;
-        }
-        console.warn('Transient Supabase upsert error. Retrying...',error?.message||error);
-        scheduleCloudFlush(flushRetryDelay);
-        flushRetryDelay=Math.min(flushRetryDelay*2,8000);
-        return;
-      }
-      pendingUpserts.clear();
-    }
-
-    if(pendingDeletes.size){
-      const keys=[...pendingDeletes];
-      const {error}=await SB.from(SUPABASE_CONFIG.kvTable).delete().in('k',keys);
-      if(error){
-        if(isFatalSupabaseError(error)){
-          const reason=explainSupabaseError(error,'delete');
-          console.error('Supabase batch delete failed:',reason);
-          setStorageFallback(reason);
-          return;
-        }
-        console.warn('Transient Supabase delete error. Retrying...',error?.message||error);
-        scheduleCloudFlush(flushRetryDelay);
-        flushRetryDelay=Math.min(flushRetryDelay*2,8000);
-        return;
-      }
-      pendingDeletes.clear();
-    }
-
-    flushRetryDelay=500;
-  } finally {
-    flushInFlight=false;
-    if(STORAGE_MODE==='supabase'&&(pendingUpserts.size||pendingDeletes.size)){
-      scheduleCloudFlush(flushRetryDelay);
-    }
-  }
-}
-
-async function initStorage(){
-  storageCache.clear();
-  const canUseSupabase=typeof window.supabase!=='undefined'&&typeof window.supabase.createClient==='function';
-  if(!canUseSupabase||!SUPABASE_CONFIG.url||!SUPABASE_CONFIG.anonKey){
-    const reason='Supabase is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY.';
-    console.warn(reason);
-    setStorageFallback(reason);
-    return;
-  }
-  SB=window.supabase.createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.anonKey);
-  const {data,error}=await SB.from(SUPABASE_CONFIG.kvTable).select('k,v');
-  if(error){
-    const reason=explainSupabaseError(error,'read');
-    console.error(reason);
-    setStorageFallback(reason);
-    return;
-  }
-
-  const probeKey=`__besql_probe__${Date.now()}`;
-  const probePayload={at:Date.now(),ok:true};
-  const {error:probeErr}=await SB.from(SUPABASE_CONFIG.kvTable).upsert({k:probeKey,v:probePayload},{onConflict:'k'});
-  if(probeErr){
-    const reason=explainSupabaseError(probeErr,'write');
-    console.error(reason);
-    setStorageFallback(reason);
-    return;
-  }
-  await SB.from(SUPABASE_CONFIG.kvTable).delete().eq('k',probeKey);
-
-  STORAGE_MODE='supabase';
-  STORAGE_DIAGNOSTIC='';
-  storageCache.clear();
-  (data||[]).forEach(row=>storageCache.set(row.k,cloneVal(row.v)));
-}
-
-async function cloudUpsert(k,v){
-  if(!SB||STORAGE_MODE!=='supabase')return;
-  pendingDeletes.delete(k);
-  pendingUpserts.set(k,cloneVal(v));
-  scheduleCloudFlush(50);
-}
-
-async function cloudDelete(k){
-  if(!SB||STORAGE_MODE!=='supabase')return;
-  pendingUpserts.delete(k);
-  pendingDeletes.add(k);
-  scheduleCloudFlush(50);
-}
-
-const LS={
-  get(k){
-    if(CLIENT_ONLY_KEYS.has(k))return cloneVal(getClientOnlyValue(k));
-    return storageCache.has(k)?cloneVal(storageCache.get(k)):null;
-  },
-  set(k,v){
-    if(CLIENT_ONLY_KEYS.has(k)){
-      setClientOnlyValue(k,v);
-      return;
-    }
-    storageCache.set(k,cloneVal(v));
-    void cloudUpsert(k,cloneVal(v));
-  },
-  del(k){
-    if(CLIENT_ONLY_KEYS.has(k)){
-      delClientOnlyValue(k);
-      return;
-    }
-    storageCache.delete(k);
-    void cloudDelete(k);
-  },
-  keys(p=''){return [...storageCache.keys()].filter(k=>k.startsWith(p));},
-};
-
-/* ══════════════════════════════════════════════════════════
    HELPERS
 ══════════════════════════════════════════════════════════ */
 const el=id=>document.getElementById(id);
@@ -661,7 +448,9 @@ async function fetchRelationalAuthUser(username){
 }
 
 async function syncUserToRelational(user){
-  if(!SB||STORAGE_MODE!=='supabase'||!user?.username||!user?.email)return;
+  if(!SB||STORAGE_MODE!=='supabase'||!user?.username||!user?.email){
+    return Promise.resolve({success:false,reason:'Supabase not available or user data incomplete'});
+  }
   try{
     const payload={
       username:user.username,
@@ -674,23 +463,36 @@ async function syncUserToRelational(user){
     const {data,error}=await SB.from('users').upsert(payload,{onConflict:'username'}).select('id').maybeSingle();
     if(error){
       console.warn('Supabase users sync failed:',error.message||error);
-      return;
+      return {success:false,error:error.message||error};
     }
     const userId=data?.id??await getRelationalUserId(user.username);
-    if(!userId)return;
+    if(!userId){
+      console.warn('Failed to get user ID after sync');
+      return {success:false,reason:'Failed to get user ID'};
+    }
     const role_id=getRoleId(user.role);
     const {error:roleErr}=await SB.from('user_roles').upsert({user_id:userId,role_id},{onConflict:'user_id,role_id'});
-    if(roleErr)console.warn('Supabase user_roles sync failed:',roleErr.message||roleErr);
+    if(roleErr){
+      console.warn('Supabase user_roles sync failed:',roleErr.message||roleErr);
+      return {success:false,error:roleErr.message||roleErr};
+    }
+    return {success:true,userId};
   }catch(err){
     console.warn('Supabase relational user sync exception:',err?.message||err);
+    return {success:false,error:err?.message||err};
   }
 }
 
 async function syncSubmissionToRelational(sub,result,problem){
-  if(!SB||STORAGE_MODE!=='supabase'||!S.user?.username||!sub)return;
+  if(!SB||STORAGE_MODE!=='supabase'||!S.user?.username||!sub){
+    return Promise.resolve({success:false,reason:'Supabase not available or submission data incomplete'});
+  }
   try{
     const uid=await getRelationalUserId(S.user.username);
-    if(!uid)return;
+    if(!uid){
+      console.warn('Failed to get user ID for submission sync');
+      return {success:false,reason:'User ID not found'};
+    }
     const verdictMap={AC:'accepted',WA:'wrong_answer',TLE:'time_limit',CE:'error'};
     const verdict=verdictMap[sub.verdict]||String(sub.verdict||'pending').toLowerCase();
     const contestIdNum=Number(sub.contestId);
@@ -700,7 +502,7 @@ async function syncSubmissionToRelational(sub,result,problem){
       contest_id:Number.isFinite(contestIdNum)?contestIdNum:null,
       submitted_code:sub.code||'',
       verdict,
-      error_message:result?.error|| (sub.verdict==='WA'?'Wrong Answer':null),
+      error_message:result?.error||(sub.verdict==='WA'?'Wrong Answer':null),
       runtime_ms:Math.max(0,Number(sub.timeTaken||0))*1000,
       memory_mb:null,
       tests_passed:Number(sub.tcPassed||0),
@@ -709,9 +511,14 @@ async function syncSubmissionToRelational(sub,result,problem){
       judged_at:new Date().toISOString(),
     };
     const {error}=await SB.from('submissions').insert(payload);
-    if(error)console.warn('Supabase submissions sync failed:',error.message||error);
+    if(error){
+      console.warn('Supabase submissions sync failed:',error.message||error);
+      return {success:false,error:error.message||error};
+    }
+    return {success:true};
   }catch(err){
     console.warn('Supabase relational submission sync exception:',err?.message||err);
+    return {success:false,error:err?.message||err};
   }
 }
 
@@ -758,7 +565,9 @@ function hydrateProblemFromRelationalRow(row){
 }
 
 async function loadProblemsFromRelational(){
-  if(!SB||STORAGE_MODE!=='supabase')return null;
+  if(!SB||STORAGE_MODE!=='supabase'){
+    return Promise.resolve({success:false,problems:null,reason:'Supabase not configured'});
+  }
   try{
     const {data,error}=await SB
       .from('problems')
@@ -767,17 +576,20 @@ async function loadProblemsFromRelational(){
       .order('created_at',{ascending:true});
     if(error){
       console.warn('Supabase problems load failed:',error.message||error);
-      return null;
+      return {success:false,problems:null,error:error.message||error};
     }
-    return (data||[]).map(hydrateProblemFromRelationalRow);
+    const problems=(data||[]).map(hydrateProblemFromRelationalRow);
+    return {success:true,problems,count:problems.length};
   }catch(err){
     console.warn('Supabase problems load exception:',err?.message||err);
-    return null;
+    return {success:false,problems:null,error:err?.message||err};
   }
 }
 
 async function syncProblemToRelational(problem){
-  if(!SB||STORAGE_MODE!=='supabase'||!problem?.id)return;
+  if(!SB||STORAGE_MODE!=='supabase'||!problem?.id){
+    return Promise.resolve({success:false,reason:'Supabase not available or problem data incomplete'});
+  }
   try{
     const payload={
       id:problem.id,
@@ -799,22 +611,34 @@ async function syncProblemToRelational(problem){
       updated_at:new Date().toISOString(),
     };
     const {error}=await SB.from('problems').upsert(payload,{onConflict:'id'});
-    if(error)console.warn('Supabase problem sync failed:',error.message||error);
+    if(error){
+      console.warn('Supabase problem sync failed:',error.message||error);
+      return {success:false,error:error.message||error};
+    }
+    return {success:true,problemId:problem.id};
   }catch(err){
     console.warn('Supabase problem sync exception:',err?.message||err);
+    return {success:false,error:err?.message||err};
   }
 }
 
 async function deactivateProblemInRelational(problemId){
-  if(!SB||STORAGE_MODE!=='supabase'||!problemId)return;
+  if(!SB||STORAGE_MODE!=='supabase'||!problemId){
+    return Promise.resolve({success:false,reason:'Supabase not available or problem ID missing'});
+  }
   try{
     const {error}=await SB
       .from('problems')
       .update({is_active:false,updated_at:new Date().toISOString()})
       .eq('id',problemId);
-    if(error)console.warn('Supabase problem deactivate failed:',error.message||error);
+    if(error){
+      console.warn('Supabase problem deactivate failed:',error.message||error);
+      return {success:false,error:error.message||error};
+    }
+    return {success:true,problemId};
   }catch(err){
     console.warn('Supabase problem deactivate exception:',err?.message||err);
+    return {success:false,error:err?.message||err};
   }
 }
 
@@ -1363,7 +1187,8 @@ function showAErr(m){const e=el('a-err');if(e){e.textContent=m;show(e);}}
 function showRErr(m){const e=el('r-err');if(e){e.textContent=m;show(e);}}
 function finishLogin(user){
   S.user=user;
-  void syncUserToRelational(user);
+  // Sync user to Supabase in background - don't wait
+  syncUserToRelational(user).catch(err=>console.warn('Background user sync failed:',err));
   LS.set('session',user.username);
   S.submissions=LS.get(`subs:${user.userId}`)||[];
   closeModal('modal-auth');
@@ -1736,6 +1561,7 @@ function renderJudge(ctx){
   const isSolved=getSolvedIds().has(p.id);
   el('btn-judge-submit').disabled=isSolved;
   el('btn-judge-submit').textContent=isSolved?'Solved':'Submit';
+  updateJudgeNextButton();
 }
 
 function judgeEditorClear(){
@@ -1765,9 +1591,56 @@ function clearJudgeState(){
   if(rowCount)rowCount.textContent='';
   if(tcSummary)tcSummary.textContent='— test cases';
   if(timerSmall)timerSmall.innerHTML='';
-  // Hide next button
-  const nb=el('btn-judge-next');
-  if(nb)nb.style.display='none';
+}
+
+function getJudgeProblemSequence(ctx){
+  if(!ctx)return [];
+  if(ctx.contestId){
+    const contest=S.contests.find(c=>c.id===ctx.contestId);
+    if(!contest||!Array.isArray(contest.problemIds))return [];
+    return contest.problemIds.map(pid=>S.problems.find(p=>p.id===pid)).filter(Boolean);
+  }
+  if(ctx.backView==='practice'){
+    if(S.practiceFilter&&S.practiceFilter!=='All'){
+      return S.problems.filter(p=>p.difficulty===S.practiceFilter);
+    }
+    return [...S.problems];
+  }
+  if(ctx.backView==='home'){
+    const today=getTodayStr();
+    const daily=S.problems.filter(p=>p.dailyDate===today);
+    return daily.length?daily:[...S.problems];
+  }
+  return [...S.problems];
+}
+
+function getNextJudgeProblem(ctx){
+  if(!ctx)return null;
+  const seq=getJudgeProblemSequence(ctx);
+  if(!seq.length)return null;
+  const idx=seq.findIndex(p=>p.id===ctx.problemId);
+  if(idx<0||idx>=seq.length-1)return null;
+  return seq[idx+1];
+}
+
+function moveToNextJudgeProblem(){
+  const ctx=S.judgeContext;
+  if(!ctx)return;
+  const next=getNextJudgeProblem(ctx);
+  if(!next){toast('No next problem in this track','info');return;}
+  nav('judge',{
+    problemId:next.id,
+    contestId:ctx.contestId||null,
+    backView:ctx.backView||'practice',
+  });
+}
+
+function updateJudgeNextButton(){
+  const btn=el('btn-judge-next');
+  if(!btn)return;
+  const next=getNextJudgeProblem(S.judgeContext||{});
+  btn.style.display=next?'inline-flex':'none';
+  btn.onclick=next?moveToNextJudgeProblem:null;
 }
 
 function judgeRun(){
@@ -1862,7 +1735,8 @@ function judgeSubmit(){
     };
     S.submissions.unshift(sub);
     LS.set(`subs:${S.user.userId}`,S.submissions);
-    void syncSubmissionToRelational(sub,result,p);
+    // Sync submission to Supabase in background - don't wait
+    syncSubmissionToRelational(sub,result,p).catch(err=>console.warn('Background submission sync failed:',err));
 
     // Update user score — only if this is the FIRST acceptance
     if(verdict==='AC'&&!alreadySolved){
@@ -1896,14 +1770,7 @@ function judgeSubmit(){
       // Always persist user to LS so leaderboard stays fresh
       LS.set(`user:${S.user.username}`, S.user);
       renderTopRight();
-      // Show Next button using getElementById (not affected by editor clone)
-      const btnNext=document.getElementById('btn-judge-next');
-      const nextIdx=S.problems.findIndex(x=>x.id===p.id)+1;
-      const nextP=S.problems[nextIdx]||null;
-      if(btnNext){
-        btnNext.style.display=nextP?'inline-flex':'none';
-        btnNext.onclick=nextP?()=>nav('judge',{problemId:nextP.id,backView:S.judgeContext?.backView||'practice',contestId:S.judgeContext?.contestId||null}):null;
-      }
+      updateJudgeNextButton();
       toast(`Accepted! +${p.points} points`,'success');
       el('btn-judge-submit').textContent='Solved';
     } else {
@@ -2404,7 +2271,8 @@ function saveProblem(){
   } else S.problems.push(updated);
 
   persistProblems();
-  void syncProblemToRelational(updated);
+  // Sync problem to Supabase in background - don't wait
+  syncProblemToRelational(updated).catch(err=>console.warn('Background problem sync failed:',err));
   closeModal('modal-problem');
   renderAdminProblems();
   toast('Problem saved','success');
@@ -2413,7 +2281,8 @@ function saveProblem(){
 function deleteProblem(id){
   if(!confirm('Delete this problem?'))return;
   S.problems=S.problems.filter(p=>p.id!==id);
-  void deactivateProblemInRelational(id);
+  // Deactivate problem in Supabase in background - don't wait
+  deactivateProblemInRelational(id).catch(err=>console.warn('Background problem deactivate failed:',err));
   persistProblems(); renderAdminProblems();
   toast('Deleted','info');
 }
@@ -2507,15 +2376,31 @@ function applyTheme(){
   if(t==='light'){document.body.classList.add('light');const btn=el('theme-btn');if(btn)btn.textContent='☀';}
 }
 
+function withTimeout(promise,ms,label='operation'){
+  return Promise.race([
+    promise,
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error(`${label} timed out after ${ms}ms`)),ms))
+  ]);
+}
+
+async function safeCloudCall(fn,label,timeout=12000){
+  try{
+    return await withTimeout(fn(),timeout,label);
+  }catch(err){
+    console.warn(`[Init] ${label} failed:`,err?.message||err);
+    return null;
+  }
+}
+
 /* ══════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════ */
 async function init(){
   applyTheme();
   // Load problems from relational table first when available.
-  const relProblems=await loadProblemsFromRelational();
-  if(Array.isArray(relProblems)&&relProblems.length>0){
-    S.problems=relProblems;
+  const relResult=await safeCloudCall(()=>loadProblemsFromRelational(),'loadProblemsFromRelational')||{success:false,problems:null};
+  if(relResult.success&&Array.isArray(relResult.problems)&&relResult.problems.length>0){
+    S.problems=relResult.problems;
     persistProblems();
   } else {
     // Fallback: merge local cached problems with defaults.
@@ -2531,8 +2416,8 @@ async function init(){
       S.problems=[...PROBLEMS_DEFAULT];
       persistProblems();
     }
-    if(Array.isArray(relProblems)&&relProblems.length===0){
-      await seedProblemsToRelational(S.problems);
+    if(Array.isArray(relResult.problems)&&relResult.problems.length===0){
+      await safeCloudCall(()=>seedProblemsToRelational(S.problems),'seedProblemsToRelational');
     }
   }
   S.problems=injectHiddenStrongTestCases(S.problems);
@@ -2552,14 +2437,14 @@ async function init(){
   if(!LS.get('user:admin123')){
     const seededAdmin={userId:'admin-uid-001',username:'admin123',email:'admin123@besql.local',passwordHash:await hashPassword('123'),role:'admin',score:0,solved:0,streak:0,joinedAt:Date.now()};
     LS.set('user:admin123',seededAdmin);
-    await syncUserToRelational(seededAdmin);
+    await safeCloudCall(()=>syncUserToRelational(seededAdmin),'syncUserToRelational(admin)');
   } else {
     // Ensure role stays admin even if tampered, and migrate plain password.
     const adm=LS.get('user:admin123');
     if(adm&&adm.password&&!adm.passwordHash){adm.passwordHash=await hashPassword(adm.password);delete adm.password;}
     if(adm&&adm.role!=='admin'){adm.role='admin';LS.set('user:admin123',adm);}
     else if(adm){LS.set('user:admin123',adm);}
-    if(adm)await syncUserToRelational(adm);
+    if(adm)await safeCloudCall(()=>syncUserToRelational(adm),'syncUserToRelational(existing admin)');
   }
 
   // Load user session
@@ -2610,7 +2495,21 @@ document.addEventListener('keydown',e=>{
 });
 
 async function bootstrap(){
-  await initStorage();
-  await init();
+  try{
+    const storageResult=await initStorageWithTimeout();
+    if(!storageResult.success){
+      console.warn('[Bootstrap] Storage initialization failed, using fallback mode');
+      if(storageResult.timedOut){
+        toast('Database connection timeout. Running in offline mode.','warn');
+      }
+    }
+    await withTimeout(init(),20000,'init');
+  }catch(err){
+    console.error('[Bootstrap] Initialization failed:',err?.message||err);
+    toast('Startup took too long. Loaded in safe mode.','warn');
+    try{renderTopRight();renderSidebar();renderHome();}catch{}
+  }finally{
+    hide('init');
+  }
 }
 bootstrap();
