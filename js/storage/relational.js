@@ -50,7 +50,6 @@ async function fetchRelationalAuthUser(username) {
     role,
     score: 0,
     solved: 0,
-    streak: 0,
     joinedAt: data.created_at ? new Date(data.created_at).getTime() : Date.now(),
   };
 }

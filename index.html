@@ -74,7 +74,6 @@
             <div style="font-size:26px;font-weight:700;letter-spacing:-.4px" id="home-greeting">Welcome back</div>
             <div style="font-size:12px;color:var(--t2);margin-top:2px" id="home-sub">SQL Contest Platform</div>
           </div>
-          <div id="home-streak"></div>
         </div>
         <div class="g4 mb4" id="home-stats"></div>
         <div class="home-grid" style="display:grid;grid-template-columns:1fr 320px;gap:16px">
@@ -220,11 +219,10 @@
         <div class="fx ic sb mb4">
           <div>
             <div style="font-size:24px;font-weight:700;letter-spacing:-.3px">Daily Practice</div>
-            <div style="font-size:12px;color:var(--t2);margin-top:2px">One problem per day. Build your streak.</div>
+            <div style="font-size:12px;color:var(--t2);margin-top:2px">One problem per day. Build consistency.</div>
           </div>
-          <div id="practice-streak-display"></div>
         </div>
-        <div class="practice-grid" style="display:grid;grid-template-columns:1fr 280px;gap:16px">
+        <div class="practice-grid" style="display:grid;grid-template-columns:1fr;gap:16px">
           <div>
             <div class="tabs mb3" id="practice-mode-tabs">
               <button class="tab-btn on" id="practice-mode-problems" onclick="setPracticeMode('problems')">Problems</button>
@@ -263,15 +261,7 @@
               </div>
             </div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:14px">
-            <div class="card">
-              <div class="card-hdr"><div class="card-title">Your Streak</div></div>
-              <div class="card-body">
-                <div style="font-size:38px;font-weight:800;color:var(--gold);line-height:1;font-variant-numeric:tabular-nums" id="streak-count">0</div>
-                <div style="font-size:10px;color:var(--t3);letter-spacing:1px;margin-top:2px">DAYS IN A ROW</div>
-                <div class="fx gap2 mt3 flex-wrap" id="streak-calendar"></div>
-              </div>
-            </div>
+          <div>
             <div class="card">
               <div class="card-hdr"><div class="card-title">Solved by Difficulty</div></div>
               <div class="card-body" id="practice-diff-stats"></div>

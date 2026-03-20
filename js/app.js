@@ -699,7 +699,6 @@ async function fetchRelationalAuthUser(username){
     role,
     score:0,
     solved:0,
-    streak:0,
     joinedAt:data.created_at?new Date(data.created_at).getTime():Date.now(),
   };
 }
@@ -1648,7 +1647,6 @@ async function doRegister(){
     role:'contestant',
     score:0,
     solved:0,
-    streak:0,
     joinedAt:Date.now(),
   };
   LS.set(`user:${u}`,nu);
@@ -1668,7 +1666,6 @@ async function quickLogin(uname,role){
       role,
       score:0,
       solved:0,
-      streak:0,
       joinedAt:Date.now(),
     };
     LS.set(`user:${uname}`,u);
@@ -1977,9 +1974,6 @@ function renderHome(){
     {l:'Live Contests',v:getVisibleContestsForList().filter(c=>c.status==='live').length,c:'var(--rose)'},
     {l:'Your Rank',v:getUserRank(),c:'var(--gold)'},
   ].map(s=>`<div class="stat"><div style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin-bottom:7px">${s.l}</div><div class="stat-v" style="color:${s.c}">${s.v}</div></div>`).join('');
-
-  // Streak display
-  el('home-streak').innerHTML=S.user?`<div class="fx ic gap2"><span style="font-size:20px"></span><div><div style="font-size:22px;font-weight:800;color:var(--gold)">${S.user.streak||0}</div><div style="font-size:10px;color:var(--t3);letter-spacing:1px">DAY STREAK</div></div></div>`:'';
 
   // Active contests
   const active=getVisibleContestsForList().filter(c=>c.status==='live'||c.status==='upcoming').slice(0,4);
@@ -2908,18 +2902,6 @@ function renderPractice(){
       </div>
     </div>`).join('')||'<div class="empty"><div class="empty-ico" style="font-size:14px;color:var(--t3)">—</div></div>'}</div>`;
 
-  // Streak
-  const streak=S.user?.streak||0;
-  el('streak-count').textContent=streak;
-  el('practice-streak-display').innerHTML=`<div class="fx ic gap2"><span style="font-size:24px"></span><div><div style="font-size:20px;font-weight:800;color:var(--gold)">${streak} days</div><div style="font-size:10px;color:var(--t3)">current streak</div></div></div>`;
-
-  // Calendar (last 7 days)
-  const days=['M','T','W','T','F','S','S'];
-  el('streak-calendar').innerHTML=days.map((d,i)=>{
-    const cls=i<streak?'sd-done':i===streak?'sd-today':'sd-miss';
-    return `<div class="streak-day ${cls}">${d}</div>`;
-  }).join('');
-
   // Diff stats
   el('practice-diff-stats').innerHTML=['Easy','Medium','Hard','Expert'].map(d=>{
     const dp=publicProblems.filter(p=>p.difficulty===d);
@@ -2972,7 +2954,7 @@ function renderProfile(){
       ${rank>0?`<div style="text-align:center"><div style="font-size:28px;font-weight:700;color:var(--gold);line-height:1;font-variant-numeric:tabular-nums">#${rank}</div><div style="font-size:10px;color:var(--t3);letter-spacing:1px">GLOBAL RANK</div></div>`:''}
     </div>
     <div class="g4 mb4">
-      ${[['SCORE',fmtN(u.score||0),'var(--gold)'],['SOLVED',u.solved||0,'var(--grn)'],['SUBMISSIONS',S.submissions.length,'var(--ind)'],['STREAK',u.streak||0,'var(--gold)']].map(([l,v,c])=>`<div class="stat"><div class="stat-v" style="color:${c}">${v}</div><div class="stat-l">${l}</div></div>`).join('')}
+      ${[['SCORE',fmtN(u.score||0),'var(--gold)'],['SOLVED',u.solved||0,'var(--grn)'],['SUBMISSIONS',S.submissions.length,'var(--ind)']].map(([l,v,c])=>`<div class="stat"><div class="stat-v" style="color:${c}">${v}</div><div class="stat-l">${l}</div></div>`).join('')}
     </div>
     <div class="g2">
       <div class="card">
@@ -3469,7 +3451,7 @@ async function init(){
 
   // Seed admin account (admin123 / 123) — always ensure it exists
   if(!LS.get('user:admin123')){
-    const seededAdmin={userId:'admin-uid-001',username:'admin123',email:'admin123@besql.local',passwordHash:await hashPassword('123'),role:'admin',score:0,solved:0,streak:0,joinedAt:Date.now()};
+    const seededAdmin={userId:'admin-uid-001',username:'admin123',email:'admin123@besql.local',passwordHash:await hashPassword('123'),role:'admin',score:0,solved:0,joinedAt:Date.now()};
     LS.set('user:admin123',seededAdmin);
     await safeCloudCall(()=>syncUserToRelational(seededAdmin),'syncUserToRelational(admin)');
   } else {
@@ -3560,11 +3542,16 @@ async function bootstrap(){
         toast('Database connection timeout. Running in offline mode.','warn');
       }
     }
-    await withTimeout(init(),9000,'init');
+    await withTimeout(init(),6000,'init');
   }catch(err){
     console.error('[Bootstrap] Initialization failed:',err?.message||err);
     toast('Startup took too long. Loaded in safe mode.','warn');
-    try{renderTopRight();renderSidebar();renderHome();}catch{}
+    try{
+      renderTopRight();
+      renderSidebar();
+      const restoredRoute=restoreRouteState();
+      if(!restoredRoute)renderHome();
+    }catch{}
   }finally{
     hide('init');
   }

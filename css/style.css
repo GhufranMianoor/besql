@@ -329,12 +329,6 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
 .sub-row:last-child{border-bottom:none}
 .sub-row:hover{background:rgba(255,255,255,.01)}
 
-/* ── STREAK ── */
-.streak-day{width:28px;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:var(--mono)}
-.sd-done{background:rgba(46,200,102,.15);color:var(--grn);border:1px solid rgba(46,200,102,.3)}
-.sd-today{background:var(--idim);color:var(--ind);border:1px solid rgba(79,142,247,.35)}
-.sd-miss{background:var(--bg3);color:var(--t4);border:1px solid var(--line)}
-
 /* ── ANNOUNCE BAR ── */
 .announce{background:rgba(46,200,102,.06);border-bottom:1px solid rgba(46,200,102,.15);padding:7px 20px;font-size:12px;color:var(--grn);display:flex;align-items:center;gap:9px;flex-shrink:0}
 
