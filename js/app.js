@@ -992,9 +992,47 @@ function serializeProblemTestCases(testCases){
   });
 }
 
+function parseRelationalJson(value){
+  if(value==null)return null;
+  if(typeof value==='string'){
+    const t=value.trim();
+    if(!t)return null;
+    try{return JSON.parse(t);}catch{return null;}
+  }
+  return value;
+}
+
+function normalizeSampleOutput(sampleOutput,solution){
+  const parsed=parseRelationalJson(sampleOutput);
+  if(parsed&&Array.isArray(parsed.columns)){
+    const cols=parsed.columns.map(c=>String(c));
+    const rows=Array.isArray(parsed.rows)?parsed.rows.map(r=>{
+      if(Array.isArray(r))return r;
+      if(r&&typeof r==='object')return cols.map(c=>r[c]??r[String(c).toLowerCase()]??null);
+      return [];
+    }):[];
+    return {columns:cols,rows};
+  }
+  const ref=(solution&&typeof runSQL==='function')?runSQL(solution,DB):null;
+  if(ref&&!ref.error&&Array.isArray(ref.columns)&&Array.isArray(ref.rows)){
+    return {
+      columns:[...ref.columns],
+      rows:ref.rows.slice(0,Math.min(5,ref.rows.length)).map(row=>row.map(cell=>cell==null?'NULL':String(cell))),
+    };
+  }
+  return null;
+}
+
+function normalizeSchemaHint(schemaHint){
+  const parsed=parseRelationalJson(schemaHint);
+  if(parsed&&parsed.table)return parsed;
+  return null;
+}
+
 function hydrateProblemFromRelationalRow(row){
   const solution=row.solution||'SELECT 1';
-  const rawCases=Array.isArray(row.test_cases)?row.test_cases:[];
+  const parsedCases=parseRelationalJson(row.test_cases);
+  const rawCases=Array.isArray(parsedCases)?parsedCases:[];
   const testCases=rawCases.map((tc,idx)=>({
     id:tc.id||`${row.id}-tc-${idx+1}`,
     name:tc.name||`Test ${idx+1}`,
@@ -1015,8 +1053,8 @@ function hydrateProblemFromRelationalRow(row){
     tags:Array.isArray(row.tags)?row.tags:[],
     description:row.description||'',
     solution,
-    sampleOutput:row.sample_output||null,
-    schemaHint:row.schema_hint||null,
+    sampleOutput:normalizeSampleOutput(row.sample_output,solution),
+    schemaHint:normalizeSchemaHint(row.schema_hint),
     testCases,
     dailyDate:row.daily_date||null,
   };
@@ -1060,8 +1098,8 @@ async function syncProblemToRelational(problem){
       tags:Array.isArray(problem.tags)?problem.tags:[],
       description:problem.description||'',
       solution:problem.solution||'SELECT 1',
-      sample_output:problem.sampleOutput||null,
-      schema_hint:problem.schemaHint||null,
+      sample_output:parseRelationalJson(problem.sampleOutput)||problem.sampleOutput||null,
+      schema_hint:parseRelationalJson(problem.schemaHint)||problem.schemaHint||null,
       test_cases:serializeProblemTestCases(problem.testCases),
       daily_date:problem.dailyDate||null,
       is_active:true,
