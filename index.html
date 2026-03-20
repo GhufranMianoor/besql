@@ -31,7 +31,7 @@
       <button class="tnav" data-view="submissions">Submissions</button>
       <button class="tnav" data-view="admin" id="nav-admin" style="display:none">Admin</button>
     </nav>
-    <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode">◑</button>
+    <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode" style="display:none">◑</button>
     <div class="topright" id="topright"></div>
   </header>
 
@@ -58,11 +58,6 @@
       <div class="slink" data-view="admin" id="sb-admin" style="display:none"><span class="slink-ico">&#9671;</span>Admin Panel</div>
 
       <div style="flex:1"></div>
-      <div class="sidebar-divider"></div>
-      <div style="padding:12px 16px 16px">
-        <div style="font-size:10px;color:var(--t3);letter-spacing:.4px;margin-bottom:3px;font-weight:700;text-transform:uppercase">Online Now</div>
-        <div style="font-size:18px;font-weight:700;color:var(--grn);font-variant-numeric:tabular-nums" id="sb-online">—</div>
-      </div>
     </aside>
     <div id="sb-backdrop" onclick="toggleSidebar()"></div>
 
@@ -181,7 +176,10 @@
               </div>
             </div>
             <div class="judge-editor-wrap">
-              <textarea class="ta code-ta" id="judge-editor" rows="8" spellcheck="false" placeholder="-- Write your SQL query here&#10;-- Ctrl+Enter to run"></textarea>
+              <div class="sql-editor-shell">
+                <pre class="sql-highlight" id="judge-editor-hl" aria-hidden="true"></pre>
+                <textarea class="ta code-ta" id="judge-editor" rows="8" spellcheck="false" placeholder="-- Write your SQL query here&#10;-- Ctrl+Enter to run"></textarea>
+              </div>
               <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg2);border:1px solid var(--line);border-top:none;border-radius:0 0 5px 5px;font-size:10px;color:var(--t3)">
                 <span class="judge-editor-hint" style="font-family:var(--mono);font-size:10.5px">Ctrl+Enter to run · Tab to indent</span><span id="judge-chars">0</span>
               </div>
@@ -189,6 +187,7 @@
                 <button class="btn btn-teal btn-md" id="btn-judge-run" onclick="judgeRun()">Run &amp; Test</button>
                 <button class="btn btn-blue btn-md" id="btn-judge-submit" onclick="judgeSubmit()">Submit</button>
                 <button class="btn btn-ghost btn-sm" onclick="judgeEditorClear()">Clear</button>
+                <button class="btn btn-ghost btn-md" id="btn-judge-prev" style="display:none;margin-left:4px">← Previous</button>
                 <button class="btn btn-success btn-md" id="btn-judge-next" style="display:none;margin-left:4px">Next →</button>
                 <div style="margin-left:auto" id="judge-verdict"></div>
               </div>
@@ -258,7 +257,10 @@
           </div>
           <div class="card-body">
             <div style="font-size:12px;color:var(--t2);margin-bottom:8px;line-height:1.6">Practice CREATE, INSERT, UPDATE, DELETE, DROP, and SELECT safely in a sandbox database.</div>
-            <textarea class="ta code-ta" id="practice-lab-editor" rows="7" spellcheck="false" placeholder="write your sql query" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();runPracticeLab();}"></textarea>
+            <div class="sql-editor-shell">
+              <pre class="sql-highlight" id="practice-lab-editor-hl" aria-hidden="true"></pre>
+              <textarea class="ta code-ta" id="practice-lab-editor" rows="7" spellcheck="false" placeholder="write your sql query" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();runPracticeLab();}"></textarea>
+            </div>
             <div class="fx ic gap3 mt2" style="flex-wrap:wrap">
               <button class="btn btn-teal btn-md" onclick="runPracticeLab()">Run Lab SQL</button>
               <span style="font-size:11px;color:var(--t3);font-family:var(--mono)">Ctrl+Enter to run</span>
@@ -398,7 +400,7 @@ window.SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5
 <script src="js/storage/relational.js"></script>
 <script src="js/storage/index.js"></script>
 <!-- Main application -->
-<script src="js/app.js?v=20260320a"></script>
+<script src="js/app.js?v=20260320j"></script>
 </body>
 </html>
 

@@ -7,14 +7,14 @@ function runSQL(q, schema) {
     q = normalizeDialectSQL(q);
     q = q.trim().replace(/\s+/g,' ').replace(/;$/,'');
     if (!/^SELECT/i.test(q)) return {error:'Only SELECT statements are allowed.'};
-    const fromM = q.match(/FROM\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?/i);
+    const fromM = q.match(/FROM\s+"?([A-Za-z_][A-Za-z0-9_]*)"?(?:\s+(?:AS\s+)?(\w+))?/i);
     if (!fromM) return {error:'Missing FROM clause.'};
     const tname=fromM[1], talias=fromM[2]||fromM[1];
     const base=(tname.toLowerCase()==='dual')?[{}]:(schema[tname]||schema[tname.toLowerCase()]);
     if (!base) return {error:`Table '${tname}' not found. Available: ${Object.keys(schema).join(', ')}`};
     let rows=base.map(r=>{const o={};Object.entries(r).forEach(([k,v])=>{o[k]=v;o[`${talias}.${k}`]=v;});return o;});
     // JOINs
-    const jre=/(?:(?:INNER|LEFT|RIGHT)\s+)?JOIN\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?\s+ON\s+([^\s]+)\s*=\s*([^\s]+)/gi;
+    const jre=/(?:(?:INNER|LEFT|RIGHT)\s+)?JOIN\s+"?([A-Za-z_][A-Za-z0-9_]*)"?(?:\s+(?:AS\s+)?(\w+))?\s+ON\s+([^\s]+)\s*=\s*([^\s]+)/gi;
     let jm;
     while((jm=jre.exec(q))!==null){
       const jtn=jm[1],ja=jm[2]||jm[1],jt=schema[jtn]||schema[jtn.toLowerCase()];
@@ -232,6 +232,149 @@ const DB = {
     {transaction_id:4,sender_name:'Nova',receiver_name:'Echo',base_value:150,multiplier:2},
     {transaction_id:5,sender_name:'Ryn',receiver_name:'Zara',base_value:300,multiplier:3},
   ],
+  sectorstats:[
+    {sector_id:1,sector:'Alpha',population:12000,threat_level:'Low',commander:'Vex',established:2850},
+    {sector_id:2,sector:'Beta',population:8500,threat_level:'High',commander:'Nova',established:2860},
+    {sector_id:3,sector:'Gamma',population:15000,threat_level:'Medium',commander:'Echo',established:2840},
+    {sector_id:4,sector:'Delta',population:3200,threat_level:'Critical',commander:'Ryn',established:2870},
+    {sector_id:5,sector:'Epsilon',population:9800,threat_level:'Low',commander:'Zara',established:2855},
+    {sector_id:6,sector:'Zeta',population:6100,threat_level:'High',commander:'Marcus',established:2865},
+  ],
+  missionlogs:[
+    {mission_id:1,agent_name:'Zara',mission_type:'Recon',success:1,duration_hrs:4,mission_date:'2901-01-01',sector:'Alpha'},
+    {mission_id:2,agent_name:'Marcus',mission_type:'Combat',success:0,duration_hrs:8,mission_date:'2901-01-02',sector:'Beta'},
+    {mission_id:3,agent_name:'Nova',mission_type:'Recon',success:1,duration_hrs:3,mission_date:'2901-01-03',sector:'Alpha'},
+    {mission_id:4,agent_name:'Ryn',mission_type:'Extraction',success:1,duration_hrs:6,mission_date:'2901-01-04',sector:'Delta'},
+    {mission_id:5,agent_name:'Zara',mission_type:'Combat',success:1,duration_hrs:10,mission_date:'2901-01-05',sector:'Beta'},
+    {mission_id:6,agent_name:'Echo',mission_type:'Recon',success:0,duration_hrs:2,mission_date:'2901-01-06',sector:'Gamma'},
+    {mission_id:7,agent_name:'Marcus',mission_type:'Extraction',success:1,duration_hrs:5,mission_date:'2901-01-07',sector:'Alpha'},
+    {mission_id:8,agent_name:'Nova',mission_type:'Combat',success:1,duration_hrs:9,mission_date:'2901-01-08',sector:'Delta'},
+    {mission_id:9,agent_name:'Ryn',mission_type:'Recon',success:0,duration_hrs:3,mission_date:'2901-01-09',sector:'Gamma'},
+    {mission_id:10,agent_name:'Zara',mission_type:'Extraction',success:1,duration_hrs:7,mission_date:'2901-01-10',sector:'Beta'},
+    {mission_id:11,agent_name:'Echo',mission_type:'Combat',success:1,duration_hrs:11,mission_date:'2901-01-11',sector:'Alpha'},
+    {mission_id:12,agent_name:'Vex',mission_type:'Recon',success:1,duration_hrs:4,mission_date:'2901-01-12',sector:'Delta'},
+  ],
+  agentskills:[
+    {agent_id:1,agent_name:'Zara',skill:'Hacking',proficiency:90,certified:1},
+    {agent_id:1,agent_name:'Zara',skill:'Combat',proficiency:75,certified:1},
+    {agent_id:2,agent_name:'Marcus',skill:'Hacking',proficiency:60,certified:0},
+    {agent_id:2,agent_name:'Marcus',skill:'Stealth',proficiency:85,certified:1},
+    {agent_id:3,agent_name:'Nova',skill:'Combat',proficiency:95,certified:1},
+    {agent_id:3,agent_name:'Nova',skill:'Stealth',proficiency:70,certified:1},
+    {agent_id:4,agent_name:'Ryn',skill:'Hacking',proficiency:88,certified:1},
+    {agent_id:4,agent_name:'Ryn',skill:'Analysis',proficiency:92,certified:1},
+    {agent_id:5,agent_name:'Echo',skill:'Analysis',proficiency:78,certified:0},
+    {agent_id:5,agent_name:'Echo',skill:'Stealth',proficiency:55,certified:0},
+    {agent_id:6,agent_name:'Vex',skill:'Combat',proficiency:88,certified:1},
+    {agent_id:6,agent_name:'Vex',skill:'Analysis',proficiency:65,certified:0},
+  ],
+  datavaultinventory:[
+    {item_id:1,item_name:'Plasma Core',category:'Weapon',quantity:5,unit_cost:2000,last_restocked:'2900-12-01'},
+    {item_id:2,item_name:'Shield Matrix',category:'Defense',quantity:12,unit_cost:1500,last_restocked:'2900-11-15'},
+    {item_id:3,item_name:'Neural Chip',category:'Tech',quantity:30,unit_cost:800,last_restocked:'2901-01-01'},
+    {item_id:4,item_name:'Stealth Suit',category:'Gear',quantity:8,unit_cost:3500,last_restocked:'2900-10-20'},
+    {item_id:5,item_name:'EMP Device',category:'Weapon',quantity:3,unit_cost:4000,last_restocked:'2900-09-05'},
+    {item_id:6,item_name:'Med Pack',category:'Medical',quantity:50,unit_cost:200,last_restocked:'2901-01-10'},
+    {item_id:7,item_name:'Holo Lens',category:'Tech',quantity:15,unit_cost:1200,last_restocked:'2900-12-20'},
+    {item_id:8,item_name:'Null Grenade',category:'Weapon',quantity:2,unit_cost:5000,last_restocked:'2900-08-01'},
+    {item_id:9,item_name:'Crypto Key',category:'Tech',quantity:100,unit_cost:50,last_restocked:'2901-01-05'},
+    {item_id:10,item_name:'Pulse Rifle',category:'Weapon',quantity:7,unit_cost:6000,last_restocked:'2900-11-01'},
+  ],
+  agentrankhistory:[
+    {history_id:1,agent_name:'Zara',rank:'Operative',from_date:'2895-01-01',to_date:'2897-06-30'},
+    {history_id:2,agent_name:'Zara',rank:'Senior',from_date:'2897-07-01',to_date:'2899-12-31'},
+    {history_id:3,agent_name:'Zara',rank:'Commander',from_date:'2900-01-01',to_date:null},
+    {history_id:4,agent_name:'Marcus',rank:'Operative',from_date:'2896-03-01',to_date:'2899-02-28'},
+    {history_id:5,agent_name:'Marcus',rank:'Senior',from_date:'2899-03-01',to_date:null},
+    {history_id:6,agent_name:'Nova',rank:'Recruit',from_date:'2898-06-01',to_date:'2899-05-31'},
+    {history_id:7,agent_name:'Nova',rank:'Operative',from_date:'2899-06-01',to_date:null},
+    {history_id:8,agent_name:'Ryn',rank:'Recruit',from_date:'2900-01-01',to_date:'2900-12-31'},
+    {history_id:9,agent_name:'Ryn',rank:'Operative',from_date:'2901-01-01',to_date:null},
+    {history_id:10,agent_name:'Echo',rank:'Operative',from_date:'2897-01-01',to_date:null},
+  ],
+  threatalerts:[
+    {alert_id:1,sector:'Alpha',threat_type:'Infiltration',severity:'High',reported_at:'2901-01-01 08:00',resolved:1},
+    {alert_id:2,sector:'Beta',threat_type:'Data Breach',severity:'Critical',reported_at:'2901-01-01 12:00',resolved:0},
+    {alert_id:3,sector:'Gamma',threat_type:'Infiltration',severity:'Medium',reported_at:'2901-01-02 09:00',resolved:1},
+    {alert_id:4,sector:'Delta',threat_type:'Signal Jam',severity:'Low',reported_at:'2901-01-02 14:00',resolved:1},
+    {alert_id:5,sector:'Alpha',threat_type:'Data Breach',severity:'Critical',reported_at:'2901-01-03 07:00',resolved:0},
+    {alert_id:6,sector:'Beta',threat_type:'Infiltration',severity:'High',reported_at:'2901-01-03 11:00',resolved:0},
+    {alert_id:7,sector:'Epsilon',threat_type:'Signal Jam',severity:'Medium',reported_at:'2901-01-04 10:00',resolved:1},
+    {alert_id:8,sector:'Zeta',threat_type:'Data Breach',severity:'High',reported_at:'2901-01-05 16:00',resolved:0},
+  ],
+  citizenregistry:[
+    {citizen_id:1,citizen_name:'Vex',sector:'Alpha',registration_date:'2901-01-01'},
+    {citizen_id:2,citizen_name:'Nova',sector:'Beta',registration_date:'2901-01-01'},
+    {citizen_id:3,citizen_name:'Echo',sector:'Gamma',registration_date:'2901-01-02'},
+    {citizen_id:4,citizen_name:'Ryn',sector:'Alpha',registration_date:'2901-01-02'},
+  ],
+  sectorstatus:[
+    {sector_id:1,sector_name:'Alpha Core',stability_index:95,population:50000,last_scan_date:'2901-01-01'},
+    {sector_id:2,sector_name:'Beta Rim',stability_index:45,population:30000,last_scan_date:'2901-01-01'},
+    {sector_id:3,sector_name:'Gamma Void',stability_index:78,population:25000,last_scan_date:'2901-01-02'},
+    {sector_id:4,sector_name:'Delta Edge',stability_index:62,population:40000,last_scan_date:'2901-01-02'},
+    {sector_id:5,sector_name:'Omega Hub',stability_index:70,population:35000,last_scan_date:'2901-01-03'},
+  ],
+  anomalytracker:[
+    {anomaly_id:1,anomaly_name:'Time Loop Alpha',sector:'Sector 7',severity_score:85,detected_date:'2901-01-01'},
+    {anomaly_id:2,anomaly_name:'Reality Fracture',sector:'Sector 3',severity_score:92,detected_date:'2901-01-02'},
+    {anomaly_id:3,anomaly_name:'Echo Storm',sector:'Sector 5',severity_score:67,detected_date:'2901-01-02'},
+    {anomaly_id:4,anomaly_name:'Null Void',sector:'Sector 9',severity_score:99,detected_date:'2901-01-03'},
+    {anomaly_id:5,anomaly_name:'Data Corruption',sector:'Sector 1',severity_score:73,detected_date:'2901-01-03'},
+    {anomaly_id:6,anomaly_name:'Paradox Rift',sector:'Sector 4',severity_score:88,detected_date:'2901-01-04'},
+  ],
+  briefinglog:[
+    {log_id:1,agent_name:'Zara',team_size:1,briefing_date:'2901-01-01'},
+    {log_id:2,agent_name:'Marcus',team_size:2,briefing_date:'2901-01-01'},
+    {log_id:3,agent_name:'Zara',team_size:1,briefing_date:'2901-01-05'},
+    {log_id:4,agent_name:'Nova',team_size:1,briefing_date:'2901-01-02'},
+    {log_id:5,agent_name:'Marcus',team_size:1,briefing_date:'2901-01-06'},
+    {log_id:6,agent_name:'Nova',team_size:1,briefing_date:'2901-01-08'},
+  ],
+  archiveaccess:[
+    {agent_id:1,agent_name:'Zara',archive_id:101,archive_name:'Project Starfall'},
+    {agent_id:2,agent_name:'Marcus',archive_id:101,archive_name:'Project Starfall'},
+    {agent_id:3,agent_name:'Nova',archive_id:102,archive_name:'Echo Protocol'},
+    {agent_id:1,agent_name:'Zara',archive_id:103,archive_name:'Void Manifest'},
+    {agent_id:2,agent_name:'Marcus',archive_id:103,archive_name:'Void Manifest'},
+    {agent_id:3,agent_name:'Nova',archive_id:103,archive_name:'Void Manifest'},
+    {agent_id:4,agent_name:'Ryn',archive_id:104,archive_name:'Shadow Index'},
+  ],
+  sectors:[
+    {sector_id:1,sector_name:'Alpha Core'},
+    {sector_id:2,sector_name:'Beta Rim'},
+    {sector_id:3,sector_name:'Gamma Void'},
+    {sector_id:4,sector_name:'Delta Edge'},
+  ],
+  assignments:[
+    {agent_id:101,sector_id:1},
+    {agent_id:102,sector_id:1},
+    {agent_id:103,sector_id:3},
+  ],
+  cafeorders:[
+    {order_id:1,citizen_id:101,drink:'Quantum Latte',order_time:'2901-01-01 09:15:00'},
+    {order_id:2,citizen_id:101,drink:'Quantum Latte',order_time:'2901-01-01 09:45:00'},
+    {order_id:3,citizen_id:102,drink:'Nebula Mocha',order_time:'2901-01-01 10:00:00'},
+    {order_id:4,citizen_id:102,drink:'Void Espresso',order_time:'2901-01-01 10:30:00'},
+    {order_id:5,citizen_id:103,drink:'Star Brew',order_time:'2901-01-01 14:00:00'},
+    {order_id:6,citizen_id:103,drink:'Star Brew',order_time:'2901-01-01 15:00:00'},
+    {order_id:7,citizen_id:104,drink:'Rift Cap',order_time:'2901-01-01 11:10:00'},
+    {order_id:8,citizen_id:104,drink:'Rift Cap',order_time:'2901-01-01 11:55:00'},
+  ],
+  trainingscores:[
+    {session_id:1,agent_name:'Zara',session_date:'2901-01-01',points:500},
+    {session_id:2,agent_name:'Marcus',session_date:'2901-01-01',points:200},
+    {session_id:3,agent_name:'Nova',session_date:'2901-01-01',points:600},
+    {session_id:4,agent_name:'Ryn',session_date:'2901-01-02',points:400},
+    {session_id:5,agent_name:'Echo',session_date:'2901-01-02',points:150},
+    {session_id:6,agent_name:'Vex',session_date:'2901-01-03',points:300},
+  ],
+  yearlycredits:[
+    {year:2898,total_credits:10000},
+    {year:2899,total_credits:12000},
+    {year:2900,total_credits:15000},
+    {year:2901,total_credits:18000},
+  ],
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -259,7 +402,7 @@ const PROBLEMS_DEFAULT = [
     id:'p2',code:'BSQ-002',title:'Department Employee Count',difficulty:'Easy',points:150,timeLimit:null,
     category:'Aggregation',tags:['GROUP BY','COUNT'],
     description:'Count the number of employees in each department.\n\nReturn the columns: dept_id, total_employees.\nOrder results by total_employees in descending order.',
-    sampleOutput:{columns:['dept_id','total_employees'],rows:[['1','3'],['2','3'],['4','2'],['3','2']]},
+    sampleOutput:{columns:['dept_id','total_employees'],rows:[['1','3'],['2','3'],['3','2'],['4','2']]},
     schemaHint:{table:'employees',columns:[['id','INT'],['name','VARCHAR'],['dept_id','INT'],['salary','INT']]},
     testCases:[
       {id:'tc1',name:'Four departments',desc:'Must return 4 rows (one per dept)',
@@ -376,6 +519,8 @@ const PROBLEMS_DEFAULT = [
     schemaHint:{table:'citizenmentalhealth',columns:[['citizen_id','INT'],['citizen_name','VARCHAR'],['sector','VARCHAR'],['stability_rating','FLOAT'],['last_checkup','DATE']]},
     testCases:[
       {id:'tc1',name:'Low stability only',desc:'All rows must be below 2.0',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('stability'));return i>=0&&r.rows.every(row=>Number(row[i])<2);},hint:'WHERE stability_rating < 2.0'},
+      {id:'tc2',name:'Three citizens',desc:'Must return exactly 3 rows',validate:r=>r.rowCount===3,hint:'Ryn, Nova, and Marcus'},
+      {id:'tc3',name:'Ascending order',desc:'Lowest stability first',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('stability'));if(i<0)return false;for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])<Number(r.rows[x-1][i]))return false;return true;},hint:'ORDER BY stability_rating ASC'},
     ],
     solution:'SELECT citizen_name, sector, stability_rating FROM citizenmentalhealth WHERE stability_rating < 2.0 ORDER BY stability_rating ASC',
     dailyDate: null,
@@ -388,6 +533,8 @@ const PROBLEMS_DEFAULT = [
     schemaHint:{table:'operativeprofiles',columns:[['operative_id','INT'],['operative_name','VARCHAR'],['clearance_level','VARCHAR'],['organizations_count','INT'],['recruitment_date','DATE']]},
     testCases:[
       {id:'tc1',name:'Alpha multiorg only',desc:'Only Alpha with organizations_count > 1',validate:r=>r.rowCount===2,hint:'WHERE clearance_level = \'Alpha\' AND organizations_count > 1'},
+      {id:'tc2',name:'Zara and Ryn only',desc:'Must include both Zara and Ryn',validate:r=>{const n=r.rows.map(row=>String(row[0]).toLowerCase());return n.includes('zara')&&n.includes('ryn');},hint:'These are the only Alpha operatives with multiple orgs'},
+      {id:'tc3',name:'Descending count',desc:'Highest org count first',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('count'));if(i<0)return false;for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])>Number(r.rows[x-1][i]))return false;return true;},hint:'ORDER BY organizations_count DESC'},
     ],
     solution:"SELECT operative_name, organizations_count FROM operativeprofiles WHERE clearance_level = 'Alpha' AND organizations_count > 1 ORDER BY organizations_count DESC",
     dailyDate: null,
@@ -400,6 +547,8 @@ const PROBLEMS_DEFAULT = [
     schemaHint:{table:'agentrecords',columns:[['record_id','INT'],['agent_name','VARCHAR'],['division_name','VARCHAR'],['entry_date','DATE']]},
     testCases:[
       {id:'tc1',name:'Duplicates only',desc:'Must return exactly duplicated groups',validate:r=>r.rowCount===2,hint:'GROUP BY agent_name, division_name HAVING COUNT(*) > 1'},
+      {id:'tc2',name:'Has count column',desc:'Must include a count column',validate:r=>r.columns.some(c=>c.toLowerCase().includes('count')||c.toLowerCase().includes('dup')),hint:'Use COUNT(*) in SELECT'},
+      {id:'tc3',name:'Descending order',desc:'Highest duplicates first',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('count'));if(i<0)return false;for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])>Number(r.rows[x-1][i]))return false;return true;},hint:'ORDER BY duplicate_count DESC'},
     ],
     solution:'SELECT agent_name, division_name, COUNT(*) AS duplicate_count FROM agentrecords GROUP BY agent_name, division_name HAVING COUNT(*) > 1 ORDER BY duplicate_count DESC, agent_name ASC',
     dailyDate: null,
@@ -412,6 +561,8 @@ const PROBLEMS_DEFAULT = [
     schemaHint:{table:'creditledger',columns:[['txn_id','INT'],['account_id','INT'],['credits','INT'],['txn_date','DATE']]},
     testCases:[
       {id:'tc1',name:'High value accounts',desc:'Only accounts with SUM(credits) > 400',validate:r=>r.rowCount===3,hint:'HAVING SUM(credits) > 400'},
+      {id:'tc2',name:'All above threshold',desc:'All totals must exceed 400',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('total'));return i>=0&&r.rows.every(row=>Number(row[i])>400);},hint:'Check your HAVING condition'},
+      {id:'tc3',name:'Descending sort',desc:'Highest total first',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('total'));if(i<0)return false;for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])<Number(r.rows[x-1][i]))return false;return true;},hint:'ORDER BY total_credits DESC'},
     ],
     solution:'SELECT account_id, SUM(credits) AS total_credits FROM creditledger GROUP BY account_id HAVING SUM(credits) > 400 ORDER BY total_credits DESC',
     dailyDate: null,
@@ -424,6 +575,8 @@ const PROBLEMS_DEFAULT = [
     schemaHint:{table:'agents  ·  exchanges',columns:[['agent_id','INT'],['agent_name','VARCHAR'],['giver_id','INT'],['receiver_id','INT'],['year','INT']]},
     testCases:[
       {id:'tc1',name:'Bidirectional participants',desc:'Must include agents appearing in both roles',validate:r=>r.rowCount===3,hint:'agent_id IN (SELECT giver_id ...) AND agent_id IN (SELECT receiver_id ...)'},
+      {id:'tc2',name:'Three agents',desc:'Marcus, Nova, Zara',validate:r=>{const names=r.rows.map(row=>String(row[0]).toLowerCase());return names.length===3;},hint:'Use IN with two subqueries'},
+      {id:'tc3',name:'Alphabetical order',desc:'Names A-Z',validate:r=>{for(let x=1;x<r.rows.length;x++)if(String(r.rows[x][0]).toLowerCase()<String(r.rows[x-1][0]).toLowerCase())return false;return true;},hint:'ORDER BY agent_name ASC'},
     ],
     solution:'SELECT a.agent_name FROM agents a WHERE a.agent_id IN (SELECT giver_id FROM exchanges) AND a.agent_id IN (SELECT receiver_id FROM exchanges) ORDER BY a.agent_name ASC',
     dailyDate: null,
@@ -436,6 +589,8 @@ const PROBLEMS_DEFAULT = [
     schemaHint:{table:'follows  ·  posts',columns:[['citizen_id','INT'],['followed_citizen_id','INT'],['post_id','INT'],['content','VARCHAR']]},
     testCases:[
       {id:'tc1',name:'No-post followers',desc:'Only followers with no posts',validate:r=>r.rowCount===3,hint:'LEFT JOIN posts ON follows.citizen_id = posts.citizen_id WHERE posts.citizen_id IS NULL'},
+      {id:'tc2',name:'Three citizens',desc:'Citizens 1, 4, and 5',validate:r=>{const ids=r.rows.map(row=>String(row[0]));return ids.includes('1')&&ids.includes('4')&&ids.includes('5');},hint:'These follow but never posted'},
+      {id:'tc3',name:'Ascending order',desc:'IDs ordered low to high',validate:r=>{for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][0])<Number(r.rows[x-1][0]))return false;return true;},hint:'ORDER BY citizen_id ASC'},
     ],
     solution:'SELECT DISTINCT f.citizen_id FROM follows f LEFT JOIN posts p ON f.citizen_id = p.citizen_id WHERE p.citizen_id IS NULL ORDER BY f.citizen_id ASC',
     dailyDate: null,
@@ -448,6 +603,8 @@ const PROBLEMS_DEFAULT = [
     schemaHint:{table:'divisions  ·  divisionagents',columns:[['division_id','INT'],['division_name','VARCHAR'],['chief_id','INT'],['agent_id','INT']]},
     testCases:[
       {id:'tc1',name:'Leaderless only',desc:'Must return Intel and Tech',validate:r=>r.rowCount===2,hint:'LEFT JOIN divisionagents ON chief_id = agent_id'},
+      {id:'tc2',name:'Intel and Tech only',desc:'Must include both divisions',validate:r=>{const names=r.rows.map(row=>String(row[0]).toLowerCase());return names.some(n=>n.includes('intel'))&&names.some(n=>n.includes('tech'));},hint:'These divisions have no valid leaders'},
+      {id:'tc3',name:'Alphabetical order',desc:'Intel before Tech',validate:r=>{const n0=String(r.rows[0][0]).toLowerCase();return n0.includes('intel');},hint:'ORDER BY division_name ASC'},
     ],
     solution:'SELECT d.division_name FROM divisions d LEFT JOIN divisionagents a ON d.chief_id = a.agent_id WHERE d.chief_id IS NULL OR a.agent_id IS NULL ORDER BY d.division_name ASC',
     dailyDate: null,
@@ -460,6 +617,8 @@ const PROBLEMS_DEFAULT = [
     schemaHint:{table:'operativestatus',columns:[['operative_id','INT'],['operative_name','VARCHAR'],['division','VARCHAR'],['energy_level','INT'],['last_mission_date','DATE']]},
     testCases:[
       {id:'tc1',name:'Energy threshold',desc:'All rows must be < 40',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('energy'));return i>=0&&r.rows.every(row=>Number(row[i])<40);},hint:'WHERE energy_level < 40'},
+      {id:'tc2',name:'Two operatives',desc:'Ryn and Marcus only',validate:r=>r.rowCount===2,hint:'The only low-energy operatives'},
+      {id:'tc3',name:'Ascending order',desc:'Lowest energy first',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('energy'));if(i<0)return false;for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])<Number(r.rows[x-1][i]))return false;return true;},hint:'ORDER BY energy_level ASC'},
     ],
     solution:'SELECT operative_name, division, energy_level FROM operativestatus WHERE energy_level < 40 ORDER BY energy_level ASC',
     dailyDate: null,
@@ -472,6 +631,8 @@ const PROBLEMS_DEFAULT = [
     schemaHint:{table:'credittransactions',columns:[['transaction_id','INT'],['sender_name','VARCHAR'],['receiver_name','VARCHAR'],['base_value','INT'],['multiplier','INT']]},
     testCases:[
       {id:'tc1',name:'Computed field',desc:'Must compute base_value * multiplier',validate:r=>r.rowCount===5,hint:'SELECT base_value * multiplier AS effective_credits'},
+      {id:'tc2',name:'Five transactions',desc:'All 5 rows included',validate:r=>r.rowCount===5,hint:'Ryn-Zara, Echo-Ryn, Vex-Nova, and 2 more'},
+      {id:'tc3',name:'Descending order',desc:'Highest effective_credits first',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('effective'));if(i<0)return false;for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])>Number(r.rows[x-1][i]))return false;return true;},hint:'ORDER BY effective_credits DESC'},
     ],
     solution:'SELECT sender_name, receiver_name, base_value * multiplier AS effective_credits FROM credittransactions ORDER BY effective_credits DESC',
     dailyDate: null,
@@ -555,6 +716,7 @@ const S = {
 ══════════════════════════════════════════════════════════ */
 const el=id=>document.getElementById(id);
 const esc=s=>{const d=document.createElement('div');d.textContent=String(s??'');return d.innerHTML;};
+const SQL_KEYWORDS_RE=/\b(SELECT|FROM|WHERE|GROUP|BY|ORDER|LIMIT|AS|COUNT|SUM|AVG|MIN|MAX|JOIN|LEFT|RIGHT|INNER|OUTER|ON|HAVING|DISTINCT|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|DROP|AND|OR|NOT|IN|IS|NULL|LIKE|DESC|ASC)\b/gi;
 function show(id){const e=typeof id==='string'?el(id):id;if(e)e.classList.remove('hidden');}
 function hide(id){const e=typeof id==='string'?el(id):id;if(e)e.classList.add('hidden');}
 function tog(id,c){c?show(id):hide(id);}
@@ -564,6 +726,40 @@ function genId(){return Math.random().toString(36).slice(2,10);}
 function fmtN(n){return Number(n).toLocaleString();}
 function fmtT(s){return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 function fmtDate(ts){return new Date(ts).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+function sqlHighlightHtml(sql){
+  const raw=String(sql||'');
+  if(!raw)return '&nbsp;';
+  let html=esc(raw);
+  html=html.replace(/(--.*)$/gm,'<span class="sql-com">$1</span>');
+  html=html.replace(/'(?:[^'\\]|\\.)*'/g,'<span class="sql-str">$&</span>');
+  html=html.replace(/\b\d+(?:\.\d+)?\b/g,'<span class="sql-num">$&</span>');
+  html=html.replace(SQL_KEYWORDS_RE,'<span class="sql-kw">$1</span>');
+  return html;
+}
+function syncSqlHighlight(id){
+  const ta=el(id);
+  const hl=el(`${id}-hl`);
+  if(!ta||!hl)return;
+  hl.innerHTML=sqlHighlightHtml(ta.value);
+  hl.scrollTop=ta.scrollTop;
+  hl.scrollLeft=ta.scrollLeft;
+}
+function attachSqlHighlighting(id){
+  const ta=el(id);
+  const hl=el(`${id}-hl`);
+  if(!ta||!hl)return;
+  if(ta.dataset.sqlHlAttached==='1'){
+    syncSqlHighlight(id);
+    return;
+  }
+  ta.dataset.sqlHlAttached='1';
+  ta.addEventListener('input',()=>syncSqlHighlight(id));
+  ta.addEventListener('scroll',()=>{
+    hl.scrollTop=ta.scrollTop;
+    hl.scrollLeft=ta.scrollLeft;
+  });
+  syncSqlHighlight(id);
+}
 function fmtCountdownDHMS(totalSeconds){
   const secs=Math.max(0,Math.floor(totalSeconds));
   const days=Math.floor(secs/86400);
@@ -1022,31 +1218,46 @@ function normalizeResultCell(v){
 function normalizeResultColumns(cols){
   return (cols||[]).map(c=>String(c).trim().toLowerCase());
 }
-function resultsExactlyMatch(actual,expected){
+function normalizeResultRow(row){
+  return (row||[]).map(normalizeResultCell);
+}
+function rowsMatch(actualRows,expectedRows,ignoreOrder=false){
+  const a=(actualRows||[]);
+  const b=(expectedRows||[]);
+  if(a.length!==b.length)return false;
+  if(!ignoreOrder){
+    for(let i=0;i<b.length;i++){
+      const ar=normalizeResultRow(a[i]);
+      const br=normalizeResultRow(b[i]);
+      if(ar.length!==br.length)return false;
+      for(let j=0;j<br.length;j++)if(ar[j]!==br[j])return false;
+    }
+    return true;
+  }
+  const toKey=row=>JSON.stringify(normalizeResultRow(row));
+  const ak=a.map(toKey).sort();
+  const bk=b.map(toKey).sort();
+  for(let i=0;i<bk.length;i++)if(ak[i]!==bk[i])return false;
+  return true;
+}
+function resultsMatch(actual,expected,{requireColumnNames=true,ignoreRowOrder=false}={}){
   if(!actual||!expected)return false;
   const actualCols=normalizeResultColumns(actual.columns);
   const expectedCols=normalizeResultColumns(expected.columns);
   if(actualCols.length!==expectedCols.length)return false;
-  for(let i=0;i<expectedCols.length;i++){
-    if(actualCols[i]!==expectedCols[i])return false;
-  }
-
-  const actualRows=actual.rows||[];
-  const expectedRows=expected.rows||[];
-  if(actualRows.length!==expectedRows.length)return false;
-  for(let r=0;r<expectedRows.length;r++){
-    const a=actualRows[r]||[];
-    const b=expectedRows[r]||[];
-    if(a.length!==b.length)return false;
-    for(let c=0;c<b.length;c++){
-      if(normalizeResultCell(a[c])!==normalizeResultCell(b[c]))return false;
+  if(requireColumnNames){
+    for(let i=0;i<expectedCols.length;i++){
+      if(actualCols[i]!==expectedCols[i])return false;
     }
   }
-  return true;
+  return rowsMatch(actual.rows||[],expected.rows||[],ignoreRowOrder);
+}
+function resultsExactlyMatch(actual,expected){
+  return resultsMatch(actual,expected,{requireColumnNames:true,ignoreRowOrder:false});
 }
 function matchesSampleOutput(result,sample){
   if(!sample||!Array.isArray(sample.columns)||!Array.isArray(sample.rows))return true;
-  return resultsExactlyMatch(result,sample);
+  return resultsMatch(result,sample,{requireColumnNames:false,ignoreRowOrder:true});
 }
 function buildValidator(tc,prob){
   const meta=`${tc?.name||''} ${tc?.desc||''} ${tc?.hint||''} ${prob?.description||''}`.toLowerCase();
@@ -1103,7 +1314,7 @@ function buildValidator(tc,prob){
     // Canonical check: user output must match official solution output.
     if(hasReferenceResult){
       checks++;
-      if(!resultsExactlyMatch(r,expectedFromSolution))return false;
+      if(!resultsMatch(r,expectedFromSolution,{requireColumnNames:false,ignoreRowOrder:true}))return false;
     }
 
     if(prob?.sampleOutput){
@@ -1158,6 +1369,145 @@ function buildValidator(tc,prob){
   };
 }
 
+function inferSqlType(value){
+  if(value==null)return 'VARCHAR';
+  if(typeof value==='number')return Number.isInteger(value)?'INT':'FLOAT';
+  if(typeof value==='boolean')return 'BOOLEAN';
+  const s=String(value);
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return 'DATE';
+  if(/^\d+$/.test(s))return 'INT';
+  if(/^\d+\.\d+$/.test(s))return 'FLOAT';
+  return 'VARCHAR';
+}
+
+function inferTablesFromProblem(problem){
+  const sql=String(problem?.solution||'');
+  const found=[];
+  const re=/\b(?:from|join)\s+"?([a-z_][a-z0-9_]*)"?/ig;
+  let m;
+  while((m=re.exec(sql))){
+    const t=String(m[1]||'').trim().toLowerCase();
+    if(t&&!found.includes(t))found.push(t);
+  }
+  if(found.length)return found;
+  if(problem?.schemaHint?.table){
+    return String(problem.schemaHint.table).split('·').map(t=>String(t).trim().toLowerCase()).filter(Boolean);
+  }
+  return [];
+}
+
+function ensureProblemDescription(problem){
+  const base=String(problem?.description||'').trim();
+  const sql=String(problem?.solution||'');
+  const needsReturn=!/\breturn\b/i.test(base);
+  const needsOrder=/\bORDER\s+BY\b/i.test(sql)&&!/\border\b/i.test(base);
+  const needsTable=Boolean(problem?.schemaHint?.table)&&!/(\btable\b|\btables\b|\bfrom\b|\bdataset\b)/i.test(base);
+  const needsTaskLine=!/(\byour task\b|\bwrite a query\b|\bgoal\b)/i.test(base);
+
+  if(!base)return base;
+  if(!needsReturn&&!needsOrder&&!needsTable&&!needsTaskLine)return base;
+
+  const extra=[];
+  const cols=Array.isArray(problem?.sampleOutput?.columns)?problem.sampleOutput.columns:[];
+  if(needsTaskLine){
+    extra.push('Your task: write a SELECT query that returns the required result set.');
+  }
+  if(needsReturn&&cols.length){
+    extra.push(`Return columns: ${cols.join(', ')}.`);
+  }
+  if(needsOrder){
+    extra.push('Follow the required sorting in your final output.');
+  }
+  if(needsTable&&problem.schemaHint?.table){
+    extra.push(`Use table(s): ${String(problem.schemaHint.table).replace(/\s*·\s*/g,', ')}.`);
+  }
+
+  if(!extra.length)return base;
+  return `${base}\n\n${extra.join('\n')}`;
+}
+
+function ensureProblemCompleteness(problem){
+  if(!problem)return problem;
+  const out={...problem};
+  const ref=(out.solution&&typeof runSQL==='function')?runSQL(out.solution,DB):null;
+  const refOk=Boolean(ref&&!ref.error&&Array.isArray(ref.columns)&&Array.isArray(ref.rows));
+
+  if(refOk){
+    out.sampleOutput={
+      columns:[...ref.columns],
+      rows:ref.rows.slice(0,Math.min(5,ref.rows.length)).map(row=>row.map(cell=>cell==null?'NULL':String(cell))),
+    };
+  }
+
+  if(!out.schemaHint||!out.schemaHint.table){
+    const tables=inferTablesFromProblem(out);
+    if(tables.length){
+      const schemaCols=[];
+      tables.forEach(t=>{
+        const rows=DB[t];
+        if(!Array.isArray(rows)||!rows.length)return;
+        const sample=rows[0];
+        Object.keys(sample).forEach(col=>schemaCols.push([tables.length>1?`${t}.${col}`:col,inferSqlType(sample[col])]));
+      });
+      out.schemaHint={
+        table:tables.join('  ·  '),
+        columns:schemaCols,
+      };
+    }
+  }
+
+  const baseCases=Array.isArray(out.testCases)?[...out.testCases]:[];
+  const rowCount=refOk?ref.rows.length:0;
+  const firstCols=out.sampleOutput?.columns?.slice(0,4)||[];
+  const autoPool=[
+    {
+      id:'tc-auto-rows',
+      name:'Row Count',
+      desc:`Must return exactly ${rowCount} rows`,
+      hint:'Match the reference solution row count',
+    },
+    {
+      id:'tc-auto-cols',
+      name:'Required Columns',
+      desc:firstCols.length?`Return: ${firstCols.join(', ')}`:'Return required columns',
+      hint:'Match the expected selected columns',
+    },
+    {
+      id:'tc-auto-ref',
+      name:'Reference Match',
+      desc:'Output must match reference solution semantics',
+      hint:'Use the exact logic described in the statement',
+    },
+  ];
+
+  if(baseCases.length<3){
+    autoPool.forEach(tc=>{
+      if(baseCases.length>=3)return;
+      const exists=baseCases.some(x=>String(x?.name||'').toLowerCase()===String(tc.name).toLowerCase());
+      if(!exists)baseCases.push({...tc});
+    });
+  }
+
+  out.testCases=baseCases.map((tc,idx)=>({
+    ...tc,
+    id:tc.id||`${out.id}-tc-${idx+1}`,
+    name:tc.name||`Test ${idx+1}`,
+    desc:tc.desc||'',
+    hint:tc.hint||'',
+    hidden:tc.hidden===true,
+    validate:tc.validate||buildValidator(tc,out),
+  }));
+
+  out.description=ensureProblemDescription(out);
+
+  return out;
+}
+
+function ensureProblemBankCompleteness(problems){
+  if(!Array.isArray(problems))return [];
+  return problems.map(ensureProblemCompleteness);
+}
+
 function injectHiddenStrongTestCases(problems){
   return problems.map(p=>{
     const testCases=(p.testCases||[]).map(tc=>({
@@ -1180,12 +1530,52 @@ function injectHiddenStrongTestCases(problems){
           if(r.error||!Array.isArray(r.rows))return false;
           const ref=runSQL(p.solution||'SELECT 1',DB);
           if(ref.error||!Array.isArray(ref.rows))return false;
-          return resultsExactlyMatch(r,ref);
+          return resultsMatch(r,ref,{requireColumnNames:false,ignoreRowOrder:true});
         },
       });
     }
 
     return {...p,testCases};
+  });
+}
+
+function normalizeKnownSampleOutputs(problems){
+  if(!Array.isArray(problems))return [];
+  return problems.map(p=>{
+    if(!p)return p;
+    const code=String(p.code||'').toUpperCase();
+    if(code!=='BSQ-002'&&p.id!=='p2')return p;
+    return {
+      ...p,
+      solution:'SELECT dept_id, COUNT(*) AS total_employees FROM employees GROUP BY dept_id ORDER BY total_employees DESC, dept_id ASC',
+      sampleOutput:{
+        columns:['dept_id','total_employees'],
+        rows:[['1','3'],['2','3'],['3','2'],['4','2']],
+      },
+      testCases:[
+        {
+          id:'tc1',
+          name:'Four departments',
+          desc:'Must return 4 rows (one per dept)',
+          hint:'GROUP BY dept_id',
+          hidden:true,
+        },
+        {
+          id:'tc2',
+          name:'Count column exists',
+          desc:'Must have a column for the count',
+          hint:'Use COUNT(*) AS total_employees',
+          hidden:true,
+        },
+        {
+          id:'tc3',
+          name:'Descending order',
+          desc:'Highest count first',
+          hint:'ORDER BY total_employees DESC, dept_id ASC',
+          hidden:true,
+        },
+      ],
+    };
   });
 }
 
@@ -1431,7 +1821,6 @@ function renderPracticeLabTables(){
     <div class="card" style="margin-bottom:8px">
       <div class="card-hdr"><div class="card-title" style="color:var(--grn)">${name}</div><span style="font-size:11px;color:var(--t3)">${t.rows.length} rows</span></div>
       <div class="card-body" style="padding:8px 10px">
-        <div style="font-size:10.5px;color:var(--t2);font-family:var(--mono);margin-bottom:6px">${t.columns.map(c=>`${c.name} ${c.type}`).join(' , ')}</div>
         <div class="tw"><table class="tbl"><thead><tr>${t.columns.map(c=>`<th>${esc(c.name)}</th>`).join('')}</tr></thead><tbody>${t.rows.slice(0,6).map(r=>`<tr>${t.columns.map(c=>`<td>${r[c.name]==null?'<span class="tbl-null">NULL</span>':esc(String(r[c.name]))}</td>`).join('')}</tr>`).join('')||'<tr><td style="color:var(--t3)">No rows</td></tr>'}</tbody></table></div>
       </div>
     </div>`).join('');
@@ -1453,27 +1842,48 @@ function togglePracticeTaskAnswer(taskId){
 function renderPracticeLabTasks(){
   const wrap=el('practice-lab-tasks');
   if(!wrap)return;
+  if(!S.practiceLab||!S.practiceLab.tables){wrap.innerHTML='<div class="empty">Initializing...</div>';return;}
   const done=S.practiceLabTaskDone||{};
   const isDDL=(taskId)=>taskId.startsWith('ddl-');
-  wrap.innerHTML=PRACTICE_LAB_TASKS.map((t,i)=>`
+  
+  // Display all current tables in sandbox on first task
+  function getAllTablesHtml(){
+    const tables=S.practiceLab.tables||{};
+    const entries=Object.entries(tables);
+    if(!entries.length)return '';
+    return `<div style="margin-bottom:12px;padding:10px;background:var(--bg2);border:1px solid var(--line);border-radius:4px">
+      <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;font-weight:700">Available Tables in Sandbox</div>
+      ${entries.map(([name,t])=>`<div style="margin-bottom:8px;overflow-x:auto">
+        <div style="font-size:10px;color:var(--t2);margin-bottom:4px;font-weight:600">${esc(name)}</div>
+        <table class="tbl" style="font-size:11px"><thead><tr>${t.columns.map(c=>`<th>${esc(c.name)}</th>`).join('')}</tr></thead><tbody>${t.rows.slice(0,4).map(r=>`<tr>${t.columns.map(c=>`<td>${r[c.name]==null?'<span class="tbl-null">NULL</span>':esc(String(r[c.name]))}</td>`).join('')}</tr>`).join('')}</tbody></table>
+      </div>`).join('')}
+    </div>`;
+  }
+  
+  wrap.innerHTML=PRACTICE_LAB_TASKS.map((t,i)=>{
+    const tableHtml = i===0 ? getAllTablesHtml() : '';
+    return `
     <div class="card" style="margin-bottom:8px">
       <div class="card-body" style="padding:10px 12px">
         <div class="fx ic sb mb2">
           <div style="font-size:12px;color:var(--t0);font-weight:700">Q${i+1}. ${esc(t.title)}</div>
           <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--t2);cursor:pointer"><input type="checkbox" ${done[t.id]?'checked':''} onchange="markPracticeTaskDone('${t.id}')">Done</label>
         </div>
+        ${tableHtml}
         <div style="font-size:12px;color:var(--t1);line-height:1.6;margin-bottom:6px">${esc(t.question)}</div>
         ${isDDL(t.id)?'':'<div style="font-size:11px;color:var(--t3);margin-bottom:8px">Hint: '+esc(t.hint)+'</div>'}
         ${isDDL(t.id)?'':`<button class="btn btn-ghost btn-xs" onclick="togglePracticeTaskAnswer('${t.id}')">Show Sample Answer</button>
         <div class="hidden mt2" id="practice-task-answer-${t.id}" style="background:var(--bg2);border:1px solid var(--line2);border-radius:5px;padding:8px 10px;font-family:var(--mono);font-size:11px;color:var(--t1);white-space:pre-wrap">${esc(t.answer)}</div>`}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function loadPracticeLabExample(){
   const ta=el('practice-lab-editor');
   if(!ta)return;
   ta.value=`CREATE TABLE practice_orders (id INT, customer TEXT, amount INT);\nINSERT INTO practice_orders (id, customer, amount) VALUES (1, 'Nora', 1500);\nINSERT INTO practice_orders (id, customer, amount) VALUES (2, 'Omar', 2200);\nUPDATE practice_orders SET amount = 2400 WHERE id = 2;\nSELECT * FROM practice_orders ORDER BY amount DESC;`;
+  syncSqlHighlight('practice-lab-editor');
 }
 
 function resetPracticeLab(){
@@ -1782,7 +2192,6 @@ function renderTopRight(){
 }
 
 function renderSidebar(){
-  el('sb-online').textContent=S.onlineCount;
   const live=getVisibleContestsForList().filter(c=>c.status==='live').length;
   el('sb-live-count').textContent=live;
 }
@@ -2347,15 +2756,26 @@ function renderJudge(ctx){
     </div>`;
   }
 
-  // Schema reference
+  // Schema reference with sample data
   if(p.schemaHint){
     const sh=p.schemaHint;
+    const tableNames=sh.table.split('·').map(t=>t.trim());
+    const tableDataHtml=tableNames.map(tname=>{
+      const data=DB[tname.toLowerCase()];
+      if(!data||!data.length)return '';
+      const cols=Object.keys(data[0]);
+      return `<div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--grn);font-family:var(--mono);margin-bottom:4px">${esc(tname)}</div>
+        <div style="overflow-x:auto"><table class="schema-table" style="font-size:11px">
+          <thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead>
+          <tbody>${data.slice(0,5).map(row=>`<tr>${cols.map(c=>`<td>${row[c]==null?'<span class="tbl-null">NULL</span>':esc(String(row[c]))}</td>`).join('')}</tr>`).join('')}</tbody>
+        </table></div>
+        ${data.length>5?`<div style="font-size:10px;color:var(--t3);margin-top:2px">... and ${data.length-5} more rows</div>`:''}
+      </div>`;
+    }).join('');
     descHTML+=`<div class="prob-section">
-      <div class="prob-section-title">Schema: <span style="color:var(--grn);font-family:var(--mono);font-size:11px">${esc(sh.table)}</span></div>
-      <div style="overflow-x:auto"><table class="schema-table">
-        <thead><tr><th>Column</th><th>Type</th></tr></thead>
-        <tbody>${sh.columns.map(([col,type])=>`<tr><td class="col-name">${esc(col)}</td><td class="col-type">${esc(type)}</td></tr>`).join('')}</tbody>
-      </table></div>
+      <div class="prob-section-title">Sample Data: <span style="color:var(--grn);font-family:var(--mono);font-size:11px">${esc(sh.table)}</span></div>
+      ${tableDataHtml}
     </div>`;
   }
 
@@ -2417,11 +2837,14 @@ function renderJudge(ctx){
   const ed=edNew;
   ed.value=prevSub?.code||'';
   el('judge-chars').textContent=`${(prevSub?.code||'').length}`;
+  if(el('judge-editor-hl'))syncSqlHighlight('judge-editor');
   ed.addEventListener('keydown',e=>{
     if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();judgeRun();}
     if(e.key==='Tab'){e.preventDefault();const s=e.target.selectionStart;ed.value=ed.value.slice(0,s)+'  '+ed.value.slice(e.target.selectionEnd);ed.selectionStart=ed.selectionEnd=s+2;}
   });
-  ed.addEventListener('input',()=>{el('judge-chars').textContent=ed.value.length;});
+  ed.addEventListener('input',()=>{el('judge-chars').textContent=ed.value.length;syncSqlHighlight('judge-editor');});
+  ed.addEventListener('scroll',()=>syncSqlHighlight('judge-editor'));
+  attachSqlHighlighting('judge-editor');
 
   // Solved state
   const isSolved=isSolvedForJudgeContext(p.id,S.judgeContext);
@@ -2432,6 +2855,7 @@ function renderJudge(ctx){
 
 function judgeEditorClear(){
   el('judge-editor').value='';el('judge-chars').textContent='0';
+  syncSqlHighlight('judge-editor');
   clearJudgeState();
   const p=S.problems.find(x=>x.id===S.judgeContext?.problemId);
   if(p)p.testCases.forEach(tc=>resetTC(tc.id));
@@ -2491,6 +2915,27 @@ function getNextJudgeProblem(ctx){
   return seq[idx+1];
 }
 
+function getPreviousJudgeProblem(ctx){
+  if(!ctx)return null;
+  const seq=getJudgeProblemSequence(ctx);
+  if(!seq.length)return null;
+  const idx=seq.findIndex(p=>p.id===ctx.problemId);
+  if(idx<=0)return null;
+  return seq[idx-1];
+}
+
+function moveToPreviousJudgeProblem(){
+  const ctx=S.judgeContext;
+  if(!ctx)return;
+  const prev=getPreviousJudgeProblem(ctx);
+  if(!prev){toast('No previous problem in this track','info');return;}
+  nav('judge',{
+    problemId:prev.id,
+    contestId:ctx.contestId||null,
+    backView:ctx.backView||'practice',
+  });
+}
+
 function moveToNextJudgeProblem(){
   const ctx=S.judgeContext;
   if(!ctx)return;
@@ -2504,6 +2949,12 @@ function moveToNextJudgeProblem(){
 }
 
 function updateJudgeNextButton(){
+  const prevBtn=el('btn-judge-prev');
+  if(prevBtn){
+    const prev=getPreviousJudgeProblem(S.judgeContext||{});
+    prevBtn.style.display=prev?'inline-flex':'none';
+    prevBtn.onclick=prev?moveToPreviousJudgeProblem:null;
+  }
   const btn=el('btn-judge-next');
   if(!btn)return;
   const next=getNextJudgeProblem(S.judgeContext||{});
@@ -2566,10 +3017,28 @@ function runTestCases(p,result,isSubmit){
       if(ico){ico.textContent=ok?'✓':'✗';ico.style.color=ok?'var(--grn)':'var(--rose)';}
     }
   });
+  let canonicalPass=false;
+  if(!result.error&&p?.solution){
+    const ref=runSQL(p.solution,DB);
+    canonicalPass=Boolean(ref&&!ref.error&&resultsMatch(result,ref,{requireColumnNames:false,ignoreRowOrder:true}));
+  }
+  if(canonicalPass&&passed<p.testCases.length){
+    passed=p.testCases.length;
+    publicPassed=publicTotal;
+    p.testCases.forEach(tc=>{
+      const row=el(`tc-row-${tc.id}`);
+      const ico=el(`tc-status-${tc.id}`);
+      if(row){
+        row.className='tc-row tc-pass mb2';
+        if(ico){ico.textContent='✓';ico.style.color='var(--grn)';}
+      }
+    });
+  }
   let sampleOk=true;
   if(!result.error&&p?.sampleOutput){
     sampleOk=matchesSampleOutput(result,p.sampleOutput);
   }
+  if(canonicalPass)sampleOk=true;
   const baseSummary=publicTotal
     ? `${publicPassed}/${publicTotal} public · ${passed}/${p.testCases.length} total`
     : `Hidden tests: ${passed}/${p.testCases.length} passed`;
@@ -3232,6 +3701,7 @@ function saveProblem(){
     isCustom:S.editingProblem.isCustom===true||!isMaster(),
     createdBy:S.editingProblem.createdBy||S.user?.userId||S.user?.username,
   };
+  Object.assign(updated,ensureProblemCompleteness(updated));
   updated.testCases=injectHiddenStrongTestCases([updated])[0].testCases;
 
   if(S.editingProblem._existing){
@@ -3367,16 +3837,8 @@ function endContest(id){
 /* ══════════════════════════════════════════════════════════
    THEME
 ══════════════════════════════════════════════════════════ */
-function toggleTheme(){
-  const isLight=document.body.classList.toggle('light');
-  LS.set('theme', isLight?'light':'dark');
-  const btn=el('theme-btn');
-  if(btn)btn.textContent=isLight?'☀':'◑';
-}
-function applyTheme(){
-  const t=LS.get('theme')||'dark';
-  if(t==='light'){document.body.classList.add('light');const btn=el('theme-btn');if(btn)btn.textContent='☀';}
-}
+function toggleTheme(){}
+function applyTheme(){}
 
 function withTimeout(promise,ms,label='operation'){
   return Promise.race([
@@ -3403,7 +3865,6 @@ async function init(){
   const relResult=await safeCloudCall(()=>loadProblemsFromRelational(),'loadProblemsFromRelational')||{success:false,problems:null};
   if(relResult.success&&Array.isArray(relResult.problems)&&relResult.problems.length>0){
     S.problems=relResult.problems;
-    persistProblems();
   } else {
     // Fallback: merge local cached problems with defaults.
     const savedP=LS.get('problems');
@@ -3422,6 +3883,9 @@ async function init(){
       await safeCloudCall(()=>seedProblemsToRelational(S.problems),'seedProblemsToRelational');
     }
   }
+  S.problems=normalizeKnownSampleOutputs(S.problems);
+  S.problems=ensureProblemBankCompleteness(S.problems);
+  persistProblems();
   S.problems=injectHiddenStrongTestCases(S.problems);
 
   // Load contests from relational table first when available.
@@ -3489,6 +3953,7 @@ async function init(){
   // Practice lab sandbox
   S.practiceLab=LS.get('practiceLab')||createDefaultPracticeLab();
   S.practiceLabTaskDone=LS.get('practiceLabTaskDone')||{};
+  attachSqlHighlighting('practice-lab-editor');
 
   // Render
   renderTopRight();
@@ -3501,10 +3966,77 @@ async function init(){
     toast(STORAGE_DIAGNOSTIC||'Supabase unavailable. Running in local browser storage mode.','warn');
   }
 
-  // Online count drift
-  setInterval(()=>{S.onlineCount=Math.floor(Math.random()*40)+300+Math.floor(Date.now()/15000)%30;el('sb-online').textContent=S.onlineCount;},9000);
-
   hide('init');
+}
+
+let bgRefreshInFlight=false;
+let lastBgRefreshAt=0;
+
+function rerenderCurrentViewPreserveState(){
+  const view=S.currentView||'home';
+  if(view==='judge'){
+    if(S.judgeContext?.problemId)renderJudge(S.judgeContext);
+    else renderHome();
+    return;
+  }
+  if(view==='contest-detail'){
+    if(S.currentContest)renderContestDetail(S.currentContest);
+    else renderContests();
+    return;
+  }
+  if(view==='home')renderHome();
+  else if(view==='contests')renderContests();
+  else if(view==='practice')renderPractice();
+  else if(view==='playground')renderPlayground();
+  else if(view==='submissions')renderSubmissions();
+  else if(view==='profile')renderProfile();
+  else if(view==='custom')renderCustom();
+  else if(view==='admin')renderAdmin();
+}
+
+async function refreshDataInBackground(reason='tab-return'){
+  if(bgRefreshInFlight)return;
+  if(!SB||STORAGE_MODE!=='supabase')return;
+  const now=Date.now();
+  if(now-lastBgRefreshAt<8000)return;
+  lastBgRefreshAt=now;
+  bgRefreshInFlight=true;
+  try{
+    const [relProblems,relContests]=await Promise.all([
+      safeCloudCall(()=>loadProblemsFromRelational(),'bg-load-problems',8000),
+      safeCloudCall(()=>loadContestsFromRelational(),'bg-load-contests',8000),
+    ]);
+
+    let changed=false;
+    if(relProblems?.success&&Array.isArray(relProblems.problems)&&relProblems.problems.length>0){
+      S.problems=normalizeKnownSampleOutputs(relProblems.problems);
+      S.problems=ensureProblemBankCompleteness(S.problems);
+      S.problems=injectHiddenStrongTestCases(S.problems);
+      persistProblems();
+      changed=true;
+    }
+
+    if(relContests?.success&&Array.isArray(relContests.contests)){
+      const all=relContests.contests;
+      S.contests=all.filter(c=>c.type!=='custom');
+      S.customContests=all.filter(c=>c.type==='custom');
+      S.contests.forEach(normalizeContestLifecycle);
+      S.customContests.forEach(normalizeContestLifecycle);
+      LS.set('contests',S.contests.map(({announce,...r})=>r));
+      LS.set('customContests',S.customContests);
+      changed=true;
+    }
+
+    if(changed){
+      renderTopRight();
+      renderSidebar();
+      rerenderCurrentViewPreserveState();
+    }
+  }catch(err){
+    console.warn('[Background Refresh] failed:',reason,err?.message||err);
+  }finally{
+    bgRefreshInFlight=false;
+  }
 }
 
 // Modal close on backdrop
@@ -3524,6 +4056,13 @@ document.addEventListener('keydown',e=>{
     }
   }
 });
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'){
+    refreshDataInBackground('visibilitychange');
+  }
+});
+window.addEventListener('focus',()=>refreshDataInBackground('focus'));
 
 async function bootstrap(){
   try{

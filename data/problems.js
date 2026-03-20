@@ -24,7 +24,7 @@ const PROBLEMS_DEFAULT = [
     id:'p2',code:'BSQ-002',title:'Department Employee Count',difficulty:'Easy',points:150,timeLimit:300,
     category:'Aggregation',tags:['GROUP BY','COUNT'],
     description:'Count the number of employees in each department.\n\nReturn the columns: dept_id, total_employees.\nOrder results by total_employees in descending order.',
-    sampleOutput:{columns:['dept_id','total_employees'],rows:[['1','3'],['2','3'],['4','2'],['3','2']]},
+    sampleOutput:{columns:['dept_id','total_employees'],rows:[['1','3'],['2','3'],['3','2'],['4','2']]},
     schemaHint:{table:'employees',columns:[['id','INT'],['name','VARCHAR'],['dept_id','INT'],['salary','INT']]},
     testCases:[
         {id:'tc1', name:'Row Count', desc:'Must return a row for each department',

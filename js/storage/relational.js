@@ -147,27 +147,36 @@ function normalizeResultColumns(cols) {
   return (cols || []).map(c => String(c).trim().toLowerCase());
 }
 
+function normalizeResultRow(row) {
+  return (row || []).map(normalizeResultCell);
+}
+
+function rowsMatch(actualRows, expectedRows, ignoreOrder = false) {
+  const a = actualRows || [];
+  const b = expectedRows || [];
+  if (a.length !== b.length) return false;
+  if (!ignoreOrder) {
+    for (let i = 0; i < b.length; i++) {
+      const ar = normalizeResultRow(a[i]);
+      const br = normalizeResultRow(b[i]);
+      if (ar.length !== br.length) return false;
+      for (let j = 0; j < br.length; j++) if (ar[j] !== br[j]) return false;
+    }
+    return true;
+  }
+  const toKey = row => JSON.stringify(normalizeResultRow(row));
+  const ak = a.map(toKey).sort();
+  const bk = b.map(toKey).sort();
+  for (let i = 0; i < bk.length; i++) if (ak[i] !== bk[i]) return false;
+  return true;
+}
+
 function resultsExactlyMatch(actual, expected) {
   if (!actual || !expected) return false;
   const actualCols = normalizeResultColumns(actual.columns);
   const expectedCols = normalizeResultColumns(expected.columns);
   if (actualCols.length !== expectedCols.length) return false;
-  for (let i = 0; i < expectedCols.length; i++) {
-    if (actualCols[i] !== expectedCols[i]) return false;
-  }
-
-  const actualRows = actual.rows || [];
-  const expectedRows = expected.rows || [];
-  if (actualRows.length !== expectedRows.length) return false;
-  for (let r = 0; r < expectedRows.length; r++) {
-    const a = actualRows[r] || [];
-    const b = expectedRows[r] || [];
-    if (a.length !== b.length) return false;
-    for (let c = 0; c < b.length; c++) {
-      if (normalizeResultCell(a[c]) !== normalizeResultCell(b[c])) return false;
-    }
-  }
-  return true;
+  return rowsMatch(actual.rows || [], expected.rows || [], true);
 }
 
 function hydrateProblemFromRelationalRow(row) {

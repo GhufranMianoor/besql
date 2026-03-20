@@ -41,47 +41,6 @@
   --sh:  0 1px 3px rgba(0,0,0,.5),0 4px 14px rgba(0,0,0,.3);
   --sh2: 0 2px 8px rgba(0,0,0,.6),0 12px 40px rgba(0,0,0,.4);
 }
-/* ── LIGHT MODE ── */
-body.light{
-  --bg:    #ffffff;
-  --bg1:   #f5f7fa;
-  --bg2:   #edf0f5;
-  --bg3:   #e2e7ef;
-  --bg4:   #cdd4e0;
-  --bg5:   #b8c2d4;
-  --line:  #dde2ec;
-  --line2: #cdd4e0;
-  --line3: #b8c2d4;
-  --t0: #1a2233;
-  --t1: #2e3f5c;
-  --t2: #546078;
-  --t3: #8595ae;
-  --t4: #adbac7;
-  --grn:   #1a9e50;
-  --grn2:  #158040;
-  --gdim:  rgba(26,158,80,.1);
-  --gdim2: rgba(26,158,80,.06);
-  --ind:   #2563eb;
-  --ind2:  #1d4ed8;
-  --idim:  rgba(37,99,235,.1);
-  --idim2: rgba(37,99,235,.05);
-  --rose:  #dc2626;
-  --rdim:  rgba(220,38,38,.08);
-  --gold:  #d97706;
-  --adim:  rgba(217,119,6,.08);
-  --violet:#7c3aed;
-  --vdim:  rgba(124,58,237,.08);
-  --sh:  0 1px 3px rgba(0,0,0,.1),0 4px 14px rgba(0,0,0,.06);
-  --sh2: 0 2px 8px rgba(0,0,0,.12),0 12px 40px rgba(0,0,0,.08);
-}
-body.light ::-webkit-scrollbar-track{background:var(--bg2)}
-body.light ::selection{background:rgba(26,158,80,.18)}
-body.light .logo-icon{color:#fff}
-body.light .user-avatar{color:#fff}
-body.light .tbl-null{color:var(--t3)}
-body.light .code-ta{background:var(--bg1)!important}
-body.light .sample-table tbody tr:nth-child(odd){background:var(--bg2)}
-body.light .sample-table tbody tr:nth-child(even){background:var(--bg1)}
 
 /* Theme toggle button */
 .theme-btn{
@@ -201,6 +160,25 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
 .ta{resize:vertical;line-height:1.65}
 .code-ta{background:var(--bg)!important;font-family:var(--mono)!important;font-size:13px!important;line-height:1.8!important;min-height:160px;tab-size:2;letter-spacing:.01em}
 .code-ta:focus{border-color:var(--grn)!important;box-shadow:0 0 0 3px rgba(46,200,102,.08)!important}
+
+/* SQL semantic highlighting (overlay under textarea) */
+.sql-editor-shell{position:relative}
+.sql-highlight{
+  position:absolute;inset:0;z-index:1;pointer-events:none;overflow:auto;
+  margin:0;padding:8px 11px;border:1px solid var(--line2);border-radius:var(--r);
+  background:var(--bg)!important;color:var(--t1);font-family:var(--mono)!important;
+  font-size:13px!important;line-height:1.8!important;white-space:pre-wrap;word-break:break-word;
+}
+.sql-editor-shell .code-ta{
+  position:relative;z-index:2;background:transparent!important;color:transparent;
+  caret-color:var(--t0);resize:vertical;
+}
+.sql-editor-shell .code-ta::placeholder{color:var(--t3)}
+.sql-editor-shell .code-ta::selection{background:rgba(79,142,247,.22)}
+.sql-kw{color:var(--ind);font-weight:700}
+.sql-str{color:var(--gold)}
+.sql-num{color:var(--grn)}
+.sql-com{color:var(--t3);font-style:italic}
 
 /* ── TABLES ── */
 .tw{overflow-x:auto}
@@ -470,7 +448,7 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
   .judge-prob-wrap{padding:12px!important}
   .judge-editor-wrap{padding:8px 10px!important;gap:7px!important}
   .code-ta{min-height:90px!important;font-size:12px!important;line-height:1.6!important}
-  #btn-judge-run,#btn-judge-submit,#btn-judge-next{font-size:11.5px!important;padding:6px 10px!important}
+  #btn-judge-run,#btn-judge-submit,#btn-judge-prev,#btn-judge-next{font-size:11.5px!important;padding:6px 10px!important}
   .judge-editor-hint{display:none}
 
   /* Tabs: smaller */
