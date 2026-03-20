@@ -4,12 +4,13 @@
 ══════════════════════════════════════════════════════════ */
 function runSQL(q, schema) {
   try {
+    q = normalizeDialectSQL(q);
     q = q.trim().replace(/\s+/g,' ').replace(/;$/,'');
     if (!/^SELECT/i.test(q)) return {error:'Only SELECT statements are allowed.'};
     const fromM = q.match(/FROM\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?/i);
     if (!fromM) return {error:'Missing FROM clause.'};
     const tname=fromM[1], talias=fromM[2]||fromM[1];
-    const base=schema[tname]||schema[tname.toLowerCase()];
+    const base=(tname.toLowerCase()==='dual')?[{}]:(schema[tname]||schema[tname.toLowerCase()]);
     if (!base) return {error:`Table '${tname}' not found. Available: ${Object.keys(schema).join(', ')}`};
     let rows=base.map(r=>{const o={};Object.entries(r).forEach(([k,v])=>{o[k]=v;o[`${talias}.${k}`]=v;});return o;});
     // JOINs
@@ -45,13 +46,13 @@ function runSQL(q, schema) {
       const havingCond=hm[1].trim();
       rows=rows.filter(r=>{
         let cond=havingCond;
-        // Replace aggregate function calls with their calculated values
+        // Replace aggregate function calls with their SELECT aliases so ew() can read from row values.
         const aggRegex=/(COUNT|SUM|AVG|MIN|MAX)\s*\(\s*([^)]+)\s*\)/gi;
         cond=cond.replace(aggRegex,(match,fn,col)=>{
           const normalized=match.replace(/\s+/g,'').toUpperCase();
           const alias=aggMap[normalized];
           if(alias && r[alias]!==undefined){
-            return r[alias];
+            return alias;
           }
           // Fallback: return match if not found
           return match;
@@ -72,10 +73,29 @@ function runSQL(q, schema) {
     return {columns,rows:rows.map(r=>columns.map(c=>r[c]??null)),rowCount:rows.length};
   } catch(e){return {error:`Runtime error: ${e.message}`};}
 }
-function rc(row,expr){if(!row||!expr)return undefined;expr=expr.trim();if(row[expr]!==undefined)return row[expr];return row[expr.split('.').pop()];}
+function normalizeDialectSQL(q){
+  if(typeof q!=='string') return '';
+  return q
+    // Oracle pagination syntax support.
+    .replace(/\bFETCH\s+FIRST\s+(\d+)\s+ROWS\s+ONLY\b/ig,'LIMIT $1')
+    .replace(/\bFETCH\s+NEXT\s+(\d+)\s+ROWS\s+ONLY\b/ig,'LIMIT $1');
+}
+function rc(row,expr){
+  if(!row||!expr)return undefined;
+  expr=String(expr).trim().replace(/^"|"$/g,'');
+  if(row[expr]!==undefined)return row[expr];
+  const short=expr.split('.').pop();
+  if(row[short]!==undefined)return row[short];
+  const exprLC=expr.toLowerCase();
+  const shortLC=short.toLowerCase();
+  for(const k of Object.keys(row)){
+    if(k.toLowerCase()===exprLC||k.toLowerCase()===shortLC)return row[k];
+  }
+  return undefined;
+}
 function r2(n){return Math.round(n*100)/100;}
 function psp(raw){const parts=[];let depth=0,cur='';for(const ch of raw+','){if(ch==='('){depth++;cur+=ch;}else if(ch===')'){depth--;cur+=ch;}else if(ch===','&&depth===0){const s=cur.trim();cur='';const am=s.match(/^(.+?)\s+AS\s+(\w+)$/i);if(am)parts.push({expr:am[1].trim(),alias:am[2]});else{const bare=s.split('.').pop();parts.push({expr:s,alias:bare||s});}}else cur+=ch;}return parts;}
-function ew(cond,row){const op=stl(cond,/\bOR\b/i);if(op.length>1)return op.some(p=>ew(p.trim(),row));const ap=stl(cond,/\bAND\b/i);if(ap.length>1)return ap.every(p=>ew(p.trim(),row));if(/^NOT\s+/i.test(cond))return !ew(cond.replace(/^NOT\s+/i,'').trim(),row);if(/IS\s+NOT\s+NULL/i.test(cond)){const c=cond.match(/^([^\s]+)/)[1];return rc(row,c)!=null;}if(/IS\s+NULL/i.test(cond)){const c=cond.match(/^([^\s]+)/)[1];return rc(row,c)==null;}const bt=cond.match(/^([^\s]+)\s+BETWEEN\s+(.+?)\s+AND\s+(.+)$/i);if(bt){const v=parseFloat(rc(row,bt[1]));return v>=parseFloat(bt[2])&&v<=parseFloat(bt[3]);}const im=cond.match(/^([^\s]+)\s+(NOT\s+)?IN\s*\(([^)]+)\)/i);if(im){const vals=im[3].split(',').map(s=>s.trim().replace(/^['"`]|['"`]$/g,''));const v=String(rc(row,im[1])??'');const found=vals.includes(v);return im[2]?!found:found;}const m=cond.match(/^([^\s<>=!]+)\s*(>=|<=|!=|<>|>|<|=|(?:NOT\s+)?LIKE)/i);if(!m)return true;const col=m[1],op2=m[2].toUpperCase().replace(/\s+/,' '),rv2=cond.slice(m[0].length).trim().replace(/^['"`]|['"`]$/g,'');const rv=rc(row,col),nrv=parseFloat(rv),nv=parseFloat(rv2);if(op2==='=')return String(rv)===rv2||(!isNaN(nrv)&&!isNaN(nv)&&nrv===nv);if(op2==='!='||op2==='<>')return String(rv)!==rv2;if(op2==='>') return nrv>nv;if(op2==='<') return nrv<nv;if(op2==='>=')return nrv>=nv;if(op2==='<=')return nrv<=nv;if(op2==='LIKE')return new RegExp('^'+rv2.replace(/%/g,'.*').replace(/_/g,'.')+'$','i').test(String(rv??''));if(op2==='NOT LIKE')return !new RegExp('^'+rv2.replace(/%/g,'.*').replace(/_/g,'.')+'$','i').test(String(rv??''));return true;}
+function ew(cond,row){const op=stl(cond,/\bOR\b/i);if(op.length>1)return op.some(p=>ew(p.trim(),row));const ap=stl(cond,/\bAND\b/i);if(ap.length>1)return ap.every(p=>ew(p.trim(),row));if(/^NOT\s+/i.test(cond))return !ew(cond.replace(/^NOT\s+/i,'').trim(),row);if(/IS\s+NOT\s+NULL/i.test(cond)){const c=cond.match(/^([^\s]+)/)[1];return rc(row,c)!=null;}if(/IS\s+NULL/i.test(cond)){const c=cond.match(/^([^\s]+)/)[1];return rc(row,c)==null;}const bt=cond.match(/^([^\s]+)\s+BETWEEN\s+(.+?)\s+AND\s+(.+)$/i);if(bt){const v=parseFloat(rc(row,bt[1]));return v>=parseFloat(bt[2])&&v<=parseFloat(bt[3]);}const im=cond.match(/^([^\s]+)\s+(NOT\s+)?IN\s*\(([^)]+)\)/i);if(im){const vals=im[3].split(',').map(s=>s.trim().replace(/^['"`]|['"`]$/g,''));const v=String(rc(row,im[1])??'');const found=vals.some(x=>x===v||x.toLowerCase()===v.toLowerCase());return im[2]?!found:found;}const m=cond.match(/^([^\s<>=!]+)\s*(>=|<=|!=|<>|>|<|=|(?:NOT\s+)?LIKE)/i);if(!m)return true;const col=m[1],op2=m[2].toUpperCase().replace(/\s+/,' '),rv2=cond.slice(m[0].length).trim().replace(/^['"`]|['"`]$/g,'');const rv=rc(row,col),nrv=parseFloat(rv),nv=parseFloat(rv2);if(op2==='=')return String(rv).toLowerCase()===rv2.toLowerCase()||(!isNaN(nrv)&&!isNaN(nv)&&nrv===nv);if(op2==='!='||op2==='<>')return String(rv).toLowerCase()!==rv2.toLowerCase();if(op2==='>') return nrv>nv;if(op2==='<') return nrv<nv;if(op2==='>=')return nrv>=nv;if(op2==='<=')return nrv<=nv;if(op2==='LIKE')return new RegExp('^'+rv2.replace(/%/g,'.*').replace(/_/g,'.')+'$','i').test(String(rv??''));if(op2==='NOT LIKE')return !new RegExp('^'+rv2.replace(/%/g,'.*').replace(/_/g,'.')+'$','i').test(String(rv??''));return true;}
 function stl(str,re){const parts=[];let cur='';const tokens=str.split(/(\s+(?:AND|OR)\s+)/i);for(const t of tokens){if(re.test(t.trim())){parts.push(cur.trim());cur='';}else cur+=t;}if(cur.trim())parts.push(cur.trim());return parts.length>1?parts:[str];}
 
 /* ══════════════════════════════════════════════════════════
@@ -277,9 +297,9 @@ const PROBLEMS_DEFAULT = [
     schemaHint:{table:'employees',columns:[['id','INT'],['name','VARCHAR'],['dept_id','INT'],['salary','INT'],['hire_year','INT'],['age','INT'],['level','VARCHAR']]},
     testCases:[
       {id:'tc1',name:'HAVING filter',desc:'Only depts with avg > 80000',
-       validate:r=>{const ai=r.columns.findIndex(c=>c.toLowerCase().includes('avg'));if(ai<0)return false;return r.rows.every(row=>Number(row[ai])>80000);},hint:'HAVING AVG(salary) > 80000'},
+       validate:r=>{const ai=r.columns.findIndex(c=>c.toLowerCase().includes('avg'));if(ai<0)return false;if(r.rowCount!==3)return false;return r.rows.every(row=>Number(row[ai])>80000);},hint:'HAVING AVG(salary) > 80000'},
       {id:'tc2',name:'Ordered DESC',desc:'Highest average first',
-       validate:r=>{const ai=r.columns.findIndex(c=>c.toLowerCase().includes('avg'));if(ai<0)return false;for(let i=1;i<r.rows.length;i++)if(Number(r.rows[i][ai])>Number(r.rows[i-1][ai]))return false;return true;},hint:'ORDER BY avg_salary DESC'},
+       validate:r=>{const ai=r.columns.findIndex(c=>c.toLowerCase().includes('avg'));if(ai<0)return false;if(r.rowCount<1)return false;for(let i=1;i<r.rows.length;i++)if(Number(r.rows[i][ai])>Number(r.rows[i-1][ai]))return false;return true;},hint:'ORDER BY avg_salary DESC'},
     ],
     solution:'SELECT dept_id, AVG(salary) AS avg_salary FROM employees GROUP BY dept_id HAVING AVG(salary) > 80000 ORDER BY avg_salary DESC',
     dailyDate: null,
@@ -763,12 +783,7 @@ function hydrateProblemFromRelationalRow(row){
     desc:tc.desc||'',
     hint:tc.hint||'',
     hidden:tc.hidden===true,
-    validate:(r)=>{
-      if(r.error||!r.rows)return false;
-      const ref=runSQL(solution,DB);
-      if(ref.error||!ref.rows)return false;
-      return r.rowCount===ref.rowCount;
-    },
+    validate:buildValidator(tc,{solution,description:row.description||''}),
   }));
 
   return {
@@ -988,34 +1003,129 @@ function toast(msg,type='info'){
 }
 function persistProblems(){LS.set('problems',S.problems.map(p=>{const{testCases,...r}=p;return{...r,testCases:testCases.map(tc=>{const{validate,...t}=tc;return t;})};}))}
 function rebuildValidators(problems){return problems.map(p=>({...p,testCases:p.testCases.map(tc=>({...tc,validate:buildValidator(tc,p)}))}))}
-function buildValidator(tc,prob){
-  // Rebuild validate fn from solution
-  return (r)=>{
-    if(r.error||!r.rows)return false;
-    const ref=runSQL(prob.solution,DB);
-    if(ref.error)return false;
-    return r.rowCount===ref.rowCount;
-  };
+function normalizeResultCell(v){
+  if(v==null)return null;
+  const n=Number(v);
+  if(Number.isFinite(n)&&String(v).trim()!=='')return n;
+  return String(v).trim().toLowerCase();
 }
+function matchesSampleOutput(result,sample){
+  if(!sample||!Array.isArray(sample.columns)||!Array.isArray(sample.rows))return true;
+  const resultCols=(result.columns||[]).map(c=>String(c).trim().toLowerCase());
+  const sampleCols=sample.columns.map(c=>String(c).trim().toLowerCase());
+  if(resultCols.length!==sampleCols.length)return false;
+  for(let i=0;i<sampleCols.length;i++){
+    if(resultCols[i]!==sampleCols[i])return false;
+  }
 
-function makeHiddenExactValidator(solution){
+  const resultRows=result.rows||[];
+  if(resultRows.length!==sample.rows.length)return false;
+  for(let r=0;r<sample.rows.length;r++){
+    const a=resultRows[r]||[];
+    const b=sample.rows[r]||[];
+    if(a.length!==b.length)return false;
+    for(let c=0;c<b.length;c++){
+      if(normalizeResultCell(a[c])!==normalizeResultCell(b[c]))return false;
+    }
+  }
+  return true;
+}
+function buildValidator(tc,prob){
+  const meta=`${tc?.name||''} ${tc?.desc||''} ${tc?.hint||''} ${prob?.description||''}`.toLowerCase();
+  const expectedRowsMatch=meta.match(/(?:exactly|must return|return)\s+(\d+)\s+rows?/i);
+  const expectedRows=expectedRowsMatch?Number(expectedRowsMatch[1]):null;
+
+  const requiredCols=[];
+  const returnColsMatch=meta.match(/return(?: the columns?)?\s*:?\s*([a-z0-9_,\s]+)/i);
+  if(returnColsMatch){
+    returnColsMatch[1].split(',').map(s=>s.trim()).filter(Boolean).forEach(c=>requiredCols.push(c));
+  }
+  const mustReturnTwo=meta.match(/must return\s+([a-z_][a-z0-9_]*)\s+(?:and|&)\s+([a-z_][a-z0-9_]*)/i);
+  if(mustReturnTwo){
+    requiredCols.push(mustReturnTwo[1],mustReturnTwo[2]);
+  }
+
+  const orderDir=/\b(desc|descending|highest\s+first)\b/i.test(meta)
+    ?'desc'
+    :/\b(asc|ascending|lowest\s+first)\b/i.test(meta)
+      ?'asc'
+      :null;
+
+  const thresholdMatch=meta.match(/(>=|<=|>|<)\s*\$?\s*(\d+(?:\.\d+)?)/);
+  const threshold=thresholdMatch?{op:thresholdMatch[1],value:Number(thresholdMatch[2])}:null;
+
+  const valueColHint=/\bavg\b/i.test(meta)
+    ?'avg'
+    :/\bsalary\b/i.test(meta)
+      ?'salary'
+      :/\b(total|count|credits|score|revenue)\b/i.test(meta)
+        ?'total'
+        :null;
+
+  const opPass=(v,op,t)=>{
+    if(!Number.isFinite(v)||!Number.isFinite(t))return false;
+    if(op==='>')return v>t;
+    if(op==='<')return v<t;
+    if(op==='>=')return v>=t;
+    if(op==='<=')return v<=t;
+    return false;
+  };
+
   return (r)=>{
     if(r.error||!r.rows)return false;
-    const ref=runSQL(solution,DB);
-    if(ref.error||!ref.rows)return false;
 
-    const norm=(v)=>{
-      if(v==null)return null;
-      const n=Number(v);
-      if(!Number.isNaN(n)&&String(v).trim()!=='')return n;
-      return String(v);
-    };
-    const rowKey=(row)=>JSON.stringify((row||[]).map(norm));
-    const asMultiset=(rows)=>rows.map(rowKey).sort();
+    let checks=0;
+    const cols=(r.columns||[]).map(c=>String(c).toLowerCase());
 
-    return JSON.stringify(r.columns)===JSON.stringify(ref.columns)
-      && JSON.stringify(asMultiset(r.rows))===JSON.stringify(asMultiset(ref.rows))
-      && r.rowCount===ref.rowCount;
+    if(prob?.sampleOutput){
+      checks++;
+      if(!matchesSampleOutput(r,prob.sampleOutput))return false;
+    }
+
+    if(requiredCols.length){
+      checks++;
+      const ok=requiredCols.every(req=>cols.some(c=>c===req||c.includes(req)));
+      if(!ok)return false;
+    }
+
+    if(expectedRows!=null&&Number.isFinite(expectedRows)){
+      checks++;
+      if(r.rowCount!==expectedRows)return false;
+    }
+
+    if(orderDir&&r.rowCount>1){
+      const idx=valueColHint
+        ? cols.findIndex(c=>c.includes(valueColHint))
+        : 0;
+      if(idx>=0){
+        checks++;
+        for(let i=1;i<r.rows.length;i++){
+          const a=Number(r.rows[i-1][idx]);
+          const b=Number(r.rows[i][idx]);
+          if(Number.isFinite(a)&&Number.isFinite(b)){
+            if(orderDir==='desc'&&b>a)return false;
+            if(orderDir==='asc'&&b<a)return false;
+          }else{
+            const cmp=String(r.rows[i-1][idx]??'').localeCompare(String(r.rows[i][idx]??''));
+            if(orderDir==='desc'&&cmp<0)return false;
+            if(orderDir==='asc'&&cmp>0)return false;
+          }
+        }
+      }
+    }
+
+    if(threshold){
+      const idx=valueColHint
+        ? cols.findIndex(c=>c.includes(valueColHint))
+        : -1;
+      if(idx>=0){
+        checks++;
+        if(!r.rows.every(row=>opPass(Number(row[idx]),threshold.op,threshold.value)))return false;
+      }
+    }
+
+    if(checks===0)return r.rowCount>0;
+    return true;
   };
 }
 
@@ -1026,37 +1136,6 @@ function injectHiddenStrongTestCases(problems){
       hidden:tc.hidden===true,
       validate:tc.validate||buildValidator(tc,p),
     }));
-
-    const exactId=`${p.id}-hid-exact`;
-    const columnsId=`${p.id}-hid-columns`;
-    const disableStrictHidden=p.id==='p4';
-
-    if(!disableStrictHidden&&!testCases.some(tc=>tc.id===exactId)){
-      testCases.push({
-        id:exactId,
-        name:'Hidden Exact Match',
-        desc:'Exact output (columns + rows) must match reference.',
-        hidden:true,
-        hint:'',
-        validate:makeHiddenExactValidator(p.solution),
-      });
-    }
-
-    if(!disableStrictHidden&&!testCases.some(tc=>tc.id===columnsId)){
-      testCases.push({
-        id:columnsId,
-        name:'Hidden Column Integrity',
-        desc:'Column order and count must match the reference output.',
-        hidden:true,
-        hint:'',
-        validate:(r)=>{
-          if(r.error||!r.rows)return false;
-          const ref=runSQL(p.solution,DB);
-          if(ref.error||!ref.rows)return false;
-          return JSON.stringify(r.columns)===JSON.stringify(ref.columns);
-        },
-      });
-    }
 
     return {...p,testCases};
   });
@@ -1415,6 +1494,9 @@ function nav(view, extra){
     }
     renderJudge(extra);
   }
+  if(view==='contest-detail')saveRouteState('contest-detail',{contestId:S.currentContest});
+  else if(view==='judge')saveRouteState('judge',S.judgeContext);
+  else saveRouteState(view,extra);
 }
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>nav(b.dataset.view)));
 
@@ -1567,6 +1649,43 @@ function restoreSessionUser(){
   if(sess.passwordHash&&u.passwordHash&&String(sess.passwordHash)!==String(u.passwordHash))return null;
   return u;
 }
+function saveRouteState(view,extra){
+  const state={view:String(view||'home')};
+  if(state.view==='contest-detail'){
+    const contestId=typeof extra==='string'?extra:extra?.contestId||S.currentContest;
+    if(contestId)state.contestId=contestId;
+  }
+  if(state.view==='judge'){
+    const ctx=(extra&&typeof extra==='object')?extra:S.judgeContext;
+    if(ctx?.problemId){
+      state.judgeContext={
+        problemId:ctx.problemId,
+        contestId:ctx.contestId||null,
+        backView:ctx.backView||'practice',
+      };
+    }
+  }
+  LS.set('routeState',state);
+}
+function restoreRouteState(){
+  const state=LS.get('routeState');
+  if(!state||typeof state!=='object')return false;
+  const view=String(state.view||'').trim();
+  if(!view)return false;
+  if(view==='contest-detail'&&state.contestId){
+    nav('contest-detail',state.contestId);
+    return true;
+  }
+  if(view==='judge'&&state.judgeContext?.problemId){
+    nav('judge',state.judgeContext);
+    return true;
+  }
+  if(['home','contests','practice','submissions','profile','admin','custom'].includes(view)){
+    nav(view);
+    return true;
+  }
+  return false;
+}
 function finishLogin(user){
   S.user=user;
   // Sync user to Supabase in background - don't wait
@@ -1575,9 +1694,9 @@ function finishLogin(user){
   S.submissions=LS.get(`subs:${user.userId}`)||[];
   closeModal('modal-auth');
   renderTopRight(); renderSidebar();
-  renderHome(); toast(`Signed in as ${user.username}`,'success');
+  nav('home'); toast(`Signed in as ${user.username}`,'success');
 }
-function doLogout(){S.user=null;LS.del('session');S.submissions=[];renderTopRight();renderSidebar();renderHome();toast('Logged out.','info');}
+function doLogout(){S.user=null;LS.del('session');S.submissions=[];LS.del('routeState');renderTopRight();renderSidebar();nav('home');toast('Logged out.','info');}
 
 /* ══════════════════════════════════════════════════════════
    RENDER TOPRIGHT
@@ -2375,10 +2494,17 @@ function runTestCases(p,result,isSubmit){
       if(ico){ico.textContent=ok?'✓':'✗';ico.style.color=ok?'var(--grn)':'var(--rose)';}
     }
   });
-  el('tc-summary').textContent=publicTotal
+  let sampleOk=true;
+  if(!result.error&&p?.sampleOutput){
+    sampleOk=matchesSampleOutput(result,p.sampleOutput);
+  }
+  const baseSummary=publicTotal
     ? `${publicPassed}/${publicTotal} public · ${passed}/${p.testCases.length} total`
     : `Hidden tests: ${passed}/${p.testCases.length} passed`;
-  return passed===p.testCases.length;
+  el('tc-summary').textContent=p?.sampleOutput
+    ? `${baseSummary} · sample ${sampleOk?'✓':'✗'}`
+    : baseSummary;
+  return passed===p.testCases.length&&sampleOk;
 }
 
 function showJudgeResult(result){
@@ -3221,7 +3347,7 @@ async function init(){
       const customProblems=savedP.filter(p=>!defaultIds.has(p.id));
       S.problems=[
         ...PROBLEMS_DEFAULT,
-        ...customProblems.map(p=>({...p,testCases:p.testCases.map(tc=>({...tc,validate:(r)=>{const ref=runSQL(p.solution||'SELECT 1',DB);if(ref.error||r.error||!r.rows)return false;return r.rowCount===ref.rowCount;}}))}))
+        ...customProblems.map(p=>({...p,testCases:(p.testCases||[]).map(tc=>({...tc,validate:buildValidator(tc,p)}))}))
       ];
     } else {
       S.problems=[...PROBLEMS_DEFAULT];
@@ -3300,7 +3426,10 @@ async function init(){
   S.practiceLabTaskDone=LS.get('practiceLabTaskDone')||{};
 
   // Render
-  renderTopRight(); renderSidebar(); renderHome();
+  renderTopRight();
+  renderSidebar();
+  const restoredRoute=restoreRouteState();
+  if(!restoredRoute)renderHome();
   el('btn-create-contest') && tog('btn-create-contest',isMaster());
 
   if(STORAGE_MODE!=='supabase'){
