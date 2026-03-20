@@ -544,7 +544,15 @@ function closeModal(id){hide(id);}
 function genId(){return Math.random().toString(36).slice(2,10);}
 function fmtN(n){return Number(n).toLocaleString();}
 function fmtT(s){return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
-function fmtDate(ts){return new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+function fmtDate(ts){return new Date(ts).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+function fmtCountdownDHMS(totalSeconds){
+  const secs=Math.max(0,Math.floor(totalSeconds));
+  const days=Math.floor(secs/86400);
+  const hours=Math.floor((secs%86400)/3600);
+  const mins=Math.floor((secs%3600)/60);
+  const seconds=secs%60;
+  return `${days}d ${String(hours).padStart(2,'0')}h ${String(mins).padStart(2,'0')}m ${String(seconds).padStart(2,'0')}s`;
+}
 function fmtDur(ms){const m=Math.floor(ms/60000);const h=Math.floor(m/60);return h?`${h}h ${m%60}m`:`${m}m`;}
 function getTodayStr(){const d=new Date();return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;}
 function diffCls(d){return d==='Easy'?'diff-easy':d==='Medium'?'diff-med':d==='Hard'?'diff-hard':'diff-expert';}
@@ -1362,6 +1370,7 @@ function toggleSidebar(){
    NAVIGATION
 ══════════════════════════════════════════════════════════ */
 function nav(view, extra){
+  if(view!=='contests')stopContestListCountdown();
   // Close mobile sidebar
   const _sb=el('sidebar'),_bd=el('sb-backdrop'),_hb=el('ham-btn');
   if(_sb)_sb.classList.remove('open');
@@ -1649,6 +1658,7 @@ function ensureContestAccess(contest){
   if(contest.isPublic)return true;
   if(isMaster())return true;
   if(isOwnedByCurrentUser(contest.createdBy))return true;
+  if(isContestParticipant(contest))return true;
   if(S.unlockedPrivateContests[contest.id])return true;
   if(!S.user){
     toast('Sign in to access private contest','warn');
@@ -1864,17 +1874,41 @@ function buildLeaderboard(){
 function filterContests(){
   renderContests();
 }
+function stopContestListCountdown(){
+  if(window._contestListInterval){
+    clearInterval(window._contestListInterval);
+    window._contestListInterval=null;
+  }
+}
+function startContestListCountdown(){
+  if(window._contestListInterval)return;
+  window._contestListInterval=setInterval(()=>{
+    if(S.currentView!=='contests'){
+      stopContestListCountdown();
+      return;
+    }
+    renderContests();
+  },1000);
+}
 function renderContests(){
   const filter=(el('contest-filter')||{}).value||'all';
   const allContests=getVisibleContestsForList();
   const list=filter==='all'?allContests:allContests.filter(c=>c.status===filter);
   el('contest-list').innerHTML=list.length?list.map(c=>contestCardHTML(c)).join(''):'<div class="empty"><div class="empty-ico"></div><div style="font-size:12px;color:var(--t3)">No contests found</div></div>';
+  if(S.currentView==='contests')startContestListCountdown();
 }
 function contestCardHTML(c){
   const probs=S.problems.filter(p=>c.problemIds.includes(p.id));
   const revealProblems=canRevealContestProblems(c);
   const lockReason=getContestProblemLockReason(c);
-  const timeLeft=c.status==='live'?Math.max(0,c.endTime-Date.now()):-1;
+  const nowTs=Date.now();
+  const msToStart=Math.max(0,c.startTime-nowTs);
+  const msToEnd=Math.max(0,c.endTime-nowTs);
+  const timeText=c.status==='live'
+    ? `Ends in ${fmtCountdownDHMS(msToEnd/1000)}`
+    : c.status==='upcoming'
+      ? `Starts in ${fmtCountdownDHMS(msToStart/1000)}`
+      : `Ended ${fmtDate(c.endTime)}`;
   return `
     <div class="contest-card ${c.status} mb3" onclick="nav('contest-detail','${c.id}')">
       <div class="fx ic sb mb2">
@@ -1891,9 +1925,7 @@ function contestCardHTML(c){
       <div class="fx ic gap3 flex-wrap">
         ${revealProblems?probs.map(p=>`<span class="tag">${esc(p.title)}</span>`).join(''):`<span class="tag">${esc(lockReason||'Problems are currently locked')}</span>`}
         <div style="margin-left:auto;font-size:11px;color:var(--t2)">
-          ${c.status==='live'?`Ends in ${fmtDur(timeLeft)}`:
-            c.status==='upcoming'?`Starts ${fmtDate(c.startTime)}`:
-            `Ended ${fmtDate(c.endTime)}`}
+          ${timeText}
         </div>
       </div>
     </div>`;
@@ -1916,24 +1948,51 @@ function renderContestDetail(contestId){
     ${c.isPublic?'<span class="tag">Public</span>':'<span class="tag">Private</span>'}`;
   // Timer
   const timerWrap=el('cd-timer-wrap');
+  stopContestCountdown();
   if(c.status==='live'){
     const left=Math.max(0,Math.floor((c.endTime-Date.now())/1000));
-    timerWrap.innerHTML=`<div style="text-align:right"><div style="font-size:10px;color:var(--t3);letter-spacing:1px">TIME LEFT</div><div class="countdown" id="cd-countdown">${fmtT(left)}</div></div>`;
-    startContestCountdown(c.endTime);
-  } else timerWrap.innerHTML='';
+    timerWrap.innerHTML=`<div style="text-align:right"><div style="font-size:10px;color:var(--t3);letter-spacing:1px">TIME LEFT</div><div class="countdown" id="cd-countdown">${fmtCountdownDHMS(left)}</div></div>`;
+    startContestCountdown(c.endTime,()=>{
+      normalizeContestLifecycle(c);
+      renderContestDetail(c.id);
+      renderContests();
+      renderSidebar();
+    });
+  } else if(c.status==='upcoming'&&hasContestStarted(c)===false){
+    const untilStart=Math.max(0,Math.floor((c.startTime-Date.now())/1000));
+    timerWrap.innerHTML=`<div style="text-align:right"><div style="font-size:10px;color:var(--t3);letter-spacing:1px">STARTS IN</div><div class="countdown" id="cd-countdown">${fmtCountdownDHMS(untilStart)}</div></div>`;
+    startContestCountdown(c.startTime,()=>{
+      normalizeContestLifecycle(c);
+      renderContestDetail(c.id);
+      renderContests();
+      renderSidebar();
+    });
+  } else {
+    timerWrap.innerHTML='';
+  }
   renderCDProblems(c,probs);
   renderCDScoreboard(c);
   renderCDSubs(c);
   renderCDAnnounce(c);
 }
 
-function startContestCountdown(endTime){
+function stopContestCountdown(){
+  if(window._cdInterval){
+    clearInterval(window._cdInterval);
+    window._cdInterval=null;
+  }
+}
+
+function startContestCountdown(targetTime,onComplete){
   if(window._cdInterval) clearInterval(window._cdInterval);
   window._cdInterval=setInterval(()=>{
-    const left=Math.max(0,Math.floor((endTime-Date.now())/1000));
+    const left=Math.max(0,Math.floor((targetTime-Date.now())/1000));
     const el2=el('cd-countdown');
-    if(el2){el2.textContent=fmtT(left);if(left<300)el2.classList.add('urgent');}
-    if(left<=0)clearInterval(window._cdInterval);
+    if(el2){el2.textContent=fmtCountdownDHMS(left);if(left<300)el2.classList.add('urgent');}
+    if(left<=0){
+      stopContestCountdown();
+      if(typeof onComplete==='function')onComplete();
+    }
   },1000);
 }
 
