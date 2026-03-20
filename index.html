@@ -27,6 +27,7 @@
       <button class="tnav" data-view="contests">Contests</button>
       <button class="tnav" data-view="custom">Custom</button>
       <button class="tnav" data-view="practice">Practice</button>
+      <button class="tnav" data-view="playground">Playground</button>
       <button class="tnav" data-view="submissions">Submissions</button>
       <button class="tnav" data-view="admin" id="nav-admin" style="display:none">Admin</button>
     </nav>
@@ -48,6 +49,7 @@
       <div class="slink" data-view="contests"><span class="slink-ico">&#9679;</span>Contests<span class="badge" id="sb-live-count">0</span></div>
       <div class="slink" data-view="custom"><span class="slink-ico">&#9670;</span>Custom Contest</div>
       <div class="slink" data-view="practice"><span class="slink-ico">&#8801;</span>Daily Practice</div>
+      <div class="slink" data-view="playground"><span class="slink-ico">&#9723;</span>SQL Playground</div>
       <div class="slink" data-view="submissions"><span class="slink-ico">&#8984;</span>Submissions</div>
 
       <div class="sidebar-divider"></div>
@@ -224,41 +226,9 @@
         </div>
         <div class="practice-grid" style="display:grid;grid-template-columns:1fr;gap:16px">
           <div>
-            <div class="tabs mb3" id="practice-mode-tabs">
-              <button class="tab-btn on" id="practice-mode-problems" onclick="setPracticeMode('problems')">Problems</button>
-              <button class="tab-btn" id="practice-mode-playground" onclick="setPracticeMode('playground')">Playground</button>
-            </div>
-
             <div id="practice-pane-problems">
               <div class="fx gap2 mb3 flex-wrap" id="practice-filters"></div>
               <div id="practice-problem-list"></div>
-            </div>
-
-            <div id="practice-pane-playground" class="hidden">
-              <div class="card mb3">
-                <div class="card-hdr">
-                  <div class="card-title">DDL / DML Playground</div>
-                  <div class="fx gap2">
-                    <button class="btn btn-ghost btn-xs" onclick="loadPracticeLabExample()">Load Example</button>
-                    <button class="btn btn-danger btn-xs" onclick="resetPracticeLab()">Reset Lab</button>
-                  </div>
-                </div>
-                <div class="card-body">
-                  <div style="font-size:12px;color:var(--t2);margin-bottom:8px;line-height:1.6">Practice CREATE, INSERT, UPDATE, DELETE, DROP, and SELECT safely in a sandbox database.</div>
-                  <textarea class="ta code-ta" id="practice-lab-editor" rows="7" spellcheck="false" placeholder="CREATE TABLE learners (id INT, name TEXT, marks INT);&#10;INSERT INTO learners (id, name, marks) VALUES (1, 'Aisha', 89);&#10;UPDATE learners SET marks = 92 WHERE id = 1;&#10;SELECT * FROM learners;" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();runPracticeLab();}"></textarea>
-                  <div class="fx ic gap3 mt2" style="flex-wrap:wrap">
-                    <button class="btn btn-teal btn-md" onclick="runPracticeLab()">Run Lab SQL</button>
-                    <span style="font-size:11px;color:var(--t3);font-family:var(--mono)">Ctrl+Enter to run</span>
-                  </div>
-                  <div id="practice-lab-output" class="mt3"></div>
-                  <div class="divider"></div>
-                  <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:8px">Sandbox Tables</div>
-                  <div id="practice-lab-tables"></div>
-                  <div class="divider"></div>
-                  <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:8px">Learning Tasks & Questions</div>
-                  <div id="practice-lab-tasks"></div>
-                </div>
-              </div>
             </div>
           </div>
           <div>
@@ -266,6 +236,40 @@
               <div class="card-hdr"><div class="card-title">Solved by Difficulty</div></div>
               <div class="card-body" id="practice-diff-stats"></div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ PLAYGROUND VIEW ═══════════════════════════ -->
+      <div class="view hidden" id="view-playground">
+        <div class="fx ic sb mb4">
+          <div>
+            <div style="font-size:24px;font-weight:700;letter-spacing:-.3px">SQL Playground</div>
+            <div style="font-size:12px;color:var(--t2);margin-top:2px">Practice DDL, DML, and SELECT in a safe sandbox.</div>
+          </div>
+        </div>
+        <div class="card mb3">
+          <div class="card-hdr">
+            <div class="card-title">DDL / DML Playground</div>
+            <div class="fx gap2">
+              <button class="btn btn-ghost btn-xs" onclick="loadPracticeLabExample()">Load Example</button>
+              <button class="btn btn-danger btn-xs" onclick="resetPracticeLab()">Reset Lab</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="font-size:12px;color:var(--t2);margin-bottom:8px;line-height:1.6">Practice CREATE, INSERT, UPDATE, DELETE, DROP, and SELECT safely in a sandbox database.</div>
+            <textarea class="ta code-ta" id="practice-lab-editor" rows="7" spellcheck="false" placeholder="write your sql query" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();runPracticeLab();}"></textarea>
+            <div class="fx ic gap3 mt2" style="flex-wrap:wrap">
+              <button class="btn btn-teal btn-md" onclick="runPracticeLab()">Run Lab SQL</button>
+              <span style="font-size:11px;color:var(--t3);font-family:var(--mono)">Ctrl+Enter to run</span>
+            </div>
+            <div id="practice-lab-output" class="mt3"></div>
+            <div class="divider"></div>
+            <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:8px">Sandbox Tables</div>
+            <div id="practice-lab-tables"></div>
+            <div class="divider"></div>
+            <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:8px">Learning Tasks & Questions</div>
+            <div id="practice-lab-tasks"></div>
           </div>
         </div>
       </div>
@@ -319,6 +323,7 @@
     <button class="bnav on" onclick="nav('home')" data-bnav="home"><span class="bnav-ico">⊞</span>Home</button>
     <button class="bnav" onclick="nav('contests')" data-bnav="contests"><span class="bnav-ico">◉</span>Contests</button>
     <button class="bnav" onclick="nav('practice')" data-bnav="practice"><span class="bnav-ico">≡</span>Practice</button>
+    <button class="bnav" onclick="nav('playground')" data-bnav="playground"><span class="bnav-ico">▣</span>Lab</button>
     <button class="bnav" onclick="nav('submissions')" data-bnav="submissions"><span class="bnav-ico">⌘</span>History</button>
     <button class="bnav" onclick="nav('profile')" data-bnav="profile"><span class="bnav-ico">○</span>Profile</button>
   </nav>

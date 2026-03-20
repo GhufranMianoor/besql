@@ -546,7 +546,6 @@ const S = {
   pendingContestAccess:null,
   adminSubTab:'problems',
   practiceFilter:'All',
-  practiceMode:'problems',
   practiceLab:{tables:{}},
   unlockedPrivateContests:{},
 };
@@ -1515,6 +1514,7 @@ function nav(view, extra){
   if(view==='home')renderHome();
   if(view==='contests')renderContests();
   if(view==='practice')renderPractice();
+  if(view==='playground')renderPlayground();
   if(view==='submissions')renderSubmissions();
   if(view==='profile')renderProfile();
   if(view==='admin'){if(!isMaster()){nav('home');toast('Access denied','error');return;}renderAdmin();}
@@ -1735,7 +1735,7 @@ function restoreRouteState(){
     nav('judge',state.judgeContext);
     return true;
   }
-  if(['home','contests','practice','submissions','profile','admin','custom'].includes(view)){
+  if(['home','contests','practice','playground','submissions','profile','admin','custom'].includes(view)){
     nav(view);
     return true;
   }
@@ -2869,15 +2869,6 @@ function customTab(tab,btn){
 function renderPractice(){
   const solved=getSolvedIds();
   const publicProblems=getPublicPracticeProblems();
-  const mode=S.practiceMode||'problems';
-  const paneProblems=el('practice-pane-problems');
-  const panePlayground=el('practice-pane-playground');
-  const tabProblems=el('practice-mode-problems');
-  const tabPlayground=el('practice-mode-playground');
-  if(paneProblems)paneProblems.classList.toggle('hidden',mode!=='problems');
-  if(panePlayground)panePlayground.classList.toggle('hidden',mode!=='playground');
-  if(tabProblems)tabProblems.classList.toggle('on',mode==='problems');
-  if(tabPlayground)tabPlayground.classList.toggle('on',mode==='playground');
 
   const diffs=['All','Easy','Medium','Hard','Expert'];
   el('practice-filters').innerHTML=diffs.map(d=>`
@@ -2911,11 +2902,12 @@ function renderPractice(){
     return `<div style="margin-bottom:12px"><div class="fx ic sb mb1"><span class="${diffCls(d)}">${d}</span><span style="font-size:11px;color:var(--t2)">${ds}/${dp.length}</span></div><div class="pbar"><div class="pfill" style="width:${pct}%;background:${color}"></div></div></div>`;
   }).join('');
 
+}
+function renderPlayground(){
   renderPracticeLabTables();
   renderPracticeLabTasks();
 }
 function setPracticeFilter(f){S.practiceFilter=f;renderPractice();}
-function setPracticeMode(m){S.practiceMode=m;renderPractice();}
 
 /* ══════════════════════════════════════════════════════════
    SUBMISSIONS
