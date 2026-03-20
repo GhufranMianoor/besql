@@ -740,6 +740,12 @@ function syncSqlHighlight(id){
   const ta=el(id);
   const hl=el(`${id}-hl`);
   if(!ta||!hl)return;
+  const touchMode=window.matchMedia&&window.matchMedia('(hover:none), (pointer:coarse)').matches;
+  if(touchMode){
+    hl.style.display='none';
+    return;
+  }
+  hl.style.display='';
   hl.innerHTML=sqlHighlightHtml(ta.value);
   hl.scrollTop=ta.scrollTop;
   hl.scrollLeft=ta.scrollLeft;
@@ -748,6 +754,12 @@ function attachSqlHighlighting(id){
   const ta=el(id);
   const hl=el(`${id}-hl`);
   if(!ta||!hl)return;
+  // Mobile keyboard compatibility
+  ta.setAttribute('autocapitalize','off');
+  ta.setAttribute('autocorrect','off');
+  ta.setAttribute('autocomplete','off');
+  ta.setAttribute('inputmode','text');
+  ta.setAttribute('enterkeyhint','done');
   if(ta.dataset.sqlHlAttached==='1'){
     syncSqlHighlight(id);
     return;

@@ -180,6 +180,17 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
 .sql-num{color:var(--grn)}
 .sql-com{color:var(--t3);font-style:italic}
 
+/* Mobile editor stability: disable overlay mode on touch devices */
+@media (hover:none), (pointer:coarse){
+  .sql-editor-shell .sql-highlight{display:none!important}
+  .sql-editor-shell .code-ta{
+    background:var(--bg)!important;
+    color:var(--t0)!important;
+    caret-color:var(--t0)!important;
+    -webkit-text-fill-color:var(--t0)!important;
+  }
+}
+
 /* ── TABLES ── */
 .tw{overflow-x:auto}
 .tbl{width:100%;border-collapse:collapse;font-size:12.5px}
