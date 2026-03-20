@@ -62,12 +62,12 @@ function runSQL(q, schema) {
     }
     // ORDER BY
     const om=q.match(/ORDER\s+BY\s+(.*?)(?:\s+LIMIT|$)/i);
-    if(om){const pts=om[1].split(',').map(s=>s.trim());rows=[...rows].sort((a,b)=>{for(const p of pts){const[col,dir]=p.split(/\s+/);const av=rc(a,col),bv=rc(b,col);const cmp=av==null?-1:bv==null?1:typeof av==='number'&&typeof bv==='number'?av-bv:String(av).localeCompare(String(bv));if(cmp!==0)return(dir?.toUpperCase()==='DESC'?-1:1)*cmp;}return 0;});}
+    if(om){const pts=om[1].split(',').map(s=>s.trim());rows=[...rows].sort((a,b)=>{for(const p of pts){const[col,dir]=p.split(/\s+/);const av=resolveExprValue(a,col),bv=resolveExprValue(b,col);const cmp=av==null?-1:bv==null?1:typeof av==='number'&&typeof bv==='number'?av-bv:String(av).localeCompare(String(bv));if(cmp!==0)return(dir?.toUpperCase()==='DESC'?-1:1)*cmp;}return 0;});}
     // LIMIT
     const lm=q.match(/LIMIT\s+(\d+)(?:\s+OFFSET\s+(\d+))?/i);
     if(lm){const off=parseInt(lm[2]||0);rows=rows.slice(off,off+parseInt(lm[1]));}
     // Final SELECT columns
-    if(sr!=='*'&&(!ha||grouped)){const pts=psp(sr);if(!(pts.length===1&&pts[0].expr==='*')){rows=rows.map(r=>{const o={};for(const{expr,alias}of pts){if(expr==='*')Object.assign(o,r);else o[alias]=r[alias]??rc(r,expr);}return o;});}}
+    if(sr!=='*'&&(!ha||grouped)){const pts=psp(sr);if(!(pts.length===1&&pts[0].expr==='*')){rows=rows.map(r=>{const o={};for(const{expr,alias}of pts){if(expr==='*')Object.assign(o,r);else o[alias]=r[alias]??resolveExprValue(r,expr);}return o;});}}
     if(!rows.length) return {columns:[],rows:[],rowCount:0};
     const columns=Object.keys(rows[0]).filter(k=>!k.includes('.'));
     return {columns,rows:rows.map(r=>columns.map(c=>r[c]??null)),rowCount:rows.length};
@@ -92,6 +92,26 @@ function rc(row,expr){
     if(k.toLowerCase()===exprLC||k.toLowerCase()===shortLC)return row[k];
   }
   return undefined;
+}
+function evalNumericExpr(row,expr){
+  if(!expr)return undefined;
+  const cleaned=String(expr).trim().replace(/^\((.*)\)$/,'$1').trim();
+  if(!cleaned||!/^[A-Za-z0-9_\.\s+\-*/()%]+$/.test(cleaned))return undefined;
+  const tokens=cleaned.match(/[A-Za-z_][A-Za-z0-9_\.]*/g)||[];
+  let mapped=cleaned;
+  for(const t of tokens){
+    const v=rc(row,t);
+    const n=Number(v);
+    if(!Number.isFinite(n))return undefined;
+    const re=new RegExp(`\\b${t.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')}\\b`,'g');
+    mapped=mapped.replace(re,String(n));
+  }
+  try{return Function(`return (${mapped})`)();}catch{return undefined;}
+}
+function resolveExprValue(row,expr){
+  const direct=rc(row,expr);
+  if(direct!==undefined)return direct;
+  return evalNumericExpr(row,expr);
 }
 function r2(n){return Math.round(n*100)/100;}
 function psp(raw){const parts=[];let depth=0,cur='';for(const ch of raw+','){if(ch==='('){depth++;cur+=ch;}else if(ch===')'){depth--;cur+=ch;}else if(ch===','&&depth===0){const s=cur.trim();cur='';const am=s.match(/^(.+?)\s+AS\s+(\w+)$/i);if(am)parts.push({expr:am[1].trim(),alias:am[2]});else{const bare=s.split('.').pop();parts.push({expr:s,alias:bare||s});}}else cur+=ch;}return parts;}
@@ -684,6 +704,9 @@ const CONTESTS_DEFAULT = [
     announcement:'',
   },
 ];
+
+const DEFAULT_PROBLEM_BY_ID=Object.fromEntries(PROBLEMS_DEFAULT.map(p=>[String(p.id||''),p]));
+const DEFAULT_PROBLEM_BY_CODE=Object.fromEntries(PROBLEMS_DEFAULT.map(p=>[String(p.code||'').toUpperCase(),p]));
 
 /* ══════════════════════════════════════════════════════════
    STATE
@@ -1446,8 +1469,52 @@ function inferTablesFromProblem(problem){
   return [];
 }
 
+function getDefaultProblemSeed(problem){
+  if(!problem)return null;
+  const byId=DEFAULT_PROBLEM_BY_ID[String(problem.id||'')];
+  if(byId)return byId;
+  const code=String(problem.code||'').toUpperCase();
+  if(code&&DEFAULT_PROBLEM_BY_CODE[code])return DEFAULT_PROBLEM_BY_CODE[code];
+  return null;
+}
+
+function applyDefaultProblemFallback(problem){
+  const seed=getDefaultProblemSeed(problem);
+  if(!seed)return problem;
+  return {
+    ...problem,
+    sampleOutput:problem.sampleOutput||seed.sampleOutput||null,
+    schemaHint:problem.schemaHint||seed.schemaHint||null,
+    description:String(problem.description||'').trim()||String(seed.description||'').trim(),
+  };
+}
+
+function hasStoryDescription(desc){
+  const d=String(desc||'').toLowerCase();
+  return d.includes('mission brief')&&d.includes('your task');
+}
+
+function makeStoryDescription(problem){
+  const existing=String(problem?.description||'').trim();
+  if(!existing)return existing;
+  if(hasStoryDescription(existing))return existing;
+  const tables=inferTablesFromProblem(problem);
+  const tableText=tables.length?tables.join(', '):'the mission dataset';
+  const cols=Array.isArray(problem?.sampleOutput?.columns)?problem.sampleOutput.columns:[];
+  const colsText=cols.length?cols.join(', '):'the required columns';
+  const difficulty=String(problem?.difficulty||'Easy');
+  return [
+    `Mission Brief: You are the lead data analyst for the BeSQL Operations Desk. A live request has arrived and your team needs an accurate report before the next systems check.`,
+    `Context: Query ${tableText} to deliver a ${difficulty.toLowerCase()}-tier intelligence snapshot for command review.`,
+    `Your task: write a single SELECT query that solves the objective below and returns the expected result set.`,
+    existing,
+    `Output contract: return ${colsText}.`,
+    `Tip: make your final ordering deterministic so repeated runs produce the same result.`
+  ].join('\n\n');
+}
+
 function ensureProblemDescription(problem){
-  const base=String(problem?.description||'').trim();
+  const base=makeStoryDescription(problem);
   const sql=String(problem?.solution||'');
   const needsReturn=!/\breturn\b/i.test(base);
   const needsOrder=/\bORDER\s+BY\b/i.test(sql)&&!/\border\b/i.test(base);
@@ -1478,7 +1545,7 @@ function ensureProblemDescription(problem){
 
 function ensureProblemCompleteness(problem){
   if(!problem)return problem;
-  const out={...problem};
+  const out=applyDefaultProblemFallback({...problem});
   const ref=(out.solution&&typeof runSQL==='function')?runSQL(out.solution,DB):null;
   const refOk=Boolean(ref&&!ref.error&&Array.isArray(ref.columns)&&Array.isArray(ref.rows));
 
@@ -1556,6 +1623,30 @@ function ensureProblemCompleteness(problem){
 function ensureProblemBankCompleteness(problems){
   if(!Array.isArray(problems))return [];
   return problems.map(ensureProblemCompleteness);
+}
+
+function hasValidSampleOutput(problem){
+  return Boolean(
+    problem
+    && problem.sampleOutput
+    && Array.isArray(problem.sampleOutput.columns)
+    && Array.isArray(problem.sampleOutput.rows)
+  );
+}
+
+function repairProblemBank(problems){
+  const input=Array.isArray(problems)?problems:[];
+  const repaired=[];
+  const normalized=input.map(p=>{
+    const beforeValid=hasValidSampleOutput(p);
+    const beforeStory=hasStoryDescription(p?.description||'');
+    const next=ensureProblemCompleteness(p);
+    const afterValid=hasValidSampleOutput(next);
+    const afterStory=hasStoryDescription(next?.description||'');
+    if((!beforeValid&&afterValid)||(!beforeStory&&afterStory))repaired.push(next);
+    return next;
+  });
+  return {problems:normalized,repaired};
 }
 
 function injectHiddenStrongTestCases(problems){
@@ -2790,12 +2881,19 @@ function renderJudge(ctx){
   const codeEl=el('judge-code');
   if(codeEl)codeEl.textContent=p.code||p.id.toUpperCase();
 
+  // Recover missing sample output at runtime from the reference solution.
+  const effectiveSampleOutput=normalizeSampleOutput(p.sampleOutput,p.solution);
+  if(effectiveSampleOutput&&!p.sampleOutput){
+    p.sampleOutput=effectiveSampleOutput;
+    persistProblems();
+  }
+
   // Build rich problem description with sample output + schema
   let descHTML=`<div style="font-size:13px;color:var(--t1);line-height:1.8;white-space:pre-line">${esc(p.description)}</div>`;
 
   // Sample output table
-  if(p.sampleOutput&&p.sampleOutput.columns){
-    const so=p.sampleOutput;
+  if(effectiveSampleOutput&&effectiveSampleOutput.columns){
+    const so=effectiveSampleOutput;
     descHTML+=`<div class="prob-section">
       <div class="prob-section-title">Sample Output</div>
       <div style="overflow-x:auto"><table class="sample-table">
@@ -3934,8 +4032,14 @@ async function init(){
     }
   }
   S.problems=normalizeKnownSampleOutputs(S.problems);
-  S.problems=ensureProblemBankCompleteness(S.problems);
+  const repairInit=repairProblemBank(S.problems);
+  S.problems=repairInit.problems;
   persistProblems();
+  if(repairInit.repaired.length){
+    repairInit.repaired.forEach(problem=>{
+      syncProblemToRelational(problem).catch(err=>console.warn('Background repaired problem sync failed:',err));
+    });
+  }
   S.problems=injectHiddenStrongTestCases(S.problems);
 
   // Load contests from relational table first when available.
@@ -4060,9 +4164,15 @@ async function refreshDataInBackground(reason='tab-return'){
     let changed=false;
     if(relProblems?.success&&Array.isArray(relProblems.problems)&&relProblems.problems.length>0){
       S.problems=normalizeKnownSampleOutputs(relProblems.problems);
-      S.problems=ensureProblemBankCompleteness(S.problems);
+      const repairBg=repairProblemBank(S.problems);
+      S.problems=repairBg.problems;
       S.problems=injectHiddenStrongTestCases(S.problems);
       persistProblems();
+      if(repairBg.repaired.length){
+        repairBg.repaired.forEach(problem=>{
+          syncProblemToRelational(problem).catch(err=>console.warn('Background repaired problem sync failed:',err));
+        });
+      }
       changed=true;
     }
 
