@@ -9,14 +9,14 @@ let STORAGE_MODE = 'memory';
 let STORAGE_DIAGNOSTIC = '';
 let STORAGE_INITIALIZED = false;
 let STORAGE_HEALTH = { lastCheck: null, status: 'unknown', nextCheck: null };
-const STORAGE_CONFIG = { initTimeoutMs: 45000, healthCheckIntervalMs: 30000 };
+const STORAGE_CONFIG = { initTimeoutMs: 10000, healthCheckIntervalMs: 30000 };
 const storageCache = new Map();
 const pendingUpserts = new Map();
 const pendingDeletes = new Set();
 let flushTimer = null;
 let flushInFlight = false;
 let flushRetryDelay = 500;
-const CLIENT_ONLY_KEYS = new Set(['session', 'theme', 'practiceLab', 'practiceLabTaskDone']);
+const CLIENT_ONLY_KEYS = new Set(['session', 'theme', 'practiceLab', 'practiceLabTaskDone', 'routeState']);
 
 const STORAGE_SUPABASE_CONFIG = {
   url: window.SUPABASE_URL || 'https://yaqukpmixbhiyxdkgmwl.supabase.co',
