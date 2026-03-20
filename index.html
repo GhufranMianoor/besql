@@ -366,11 +366,25 @@
 
 <div class="overlay hidden" id="modal-custom">
   <div class="modal modal-wide">
-    <div class="mhdr"><div class="mtitle">CREATE CUSTOM CONTEST</div><button class="mclose" onclick="closeModal('modal-custom')">×</button></div>
+    <div class="mhdr"><div class="mtitle" id="custom-editor-title">CREATE CUSTOM CONTEST</div><button class="mclose" onclick="closeModal('modal-custom')">×</button></div>
     <div class="mbody" id="custom-creator-body"></div>
     <div class="mfooter">
       <button class="btn btn-ghost btn-md" onclick="closeModal('modal-custom')">Cancel</button>
-      <button class="btn btn-blue btn-md" onclick="saveCustomContest()">Create Contest</button>
+      <button class="btn btn-blue btn-md" id="custom-editor-save-btn" onclick="saveCustomContest()">Create Contest</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="modal-contest-password">
+  <div class="modal">
+    <div class="mhdr"><div class="mtitle">ENTER CONTEST PASSWORD</div><button class="mclose" onclick="closeContestPasswordModal()">×</button></div>
+    <div class="mbody">
+      <div style="font-size:12px;color:var(--t2);margin-bottom:10px" id="contest-pass-msg">This contest is private.</div>
+      <div class="fg"><label class="lbl">Password</label><input class="inp" id="contest-pass-input" type="password" placeholder="Enter contest password" onkeydown="if(event.key==='Enter')submitContestPassword()"></div>
+    </div>
+    <div class="mfooter">
+      <button class="btn btn-ghost btn-md" onclick="closeContestPasswordModal()">Cancel</button>
+      <button class="btn btn-blue btn-md" onclick="submitContestPassword()">Continue</button>
     </div>
   </div>
 </div>

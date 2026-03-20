@@ -138,6 +138,34 @@ BEGIN
   END IF;
 END $$;
 
+-- =====================================================
+-- CONTESTS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.contests (
+  id VARCHAR(100) PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  description TEXT DEFAULT '',
+  type VARCHAR(20) NOT NULL DEFAULT 'official',
+  status VARCHAR(20) NOT NULL DEFAULT 'upcoming',
+  start_time TIMESTAMPTZ NOT NULL,
+  end_time TIMESTAMPTZ NOT NULL,
+  duration_minutes INTEGER NOT NULL DEFAULT 120,
+  problem_ids TEXT[] NOT NULL DEFAULT '{}',
+  is_public BOOLEAN NOT NULL DEFAULT TRUE,
+  max_participants INTEGER NOT NULL DEFAULT 500,
+  announcement TEXT DEFAULT '',
+  created_by VARCHAR(100),
+  invitees TEXT[] NOT NULL DEFAULT '{}',
+  participants TEXT[] NOT NULL DEFAULT '{}',
+  password TEXT DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_contests_status ON public.contests(status);
+CREATE INDEX IF NOT EXISTS idx_contests_type ON public.contests(type);
+CREATE INDEX IF NOT EXISTS idx_contests_start_time ON public.contests(start_time);
+
 -- Insert submissions as needed
 
 -- =====================================================
@@ -329,11 +357,116 @@ AND NOT EXISTS (
   WHERE s.user_id=u.id AND s.problem_id='BSQ-003'
 );
 
+INSERT INTO public.problems (
+  id, code, title, difficulty, points, time_limit, category, tags,
+  description, solution, sample_output, schema_hint, test_cases,
+  daily_date, is_active, created_by
+) VALUES
+  (
+    'p9','BSQ-009','Danger Zone Citizens','Easy',180,NULL,'Filtering',ARRAY['WHERE','ORDER BY'],
+    'Find citizens in danger zones with stability rating below 2.0. Return: citizen_name, sector, stability_rating ordered by stability_rating ascending.',
+    'SELECT citizen_name, sector, stability_rating FROM citizenmentalhealth WHERE stability_rating < 2.0 ORDER BY stability_rating ASC',
+    '{"columns":["citizen_name","sector","stability_rating"],"rows":[["Ryn","Delta","0.8"],["Nova","Beta","1.5"],["Marcus","Beta","1.9"]]}'::jsonb,
+    '{"table":"citizenmentalhealth","columns":[["citizen_id","INT"],["citizen_name","VARCHAR"],["sector","VARCHAR"],["stability_rating","FLOAT"],["last_checkup","DATE"]]}'::jsonb,
+    '[{"id":"tc1","name":"Low stability only","desc":"All rows must be below 2.0","hint":"WHERE stability_rating < 2.0","hidden":true}]'::jsonb,
+    NULL, TRUE, 'system'
+  ),
+  (
+    'p10','BSQ-010','Double Agents','Medium',220,NULL,'Filtering',ARRAY['WHERE','ORDER BY'],
+    'List Alpha clearance operatives tied to more than one organization. Return: operative_name, organizations_count ordered by organizations_count descending.',
+    'SELECT operative_name, organizations_count FROM operativeprofiles WHERE clearance_level = ''Alpha'' AND organizations_count > 1 ORDER BY organizations_count DESC',
+    '{"columns":["operative_name","organizations_count"],"rows":[["Zara","3"],["Ryn","2"]]}'::jsonb,
+    '{"table":"operativeprofiles","columns":[["operative_id","INT"],["operative_name","VARCHAR"],["clearance_level","VARCHAR"],["organizations_count","INT"],["recruitment_date","DATE"]]}'::jsonb,
+    '[{"id":"tc1","name":"Alpha multiorg only","desc":"Only Alpha with organizations_count > 1","hint":"WHERE clearance_level = ''Alpha'' AND organizations_count > 1","hidden":true}]'::jsonb,
+    NULL, TRUE, 'system'
+  ),
+  (
+    'p11','BSQ-011','Duplicate Records','Medium',240,NULL,'Aggregation',ARRAY['GROUP BY','HAVING','COUNT'],
+    'Find duplicate agent/division entries. Return: agent_name, division_name, duplicate_count for groups appearing more than once.',
+    'SELECT agent_name, division_name, COUNT(*) AS duplicate_count FROM agentrecords GROUP BY agent_name, division_name HAVING COUNT(*) > 1 ORDER BY duplicate_count DESC, agent_name ASC',
+    '{"columns":["agent_name","division_name","duplicate_count"],"rows":[["Nova","Field","3"],["Zara","Recon","2"]]}'::jsonb,
+    '{"table":"agentrecords","columns":[["record_id","INT"],["agent_name","VARCHAR"],["division_name","VARCHAR"],["entry_date","DATE"]]}'::jsonb,
+    '[{"id":"tc1","name":"Duplicates only","desc":"Must return duplicated groups only","hint":"GROUP BY agent_name, division_name HAVING COUNT(*) > 1","hidden":true}]'::jsonb,
+    NULL, TRUE, 'system'
+  ),
+  (
+    'p12','BSQ-012','Echo Transactions','Medium',250,NULL,'Aggregation',ARRAY['SUM','GROUP BY','HAVING'],
+    'Show accounts whose total credits exceed 400. Return: account_id, total_credits ordered by total_credits descending.',
+    'SELECT account_id, SUM(credits) AS total_credits FROM creditledger GROUP BY account_id HAVING SUM(credits) > 400 ORDER BY total_credits DESC',
+    '{"columns":["account_id","total_credits"],"rows":[["101","700"],["103","500"],["102","450"]]}'::jsonb,
+    '{"table":"creditledger","columns":[["txn_id","INT"],["account_id","INT"],["credits","INT"],["txn_date","DATE"]]}'::jsonb,
+    '[{"id":"tc1","name":"High value accounts","desc":"Only SUM(credits) > 400","hint":"HAVING SUM(credits) > 400","hidden":true}]'::jsonb,
+    NULL, TRUE, 'system'
+  ),
+  (
+    'p13','BSQ-013','Exchange Paradox','Hard',320,NULL,'Joins',ARRAY['JOIN','IN'],
+    'Find agents who appeared as both giver and receiver in exchanges. Return: agent_name ordered alphabetically.',
+    'SELECT a.agent_name FROM agents a WHERE a.agent_id IN (SELECT giver_id FROM exchanges) AND a.agent_id IN (SELECT receiver_id FROM exchanges) ORDER BY a.agent_name ASC',
+    '{"columns":["agent_name"],"rows":[["Marcus"],["Nova"],["Zara"]]}'::jsonb,
+    '{"table":"agents  ·  exchanges","columns":[["agent_id","INT"],["agent_name","VARCHAR"],["giver_id","INT"],["receiver_id","INT"],["year","INT"]]}'::jsonb,
+    '[{"id":"tc1","name":"Bidirectional participants","desc":"Must include agents in both roles","hint":"IN giver list and IN receiver list","hidden":true}]'::jsonb,
+    NULL, TRUE, 'system'
+  ),
+  (
+    'p14','BSQ-014','Ghost Followers','Hard',330,NULL,'Joins',ARRAY['LEFT JOIN','NULL'],
+    'Find citizens who follow someone but never posted. Return distinct citizen_id ordered ascending.',
+    'SELECT DISTINCT f.citizen_id FROM follows f LEFT JOIN posts p ON f.citizen_id = p.citizen_id WHERE p.citizen_id IS NULL ORDER BY f.citizen_id ASC',
+    '{"columns":["citizen_id"],"rows":[["1"],["4"],["5"]]}'::jsonb,
+    '{"table":"follows  ·  posts","columns":[["citizen_id","INT"],["followed_citizen_id","INT"],["post_id","INT"],["content","VARCHAR"]]}'::jsonb,
+    '[{"id":"tc1","name":"No-post followers","desc":"Followers with zero posts only","hint":"LEFT JOIN and IS NULL","hidden":true}]'::jsonb,
+    NULL, TRUE, 'system'
+  ),
+  (
+    'p15','BSQ-015','Leaderless Divisions','Medium',260,NULL,'Joins',ARRAY['LEFT JOIN','NULL','OR'],
+    'Find divisions with missing/invalid chiefs. A division is leaderless if chief_id is NULL or does not exist in divisionagents.',
+    'SELECT d.division_name FROM divisions d LEFT JOIN divisionagents a ON d.chief_id = a.agent_id WHERE d.chief_id IS NULL OR a.agent_id IS NULL ORDER BY d.division_name ASC',
+    '{"columns":["division_name"],"rows":[["Intel"],["Tech"]]}'::jsonb,
+    '{"table":"divisions  ·  divisionagents","columns":[["division_id","INT"],["division_name","VARCHAR"],["chief_id","INT"],["agent_id","INT"]]}'::jsonb,
+    '[{"id":"tc1","name":"Leaderless only","desc":"Return Intel and Tech","hint":"LEFT JOIN + IS NULL","hidden":true}]'::jsonb,
+    NULL, TRUE, 'system'
+  ),
+  (
+    'p16','BSQ-016','Low-Energy Operatives','Easy',170,NULL,'Filtering',ARRAY['WHERE','ORDER BY'],
+    'List operatives with energy level below 40. Return: operative_name, division, energy_level ordered ascending by energy.',
+    'SELECT operative_name, division, energy_level FROM operativestatus WHERE energy_level < 40 ORDER BY energy_level ASC',
+    '{"columns":["operative_name","division","energy_level"],"rows":[["Ryn","Tech","15"],["Marcus","Intel","32"]]}'::jsonb,
+    '{"table":"operativestatus","columns":[["operative_id","INT"],["operative_name","VARCHAR"],["division","VARCHAR"],["energy_level","INT"],["last_mission_date","DATE"]]}'::jsonb,
+    '[{"id":"tc1","name":"Energy threshold","desc":"All rows must be < 40","hint":"WHERE energy_level < 40","hidden":true}]'::jsonb,
+    NULL, TRUE, 'system'
+  ),
+  (
+    'p17','BSQ-017','Credit Multiplier','Easy',190,NULL,'Computed Columns',ARRAY['SELECT','ORDER BY'],
+    'Compute effective_credits = base_value * multiplier. Return sender_name, receiver_name, effective_credits ordered descending.',
+    'SELECT sender_name, receiver_name, base_value * multiplier AS effective_credits FROM credittransactions ORDER BY effective_credits DESC',
+    '{"columns":["sender_name","receiver_name","effective_credits"],"rows":[["Ryn","Zara","900"],["Echo","Ryn","800"],["Vex","Nova","300"]]}'::jsonb,
+    '{"table":"credittransactions","columns":[["transaction_id","INT"],["sender_name","VARCHAR"],["receiver_name","VARCHAR"],["base_value","INT"],["multiplier","INT"]]}'::jsonb,
+    '[{"id":"tc1","name":"Computed field","desc":"Must compute base_value * multiplier","hint":"SELECT base_value * multiplier AS effective_credits","hidden":true}]'::jsonb,
+    NULL, TRUE, 'system'
+  )
+ON CONFLICT (id) DO UPDATE SET
+  code = EXCLUDED.code,
+  title = EXCLUDED.title,
+  difficulty = EXCLUDED.difficulty,
+  points = EXCLUDED.points,
+  time_limit = EXCLUDED.time_limit,
+  category = EXCLUDED.category,
+  tags = EXCLUDED.tags,
+  description = EXCLUDED.description,
+  solution = EXCLUDED.solution,
+  sample_output = EXCLUDED.sample_output,
+  schema_hint = EXCLUDED.schema_hint,
+  test_cases = EXCLUDED.test_cases,
+  daily_date = EXCLUDED.daily_date,
+  is_active = EXCLUDED.is_active,
+  created_by = EXCLUDED.created_by,
+  updated_at = NOW();
+
 -- Step 10: Frontend access policies for users table (demo/public app)
 GRANT SELECT, INSERT, UPDATE ON TABLE public.users TO anon, authenticated;
 GRANT SELECT, INSERT ON TABLE public.user_roles TO anon, authenticated;
 GRANT SELECT, INSERT ON TABLE public.submissions TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.problems TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.contests TO anon, authenticated;
 
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
@@ -407,6 +540,33 @@ CREATE POLICY "problems_update" ON public.problems
 
 DROP POLICY IF EXISTS "problems_delete" ON public.problems;
 CREATE POLICY "problems_delete" ON public.problems
+  FOR DELETE
+  TO anon, authenticated
+  USING (true);
+
+ALTER TABLE public.contests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "contests_read" ON public.contests;
+CREATE POLICY "contests_read" ON public.contests
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+DROP POLICY IF EXISTS "contests_insert" ON public.contests;
+CREATE POLICY "contests_insert" ON public.contests
+  FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "contests_update" ON public.contests;
+CREATE POLICY "contests_update" ON public.contests
+  FOR UPDATE
+  TO anon, authenticated
+  USING (true)
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "contests_delete" ON public.contests;
+CREATE POLICY "contests_delete" ON public.contests
   FOR DELETE
   TO anon, authenticated
   USING (true);

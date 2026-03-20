@@ -130,6 +130,88 @@ const DB = {
     {id:2,name:"Data Structures",credits:3,instructor:"Dr. Jones",dept:"CS"},
     {id:3,name:"Machine Learning",credits:4,instructor:"Dr. Ahmed",dept:"AI"},
   ],
+  citizenmentalhealth:[
+    {citizen_id:1,citizen_name:'Vex',sector:'Alpha',stability_rating:4.2,last_checkup:'2901-01-01'},
+    {citizen_id:2,citizen_name:'Nova',sector:'Beta',stability_rating:1.5,last_checkup:'2901-01-01'},
+    {citizen_id:3,citizen_name:'Echo',sector:'Gamma',stability_rating:2.0,last_checkup:'2901-01-02'},
+    {citizen_id:4,citizen_name:'Ryn',sector:'Delta',stability_rating:0.8,last_checkup:'2901-01-02'},
+    {citizen_id:5,citizen_name:'Zara',sector:'Alpha',stability_rating:3.7,last_checkup:'2901-01-03'},
+    {citizen_id:6,citizen_name:'Marcus',sector:'Beta',stability_rating:1.9,last_checkup:'2901-01-03'},
+  ],
+  operativeprofiles:[
+    {operative_id:1,operative_name:'Zara',clearance_level:'Alpha',organizations_count:3,recruitment_date:'2900-01-01'},
+    {operative_id:2,operative_name:'Marcus',clearance_level:'Beta',organizations_count:2,recruitment_date:'2900-06-15'},
+    {operative_id:3,operative_name:'Nova',clearance_level:'Alpha',organizations_count:1,recruitment_date:'2901-01-01'},
+    {operative_id:4,operative_name:'Ryn',clearance_level:'Alpha',organizations_count:2,recruitment_date:'2900-03-20'},
+    {operative_id:5,operative_name:'Echo',clearance_level:'Gamma',organizations_count:4,recruitment_date:'2899-11-10'},
+    {operative_id:6,operative_name:'Vex',clearance_level:'Alpha',organizations_count:1,recruitment_date:'2901-02-01'},
+  ],
+  agentrecords:[
+    {record_id:1,agent_name:'Zara',division_name:'Recon',entry_date:'2901-01-01'},
+    {record_id:2,agent_name:'Zara',division_name:'Recon',entry_date:'2901-01-05'},
+    {record_id:3,agent_name:'Marcus',division_name:'Intel',entry_date:'2901-01-02'},
+    {record_id:4,agent_name:'Nova',division_name:'Field',entry_date:'2901-01-03'},
+    {record_id:5,agent_name:'Zara',division_name:'Intel',entry_date:'2901-01-04'},
+    {record_id:6,agent_name:'Nova',division_name:'Field',entry_date:'2901-01-06'},
+    {record_id:7,agent_name:'Nova',division_name:'Field',entry_date:'2901-01-07'},
+  ],
+  creditledger:[
+    {txn_id:1,account_id:101,credits:100,txn_date:'2901-01-01'},
+    {txn_id:2,account_id:101,credits:200,txn_date:'2901-01-02'},
+    {txn_id:3,account_id:102,credits:150,txn_date:'2901-01-01'},
+    {txn_id:4,account_id:101,credits:400,txn_date:'2901-01-03'},
+    {txn_id:5,account_id:102,credits:300,txn_date:'2901-01-04'},
+    {txn_id:6,account_id:103,credits:500,txn_date:'2901-01-01'},
+  ],
+  agents:[
+    {agent_id:1,agent_name:'Zara'},
+    {agent_id:2,agent_name:'Marcus'},
+    {agent_id:3,agent_name:'Nova'},
+    {agent_id:4,agent_name:'Ryn'},
+  ],
+  exchanges:[
+    {year:2899,giver_id:1,receiver_id:2},
+    {year:2899,giver_id:3,receiver_id:4},
+    {year:2900,giver_id:2,receiver_id:1},
+    {year:2900,giver_id:4,receiver_id:3},
+    {year:2901,giver_id:1,receiver_id:3},
+  ],
+  follows:[
+    {citizen_id:1,followed_citizen_id:2},
+    {citizen_id:1,followed_citizen_id:3},
+    {citizen_id:2,followed_citizen_id:3},
+    {citizen_id:4,followed_citizen_id:1},
+    {citizen_id:5,followed_citizen_id:2},
+  ],
+  posts:[
+    {post_id:1,citizen_id:2,content:'Hello World',post_date:'2901-01-01'},
+    {post_id:2,citizen_id:3,content:'First post',post_date:'2901-01-02'},
+    {post_id:3,citizen_id:2,content:'Another one',post_date:'2901-01-03'},
+  ],
+  divisions:[
+    {division_id:1,division_name:'Recon',chief_id:101},
+    {division_id:2,division_name:'Intel',chief_id:null},
+    {division_id:3,division_name:'Field',chief_id:103},
+    {division_id:4,division_name:'Tech',chief_id:999},
+  ],
+  divisionagents:[
+    {agent_id:101,agent_name:'Zara'},
+    {agent_id:103,agent_name:'Nova'},
+  ],
+  operativestatus:[
+    {operative_id:1,operative_name:'Zara',division:'Recon',energy_level:75,last_mission_date:'2901-01-01'},
+    {operative_id:2,operative_name:'Marcus',division:'Intel',energy_level:32,last_mission_date:'2901-01-01'},
+    {operative_id:3,operative_name:'Nova',division:'Field',energy_level:48,last_mission_date:'2901-01-02'},
+    {operative_id:4,operative_name:'Ryn',division:'Tech',energy_level:15,last_mission_date:'2901-01-02'},
+    {operative_id:5,operative_name:'Echo',division:'Recon',energy_level:89,last_mission_date:'2901-01-03'},
+  ],
+  credittransactions:[
+    {transaction_id:1,sender_name:'Vex',receiver_name:'Nova',base_value:100,multiplier:3},
+    {transaction_id:2,sender_name:'Echo',receiver_name:'Ryn',base_value:200,multiplier:4},
+    {transaction_id:3,sender_name:'Zara',receiver_name:'Marcus',base_value:50,multiplier:5},
+    {transaction_id:4,sender_name:'Nova',receiver_name:'Echo',base_value:150,multiplier:2},
+    {transaction_id:5,sender_name:'Ryn',receiver_name:'Zara',base_value:300,multiplier:3},
+  ],
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -266,6 +348,114 @@ const PROBLEMS_DEFAULT = [
     solution:'SELECT c.name AS course_name, COUNT(*) AS enrolled, AVG(s.gpa) AS avg_gpa FROM students s JOIN courses c ON s.course_id = c.id GROUP BY c.name ORDER BY avg_gpa DESC',
     dailyDate: null,
   },
+  {
+    id:'p9',code:'BSQ-009',title:'Danger Zone Citizens',difficulty:'Easy',points:180,timeLimit:null,
+    category:'Filtering',tags:['WHERE','ORDER BY'],
+    description:'Find citizens in danger zones with stability rating below 2.0.\n\nReturn: citizen_name, sector, stability_rating. Order by stability_rating ascending.',
+    sampleOutput:{columns:['citizen_name','sector','stability_rating'],rows:[['Ryn','Delta','0.8'],['Nova','Beta','1.5'],['Marcus','Beta','1.9']]},
+    schemaHint:{table:'citizenmentalhealth',columns:[['citizen_id','INT'],['citizen_name','VARCHAR'],['sector','VARCHAR'],['stability_rating','FLOAT'],['last_checkup','DATE']]},
+    testCases:[
+      {id:'tc1',name:'Low stability only',desc:'All rows must be below 2.0',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('stability'));return i>=0&&r.rows.every(row=>Number(row[i])<2);},hint:'WHERE stability_rating < 2.0'},
+    ],
+    solution:'SELECT citizen_name, sector, stability_rating FROM citizenmentalhealth WHERE stability_rating < 2.0 ORDER BY stability_rating ASC',
+    dailyDate: null,
+  },
+  {
+    id:'p10',code:'BSQ-010',title:'Double Agents',difficulty:'Medium',points:220,timeLimit:null,
+    category:'Filtering',tags:['WHERE','ORDER BY'],
+    description:'List Alpha clearance operatives tied to more than one organization.\n\nReturn: operative_name, organizations_count. Order by organizations_count descending.',
+    sampleOutput:{columns:['operative_name','organizations_count'],rows:[['Zara','3'],['Ryn','2']]},
+    schemaHint:{table:'operativeprofiles',columns:[['operative_id','INT'],['operative_name','VARCHAR'],['clearance_level','VARCHAR'],['organizations_count','INT'],['recruitment_date','DATE']]},
+    testCases:[
+      {id:'tc1',name:'Alpha multiorg only',desc:'Only Alpha with organizations_count > 1',validate:r=>r.rowCount===2,hint:'WHERE clearance_level = \'Alpha\' AND organizations_count > 1'},
+    ],
+    solution:"SELECT operative_name, organizations_count FROM operativeprofiles WHERE clearance_level = 'Alpha' AND organizations_count > 1 ORDER BY organizations_count DESC",
+    dailyDate: null,
+  },
+  {
+    id:'p11',code:'BSQ-011',title:'Duplicate Records',difficulty:'Medium',points:240,timeLimit:null,
+    category:'Aggregation',tags:['GROUP BY','HAVING','COUNT'],
+    description:'Find duplicate agent/division entries.\n\nReturn: agent_name, division_name, duplicate_count for groups appearing more than once.',
+    sampleOutput:{columns:['agent_name','division_name','duplicate_count'],rows:[['Nova','Field','3'],['Zara','Recon','2']]},
+    schemaHint:{table:'agentrecords',columns:[['record_id','INT'],['agent_name','VARCHAR'],['division_name','VARCHAR'],['entry_date','DATE']]},
+    testCases:[
+      {id:'tc1',name:'Duplicates only',desc:'Must return exactly duplicated groups',validate:r=>r.rowCount===2,hint:'GROUP BY agent_name, division_name HAVING COUNT(*) > 1'},
+    ],
+    solution:'SELECT agent_name, division_name, COUNT(*) AS duplicate_count FROM agentrecords GROUP BY agent_name, division_name HAVING COUNT(*) > 1 ORDER BY duplicate_count DESC, agent_name ASC',
+    dailyDate: null,
+  },
+  {
+    id:'p12',code:'BSQ-012',title:'Echo Transactions',difficulty:'Medium',points:250,timeLimit:null,
+    category:'Aggregation',tags:['SUM','GROUP BY','HAVING'],
+    description:'Show accounts whose total credits exceed 400.\n\nReturn: account_id, total_credits ordered by total_credits descending.',
+    sampleOutput:{columns:['account_id','total_credits'],rows:[['101','700'],['102','450'],['103','500']]},
+    schemaHint:{table:'creditledger',columns:[['txn_id','INT'],['account_id','INT'],['credits','INT'],['txn_date','DATE']]},
+    testCases:[
+      {id:'tc1',name:'High value accounts',desc:'Only accounts with SUM(credits) > 400',validate:r=>r.rowCount===3,hint:'HAVING SUM(credits) > 400'},
+    ],
+    solution:'SELECT account_id, SUM(credits) AS total_credits FROM creditledger GROUP BY account_id HAVING SUM(credits) > 400 ORDER BY total_credits DESC',
+    dailyDate: null,
+  },
+  {
+    id:'p13',code:'BSQ-013',title:'Exchange Paradox',difficulty:'Hard',points:320,timeLimit:null,
+    category:'Joins',tags:['JOIN','IN'],
+    description:'Find agents who have appeared as both giver and receiver in exchanges.\n\nReturn: agent_name ordered alphabetically.',
+    sampleOutput:{columns:['agent_name'],rows:[['Marcus'],['Nova'],['Zara']]},
+    schemaHint:{table:'agents  ·  exchanges',columns:[['agent_id','INT'],['agent_name','VARCHAR'],['giver_id','INT'],['receiver_id','INT'],['year','INT']]},
+    testCases:[
+      {id:'tc1',name:'Bidirectional participants',desc:'Must include agents appearing in both roles',validate:r=>r.rowCount===3,hint:'agent_id IN (SELECT giver_id ...) AND agent_id IN (SELECT receiver_id ...)'},
+    ],
+    solution:'SELECT a.agent_name FROM agents a WHERE a.agent_id IN (SELECT giver_id FROM exchanges) AND a.agent_id IN (SELECT receiver_id FROM exchanges) ORDER BY a.agent_name ASC',
+    dailyDate: null,
+  },
+  {
+    id:'p14',code:'BSQ-014',title:'Ghost Followers',difficulty:'Hard',points:330,timeLimit:null,
+    category:'Joins',tags:['LEFT JOIN','NULL'],
+    description:'Find citizens who follow someone but have never posted.\n\nReturn distinct citizen_id ordered ascending.',
+    sampleOutput:{columns:['citizen_id'],rows:[['1'],['4'],['5']]},
+    schemaHint:{table:'follows  ·  posts',columns:[['citizen_id','INT'],['followed_citizen_id','INT'],['post_id','INT'],['content','VARCHAR']]},
+    testCases:[
+      {id:'tc1',name:'No-post followers',desc:'Only followers with no posts',validate:r=>r.rowCount===3,hint:'LEFT JOIN posts ON follows.citizen_id = posts.citizen_id WHERE posts.citizen_id IS NULL'},
+    ],
+    solution:'SELECT DISTINCT f.citizen_id FROM follows f LEFT JOIN posts p ON f.citizen_id = p.citizen_id WHERE p.citizen_id IS NULL ORDER BY f.citizen_id ASC',
+    dailyDate: null,
+  },
+  {
+    id:'p15',code:'BSQ-015',title:'Leaderless Divisions',difficulty:'Medium',points:260,timeLimit:null,
+    category:'Joins',tags:['LEFT JOIN','NULL','OR'],
+    description:'Find divisions with missing or invalid chiefs.\n\nA division is leaderless if chief_id is NULL or chief_id does not exist in divisionagents.',
+    sampleOutput:{columns:['division_name'],rows:[['Intel'],['Tech']]},
+    schemaHint:{table:'divisions  ·  divisionagents',columns:[['division_id','INT'],['division_name','VARCHAR'],['chief_id','INT'],['agent_id','INT']]},
+    testCases:[
+      {id:'tc1',name:'Leaderless only',desc:'Must return Intel and Tech',validate:r=>r.rowCount===2,hint:'LEFT JOIN divisionagents ON chief_id = agent_id'},
+    ],
+    solution:'SELECT d.division_name FROM divisions d LEFT JOIN divisionagents a ON d.chief_id = a.agent_id WHERE d.chief_id IS NULL OR a.agent_id IS NULL ORDER BY d.division_name ASC',
+    dailyDate: null,
+  },
+  {
+    id:'p16',code:'BSQ-016',title:'Low-Energy Operatives',difficulty:'Easy',points:170,timeLimit:null,
+    category:'Filtering',tags:['WHERE','ORDER BY'],
+    description:'List operatives with energy level below 40.\n\nReturn: operative_name, division, energy_level ordered by energy_level ascending.',
+    sampleOutput:{columns:['operative_name','division','energy_level'],rows:[['Ryn','Tech','15'],['Marcus','Intel','32']]},
+    schemaHint:{table:'operativestatus',columns:[['operative_id','INT'],['operative_name','VARCHAR'],['division','VARCHAR'],['energy_level','INT'],['last_mission_date','DATE']]},
+    testCases:[
+      {id:'tc1',name:'Energy threshold',desc:'All rows must be < 40',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('energy'));return i>=0&&r.rows.every(row=>Number(row[i])<40);},hint:'WHERE energy_level < 40'},
+    ],
+    solution:'SELECT operative_name, division, energy_level FROM operativestatus WHERE energy_level < 40 ORDER BY energy_level ASC',
+    dailyDate: null,
+  },
+  {
+    id:'p17',code:'BSQ-017',title:'Credit Multiplier',difficulty:'Easy',points:190,timeLimit:null,
+    category:'Computed Columns',tags:['SELECT','ORDER BY'],
+    description:'Compute multiplied credit value for each transaction.\n\nReturn: sender_name, receiver_name, effective_credits where effective_credits = base_value * multiplier, ordered descending.',
+    sampleOutput:{columns:['sender_name','receiver_name','effective_credits'],rows:[['Ryn','Zara','900'],['Echo','Ryn','800'],['Vex','Nova','300']]},
+    schemaHint:{table:'credittransactions',columns:[['transaction_id','INT'],['sender_name','VARCHAR'],['receiver_name','VARCHAR'],['base_value','INT'],['multiplier','INT']]},
+    testCases:[
+      {id:'tc1',name:'Computed field',desc:'Must compute base_value * multiplier',validate:r=>r.rowCount===5,hint:'SELECT base_value * multiplier AS effective_credits'},
+    ],
+    solution:'SELECT sender_name, receiver_name, base_value * multiplier AS effective_credits FROM credittransactions ORDER BY effective_credits DESC',
+    dailyDate: null,
+  },
 ];
 
 /* ══════════════════════════════════════════════════════════
@@ -332,10 +522,13 @@ const S = {
   onlineCount: Math.floor(Math.random()*120)+320,
   editingProblem:null,
   editingContest:null,
+  editingCustomContest:null,
+  pendingContestAccess:null,
   adminSubTab:'problems',
   practiceFilter:'All',
   practiceMode:'problems',
   practiceLab:{tables:{}},
+  unlockedPrivateContests:{},
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -646,6 +839,111 @@ async function seedProblemsToRelational(problems){
   if(!SB||STORAGE_MODE!=='supabase'||!Array.isArray(problems)||!problems.length)return;
   for(const p of problems){
     await syncProblemToRelational(p);
+  }
+}
+
+function serializeContestForRelational(contest){
+  return {
+    id:String(contest.id),
+    title:contest.title||'Untitled Contest',
+    description:contest.description||'',
+    type:contest.type||'official',
+    status:contest.status||'upcoming',
+    start_time:new Date(Number(contest.startTime||Date.now())).toISOString(),
+    end_time:new Date(Number(contest.endTime||Date.now())).toISOString(),
+    duration_minutes:Number(contest.duration||120),
+    problem_ids:Array.isArray(contest.problemIds)?contest.problemIds:[],
+    is_public:contest.isPublic!==false,
+    max_participants:Number(contest.maxParticipants||500),
+    announcement:contest.announcement||'',
+    created_by:String(contest.createdBy||S.user?.username||S.user?.userId||'system'),
+    invitees:Array.isArray(contest.invitees)?contest.invitees:[],
+    participants:Array.isArray(contest.participants)?contest.participants:[],
+    password:contest.password||'',
+    updated_at:new Date().toISOString(),
+  };
+}
+
+function hydrateContestFromRelationalRow(row){
+  const startTs=row.start_time?new Date(row.start_time).getTime():Date.now();
+  const endTs=row.end_time?new Date(row.end_time).getTime():(startTs+Number(row.duration_minutes||120)*60000);
+  return {
+    id:String(row.id),
+    title:row.title||'Untitled Contest',
+    description:row.description||'',
+    type:row.type||'official',
+    status:row.status||'upcoming',
+    startTime:startTs,
+    endTime:endTs,
+    duration:Number(row.duration_minutes||120),
+    problemIds:Array.isArray(row.problem_ids)?row.problem_ids:[],
+    isPublic:row.is_public!==false,
+    maxParticipants:Number(row.max_participants||500),
+    announcement:row.announcement||'',
+    createdBy:row.created_by||'system',
+    invitees:Array.isArray(row.invitees)?row.invitees:[],
+    participants:Array.isArray(row.participants)?row.participants:[],
+    password:row.password||'',
+  };
+}
+
+async function loadContestsFromRelational(){
+  if(!SB||STORAGE_MODE!=='supabase'){
+    return Promise.resolve({success:false,contests:null,reason:'Supabase not configured'});
+  }
+  try{
+    const {data,error}=await SB.from('contests').select('*').order('start_time',{ascending:false});
+    if(error){
+      console.warn('Supabase contests load failed:',error.message||error);
+      return {success:false,contests:null,error:error.message||error};
+    }
+    const contests=(data||[]).map(hydrateContestFromRelationalRow);
+    return {success:true,contests,count:contests.length};
+  }catch(err){
+    console.warn('Supabase contests load exception:',err?.message||err);
+    return {success:false,contests:null,error:err?.message||err};
+  }
+}
+
+async function syncContestToRelational(contest){
+  if(!SB||STORAGE_MODE!=='supabase'||!contest?.id){
+    return Promise.resolve({success:false,reason:'Supabase not available or contest data incomplete'});
+  }
+  try{
+    const payload=serializeContestForRelational(contest);
+    const {error}=await SB.from('contests').upsert(payload,{onConflict:'id'});
+    if(error){
+      console.warn('Supabase contest sync failed:',error.message||error);
+      return {success:false,error:error.message||error};
+    }
+    return {success:true,contestId:contest.id};
+  }catch(err){
+    console.warn('Supabase contest sync exception:',err?.message||err);
+    return {success:false,error:err?.message||err};
+  }
+}
+
+async function seedContestsToRelational(contests){
+  if(!SB||STORAGE_MODE!=='supabase'||!Array.isArray(contests)||!contests.length)return;
+  for(const c of contests){
+    await syncContestToRelational(c);
+  }
+}
+
+async function deleteContestFromRelational(contestId){
+  if(!SB||STORAGE_MODE!=='supabase'||!contestId){
+    return Promise.resolve({success:false,reason:'Supabase not available or contest ID missing'});
+  }
+  try{
+    const {error}=await SB.from('contests').delete().eq('id',String(contestId));
+    if(error){
+      console.warn('Supabase contest delete failed:',error.message||error);
+      return {success:false,error:error.message||error};
+    }
+    return {success:true,contestId};
+  }catch(err){
+    console.warn('Supabase contest delete exception:',err?.message||err);
+    return {success:false,error:err?.message||err};
   }
 }
 
@@ -1060,8 +1358,30 @@ function nav(view, extra){
   if(view==='profile')renderProfile();
   if(view==='admin'){if(!isMaster()){nav('home');toast('Access denied','error');return;}renderAdmin();}
   if(view==='custom')renderCustom();
-  if(view==='contest-detail')renderContestDetail(extra);
-  if(view==='judge')renderJudge(extra);
+  if(view==='contest-detail'){
+    const contestId=typeof extra==='string'?extra:extra?.contestId;
+    const contest=getContestById(contestId);
+    if(!contest){toast('Contest not found','error');return;}
+    S.pendingContestAccess={contestId:contest.id,action:{type:'contest-detail',extra}};
+    if(!ensureContestAccess(contest))return;
+    S.pendingContestAccess=null;
+    renderContestDetail(extra);
+  }
+  if(view==='judge'){
+    if(extra?.contestId){
+      const contest=getContestById(extra.contestId);
+      if(!contest){toast('Contest not found','error');return;}
+      S.pendingContestAccess={contestId:contest.id,action:{type:'judge',extra}};
+      if(!ensureContestAccess(contest))return;
+      S.pendingContestAccess=null;
+      if(!canRevealContestProblems(contest)){
+        toast(getContestProblemLockReason(contest)||'Problems are currently locked','warn');
+        nav('contest-detail',contest.id);
+        return;
+      }
+    }
+    renderJudge(extra);
+  }
 }
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>nav(b.dataset.view)));
 
@@ -1227,8 +1547,174 @@ function renderTopRight(){
 
 function renderSidebar(){
   el('sb-online').textContent=S.onlineCount;
-  const live=S.contests.filter(c=>c.status==='live').length;
+  const live=getVisibleContestsForList().filter(c=>c.status==='live').length;
   el('sb-live-count').textContent=live;
+}
+
+function isOwnedByCurrentUser(ownerRef){
+  if(!S.user||ownerRef==null)return false;
+  const owner=String(ownerRef).trim().toLowerCase();
+  const refs=[S.user.userId,S.user.username,S.user.email]
+    .filter(Boolean)
+    .map(v=>String(v).trim().toLowerCase());
+  return refs.includes(owner);
+}
+
+function isContestVisibleToCurrentUser(contest){
+  return !!contest;
+}
+
+function getVisibleContestsForList(){
+  return [...S.contests,...S.customContests].filter(isContestVisibleToCurrentUser);
+}
+
+function getContestById(contestId){
+  return getVisibleContestsForList().find(c=>c.id===contestId)
+    || S.contests.find(c=>c.id===contestId)
+    || S.customContests.find(c=>c.id===contestId)
+    || null;
+}
+
+function getEmbargoedProblemIds(){
+  const embargoed=new Set();
+  [...S.contests,...S.customContests].forEach(c=>{
+    if(!c||c.status!=='upcoming')return;
+    (c.problemIds||[]).forEach(pid=>embargoed.add(pid));
+  });
+  return embargoed;
+}
+
+function getPublicPracticeProblems(){
+  const embargoed=getEmbargoedProblemIds();
+  return S.problems.filter(p=>!embargoed.has(p.id));
+}
+
+function ensureContestAccess(contest){
+  if(!contest)return false;
+  if(contest.isPublic)return true;
+  if(isMaster())return true;
+  if(isOwnedByCurrentUser(contest.createdBy))return true;
+  if(S.unlockedPrivateContests[contest.id])return true;
+  if(!S.user){
+    toast('Sign in to access private contest','warn');
+    openAuth('login');
+    return false;
+  }
+  openContestPasswordModal(contest);
+  return false;
+}
+
+function openContestPasswordModal(contest){
+  if(!contest)return;
+  S.pendingContestAccess={contestId:contest.id,action:S.pendingContestAccess?.action||null};
+  const msg=el('contest-pass-msg');
+  if(msg)msg.textContent=`${contest.title} is private. Enter the contest password to continue.`;
+  const inp=el('contest-pass-input');
+  if(inp)inp.value='';
+  openModal('modal-contest-password');
+  if(inp)setTimeout(()=>inp.focus(),20);
+}
+
+function closeContestPasswordModal(){
+  closeModal('modal-contest-password');
+  S.pendingContestAccess=null;
+}
+
+function submitContestPassword(){
+  const pending=S.pendingContestAccess;
+  if(!pending?.contestId){
+    closeContestPasswordModal();
+    return;
+  }
+  const contest=getContestById(pending.contestId);
+  if(!contest){
+    closeContestPasswordModal();
+    return;
+  }
+  const entered=((el('contest-pass-input')||{}).value||'').trim();
+  if(!entered){toast('Enter contest password','warn');return;}
+  if(String(entered)!==String(contest.password||'')){
+    toast('Incorrect contest password','error');
+    return;
+  }
+  S.unlockedPrivateContests[contest.id]=true;
+  closeModal('modal-contest-password');
+  const action=pending.action;
+  S.pendingContestAccess=null;
+  if(action?.type==='contest-detail')return nav('contest-detail',action.extra);
+  if(action?.type==='judge')return nav('judge',action.extra);
+  if(action?.type==='join')return joinContest(action.contestId);
+}
+
+function isContestParticipant(contest){
+  if(!contest||!S.user)return false;
+  if(isMaster())return true;
+  if(isOwnedByCurrentUser(contest.createdBy))return true;
+  const uid=S.user.userId;
+  const participants=Array.isArray(contest.participants)?contest.participants:[];
+  if(uid&&participants.includes(uid))return true;
+  return S.submissions.some(s=>s.contestId===contest.id);
+}
+
+function getContestProblemLockReason(contest){
+  if(!contest)return 'Contest not found.';
+  if(contest.status==='upcoming')return `This contest is scheduled for ${fmtDate(contest.startTime)}. Problems will unlock when the contest starts.`;
+  if(contest.status==='live'&&!isContestParticipant(contest))return 'Only participants can view problems while the contest is live.';
+  return '';
+}
+
+function normalizeContestLifecycle(contest){
+  if(!contest)return contest;
+  const nowTs=Date.now();
+  if(contest.status==='upcoming'&&nowTs>contest.startTime)contest.status='live';
+  if(contest.status==='live'&&nowTs>contest.endTime)contest.status='ended';
+  if(contest.status==='ended'){
+    contest.isPublic=true;
+    contest.password='';
+  }
+  return contest;
+}
+
+function canRevealContestProblems(contest){
+  if(!contest)return false;
+  if(isMaster())return true;
+  if(isOwnedByCurrentUser(contest.createdBy))return true;
+  if(contest.status==='ended')return true;
+  if(contest.status==='upcoming')return false;
+  return isContestParticipant(contest);
+}
+
+function persistContestEntity(updatedContest){
+  if(!updatedContest)return;
+  const updateIn=(arr)=>{
+    const i=arr.findIndex(c=>c.id===updatedContest.id);
+    if(i>=0){arr[i]=updatedContest;return true;}
+    return false;
+  };
+  if(!updateIn(S.contests))updateIn(S.customContests);
+  LS.set('contests',S.contests.map(({announce,...r})=>r));
+  LS.set('customContests',S.customContests);
+  if(S.user?.userId){
+    const mine=S.customContests.filter(c=>isOwnedByCurrentUser(c.createdBy));
+    LS.set(`custom:${S.user.userId}`,mine);
+  }
+  syncContestToRelational(updatedContest).catch(err=>console.warn('Background contest sync failed:',err));
+}
+
+function joinContest(contestId){
+  if(!S.user){toast('Please sign in to participate','warn');openAuth('login');return;}
+  const contest=getContestById(contestId);
+  if(!contest)return;
+  S.pendingContestAccess={contestId:contest.id,action:{type:'join',contestId:contest.id}};
+  if(!ensureContestAccess(contest))return;
+  S.pendingContestAccess=null;
+  const uid=S.user.userId;
+  const participants=new Set(Array.isArray(contest.participants)?contest.participants:[]);
+  participants.add(uid);
+  const updated={...contest,participants:[...participants]};
+  persistContestEntity(updated);
+  toast('Joined contest as participant','success');
+  renderContestDetail(contest.id);
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -1236,7 +1722,8 @@ function renderSidebar(){
 ══════════════════════════════════════════════════════════ */
 function renderHome(){
   const solved=getSolvedIds();
-  const total=S.problems.length;
+  const publicProblems=getPublicPracticeProblems();
+  const total=publicProblems.length;
 
   el('home-greeting').textContent=S.user?`Welcome back, ${S.user.username}`:'Welcome to BeSQL';
   el('home-sub').textContent=S.user?`${S.user.role.toUpperCase()} · ${fmtN(S.user.score||0)} points`:'Sign in to compete';
@@ -1245,7 +1732,7 @@ function renderHome(){
   el('home-stats').innerHTML=[
     {l:'Problems',v:total,c:'var(--ind)'},
     {l:'Your Solved',v:solved.size,c:'var(--grn)'},
-    {l:'Live Contests',v:S.contests.filter(c=>c.status==='live').length,c:'var(--rose)'},
+    {l:'Live Contests',v:getVisibleContestsForList().filter(c=>c.status==='live').length,c:'var(--rose)'},
     {l:'Your Rank',v:getUserRank(),c:'var(--gold)'},
   ].map(s=>`<div class="stat"><div style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin-bottom:7px">${s.l}</div><div class="stat-v" style="color:${s.c}">${s.v}</div></div>`).join('');
 
@@ -1253,7 +1740,7 @@ function renderHome(){
   el('home-streak').innerHTML=S.user?`<div class="fx ic gap2"><span style="font-size:20px"></span><div><div style="font-size:22px;font-weight:800;color:var(--gold)">${S.user.streak||0}</div><div style="font-size:10px;color:var(--t3);letter-spacing:1px">DAY STREAK</div></div></div>`:'';
 
   // Active contests
-  const active=S.contests.filter(c=>c.status==='live'||c.status==='upcoming').slice(0,4);
+  const active=getVisibleContestsForList().filter(c=>c.status==='live'||c.status==='upcoming').slice(0,4);
   el('home-contests').innerHTML=active.length?active.map(c=>`
     <div style="display:flex;align-items:center;gap:12px;padding:11px 15px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .1s" onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''" onclick="nav('contest-detail','${c.id}')">
       ${c.status==='live'?'<div class="live-dot"></div>':'<span style="font-size:14px"></span>'}
@@ -1265,7 +1752,7 @@ function renderHome(){
     </div>`).join(''):'<div class="empty"><div class="empty-ico"></div><div style="font-size:12px;color:var(--t3)">No active contests</div></div>';
 
   // Daily problem
-  const daily=S.problems.find(p=>p.dailyDate===getTodayStr())||S.problems[0];
+  const daily=publicProblems.find(p=>p.dailyDate===getTodayStr())||publicProblems[0];
   el('daily-badge').className=daily?diffCls(daily.difficulty):'diff-easy';
   el('home-daily').innerHTML=daily?`
     <div style="font-size:17px;font-weight:800;margin-bottom:6px">${esc(daily.title)}</div>
@@ -1295,7 +1782,7 @@ function renderHome(){
       <div class="pbar"><div class="pfill" style="width:${pct}%;background:var(--ind)"></div></div>
     </div>
     ${['Easy','Medium','Hard','Expert'].map(d=>{
-      const dp=S.problems.filter(p=>p.difficulty===d);
+      const dp=publicProblems.filter(p=>p.difficulty===d);
       const ds=dp.filter(p=>solved.has(p.id)).length;
       const dp2=Math.round(dp.length?ds/dp.length*100:0);
       const color=d==='Easy'?'var(--grn)':d==='Medium'?'var(--gold)':d==='Hard'?'var(--rose)':'var(--violet)';
@@ -1324,11 +1811,14 @@ function filterContests(){
 }
 function renderContests(){
   const filter=(el('contest-filter')||{}).value||'all';
-  const list=filter==='all'?S.contests:S.contests.filter(c=>c.status===filter);
+  const allContests=getVisibleContestsForList();
+  const list=filter==='all'?allContests:allContests.filter(c=>c.status===filter);
   el('contest-list').innerHTML=list.length?list.map(c=>contestCardHTML(c)).join(''):'<div class="empty"><div class="empty-ico"></div><div style="font-size:12px;color:var(--t3)">No contests found</div></div>';
 }
 function contestCardHTML(c){
   const probs=S.problems.filter(p=>c.problemIds.includes(p.id));
+  const revealProblems=canRevealContestProblems(c);
+  const lockReason=getContestProblemLockReason(c);
   const timeLeft=c.status==='live'?Math.max(0,c.endTime-Date.now()):-1;
   return `
     <div class="contest-card ${c.status} mb3" onclick="nav('contest-detail','${c.id}')">
@@ -1339,12 +1829,12 @@ function contestCardHTML(c){
             '<span style="font-size:10px;color:var(--t3);padding:2px 8px;border-radius:10px;border:1px solid var(--line)">ENDED</span>'}
           <span style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px">${c.type==='custom'?'Custom':'Official'}</span>
         </div>
-        <span style="font-size:11px;color:var(--t2)">${probs.length} problems · ${fmtDur(c.duration*60000)}</span>
+        <span style="font-size:11px;color:var(--t2)">${revealProblems?`${probs.length} problems`:'Problems hidden'} · ${fmtDur(c.duration*60000)}</span>
       </div>
       <div style="font-size:16px;font-weight:700;margin-bottom:8px;line-height:1.3">${esc(c.title)}</div>
       <div style="font-size:12px;color:var(--t2);margin-bottom:12px;line-height:1.6">${esc(c.description)}</div>
       <div class="fx ic gap3 flex-wrap">
-        ${probs.map(p=>`<span class="tag">${esc(p.title)}</span>`).join('')}
+        ${revealProblems?probs.map(p=>`<span class="tag">${esc(p.title)}</span>`).join(''):`<span class="tag">${esc(lockReason||'Problems are currently locked')}</span>`}
         <div style="margin-left:auto;font-size:11px;color:var(--t2)">
           ${c.status==='live'?`Ends in ${fmtDur(timeLeft)}`:
             c.status==='upcoming'?`Starts ${fmtDate(c.startTime)}`:
@@ -1357,14 +1847,17 @@ function contestCardHTML(c){
 function renderContestDetail(contestId){
   const cid=contestId||S.currentContest;
   S.currentContest=cid;
-  const c=S.contests.find(x=>x.id===cid);
+  const c=getContestById(cid);
   if(!c){nav('contests');return;}
   el('cd-title').textContent=c.title;
   const probs=S.problems.filter(p=>c.problemIds.includes(p.id));
+  const revealProblems=canRevealContestProblems(c);
+  const participant=isContestParticipant(c);
   el('cd-meta').innerHTML=`
     ${c.status==='live'?'<span class="live-pill"><div class="live-dot" style="width:6px;height:6px"></div>LIVE</span>':''}
-    <span style="font-size:11px;color:var(--t2)">${probs.length} problems</span>
+    <span style="font-size:11px;color:var(--t2)">${revealProblems?`${probs.length} problems`:'Problems hidden'}</span>
     <span style="font-size:11px;color:var(--t2)">${fmtDur(c.duration*60000)}</span>
+    ${participant?'<span class="tag">Participant</span>':'<span class="tag">Spectator</span>'}
     ${c.isPublic?'<span class="tag">Public</span>':'<span class="tag">Private</span>'}`;
   // Timer
   const timerWrap=el('cd-timer-wrap');
@@ -1390,6 +1883,13 @@ function startContestCountdown(endTime){
 }
 
 function renderCDProblems(c,probs){
+  if(!canRevealContestProblems(c)){
+    const participant=isContestParticipant(c);
+    const canJoin=c.status!=='ended'&&!participant&&!isOwnedByCurrentUser(c.createdBy)&&!isMaster();
+    const reason=getContestProblemLockReason(c)||'Problems are currently locked.';
+    el('cd-problems').innerHTML=`<div class="card"><div class="empty"><div class="empty-ico" style="font-size:14px;color:var(--t3)">🔒</div><div style="font-size:12px;color:var(--t2)">${esc(reason)}</div>${canJoin?`<button class="btn btn-blue btn-sm" style="margin-top:10px" onclick="joinContest('${c.id}')">Join As Participant</button>`:''}</div></div>`;
+    return;
+  }
   const solved=getSolvedIds();
   el('cd-problems').innerHTML=`<div class="card">${probs.length?probs.map((p,i)=>`
     <div class="prob-row ${solved.has(p.id)?'solved':''}" onclick="nav('judge',{problemId:'${p.id}',contestId:'${c.id}',backView:'contest-detail'})">
@@ -1407,17 +1907,76 @@ function renderCDProblems(c,probs){
     </div>`).join(''):'<div class="empty"><div class="empty-ico" style="font-size:14px;color:var(--t3)">—</div></div>'}</div>`;
 }
 
+function buildContestLeaderboard(contest){
+  const userById=new Map();
+  LS.keys('user:').forEach(k=>{
+    const u=LS.get(k);
+    if(u&&u.userId)userById.set(u.userId,u);
+  });
+
+  const allSubs=LS.keys('subs:')
+    .map(k=>LS.get(k))
+    .filter(Array.isArray)
+    .flat()
+    .filter(s=>s&&s.contestId===contest.id);
+
+  const problemById=new Map(
+    (contest.problemIds||[])
+      .map(pid=>S.problems.find(p=>p.id===pid))
+      .filter(Boolean)
+      .map(p=>[p.id,p])
+  );
+
+  const byUser=new Map();
+  const sortedSubs=[...allSubs].sort((a,b)=>Number(a.at||0)-Number(b.at||0));
+
+  sortedSubs.forEach(sub=>{
+    const uid=sub.userId;
+    if(!uid)return;
+    if(!byUser.has(uid)){
+      const u=userById.get(uid);
+      byUser.set(uid,{
+        userId:uid,
+        username:u?.username||'User',
+        score:0,
+        solved:0,
+        totalTime:0,
+        lastAt:0,
+        solvedProblems:new Set(),
+      });
+    }
+    const row=byUser.get(uid);
+    row.lastAt=Math.max(row.lastAt,Number(sub.at||0));
+    if(sub.verdict!=='AC')return;
+    if(row.solvedProblems.has(sub.problemId))return;
+    const prob=problemById.get(sub.problemId);
+    row.solvedProblems.add(sub.problemId);
+    row.solved+=1;
+    row.score+=Number(prob?.points||0);
+    row.totalTime+=Math.max(0,Number(sub.timeTaken||0));
+  });
+
+  return [...byUser.values()].sort((a,b)=>{
+    if(b.score!==a.score)return b.score-a.score;
+    if(b.solved!==a.solved)return b.solved-a.solved;
+    if(a.totalTime!==b.totalTime)return a.totalTime-b.totalTime;
+    if(a.lastAt!==b.lastAt)return a.lastAt-b.lastAt;
+    return String(a.username).localeCompare(String(b.username));
+  });
+}
+
 function renderCDScoreboard(c){
-  const lb=buildLeaderboard();
+  const lb=buildContestLeaderboard(c);
   el('cd-scoreboard').innerHTML=`<div class="card"><div class="tw"><table class="tbl">
-    <thead><tr><th>Rank</th><th>User</th><th>Score</th><th>Solved</th></tr></thead>
-    <tbody>${lb.slice(0,20).map((p,i)=>`
+    <thead><tr><th>Rank</th><th>User</th><th>Score</th><th>Solved</th><th>Time</th></tr></thead>
+    <tbody>${lb.length?lb.slice(0,20).map((p,i)=>`
       <tr class="${i===0?'sb-rank-gold':i===1?'sb-rank-silver':i===2?'sb-rank-bronze':''} ${S.user&&p.userId===S.user.userId?'sb-me':''}">
         <td><div class="rm ${i<3?`rm${i+1}`:'rmn'}">${i+1}</div></td>
         <td style="font-weight:${S.user&&p.userId===S.user.userId?700:400};color:${S.user&&p.userId===S.user.userId?'var(--ind)':'var(--t0)'}">${esc(p.username)}</td>
         <td style="color:var(--gold);font-weight:700">${fmtN(p.score)}</td>
         <td style="color:var(--grn)">${p.solved}</td>
-      </tr>`).join('')}
+        <td style="color:var(--t2)">${fmtT(p.totalTime)}</td>
+      </tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--t3);padding:16px">No contest submissions yet</td></tr>'}
     </tbody></table></div></div>`;
 }
 
@@ -1596,20 +2155,22 @@ function clearJudgeState(){
 function getJudgeProblemSequence(ctx){
   if(!ctx)return [];
   if(ctx.contestId){
-    const contest=S.contests.find(c=>c.id===ctx.contestId);
+    const contest=getContestById(ctx.contestId);
     if(!contest||!Array.isArray(contest.problemIds))return [];
     return contest.problemIds.map(pid=>S.problems.find(p=>p.id===pid)).filter(Boolean);
   }
   if(ctx.backView==='practice'){
+    const publicProblems=getPublicPracticeProblems();
     if(S.practiceFilter&&S.practiceFilter!=='All'){
-      return S.problems.filter(p=>p.difficulty===S.practiceFilter);
+      return publicProblems.filter(p=>p.difficulty===S.practiceFilter);
     }
-    return [...S.problems];
+    return [...publicProblems];
   }
   if(ctx.backView==='home'){
     const today=getTodayStr();
-    const daily=S.problems.filter(p=>p.dailyDate===today);
-    return daily.length?daily:[...S.problems];
+    const publicProblems=getPublicPracticeProblems();
+    const daily=publicProblems.filter(p=>p.dailyDate===today);
+    return daily.length?daily:[...publicProblems];
   }
   return [...S.problems];
 }
@@ -1785,23 +2346,46 @@ function judgeSubmit(){
    CUSTOM CONTESTS
 ══════════════════════════════════════════════════════════ */
 function renderCustom(){
-  const mine=S.customContests.filter(c=>c.createdBy===S.user?.userId);
-  el('custom-my-list').innerHTML=mine.length?mine.map(c=>contestCardHTML({...c,type:'custom'})).join(''):`
+  const mine=S.customContests.filter(c=>isOwnedByCurrentUser(c.createdBy));
+  const myCustomProblems=S.problems.filter(p=>p.isCustom&&isOwnedByCurrentUser(p.createdBy));
+  const contestHtml=mine.length?mine.map(c=>`<div class="mb3">${contestCardHTML({...c,type:'custom'})}<div class="fx gap2" style="justify-content:flex-end;margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openCustomCreator('${c.id}')">Edit Contest</button><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteCustomContest('${c.id}')">Delete Contest</button></div></div>`).join(''):`
     <div class="empty"><div class="empty-ico" style="font-size:14px;color:var(--t3)">—</div>
     <div style="font-size:13px;color:var(--t2);margin-bottom:10px">No custom contests yet</div>
     <button class="btn btn-blue btn-md" onclick="openCustomCreator()">Create Your First Contest</button></div>`;
+  const customProblemHtml=`<div class="card" style="margin-top:12px"><div class="card-hdr"><div class="card-title">My Custom Problems (${myCustomProblems.length})</div><button class="btn btn-ghost btn-sm" onclick="openProblemEditor()">+ New</button></div><div class="card-body">${myCustomProblems.length?myCustomProblems.map(p=>`<div class="fx ic sb" style="padding:8px 0;border-bottom:1px solid var(--line)"><div><div style="font-size:12px;color:var(--t0)">${esc(p.title)}</div><div style="font-size:10px;color:var(--t3)">${esc(p.code||p.id)}</div></div><div class="fx gap2"><button class="btn btn-ghost btn-xs" onclick="openProblemEditor('${p.id}')">Edit</button><button class="btn btn-danger btn-xs" onclick="deleteProblem('${p.id}')">Del</button></div></div>`).join(''):'<div style="font-size:12px;color:var(--t3)">No custom problems created yet.</div>'}</div></div>`;
+  el('custom-my-list').innerHTML=contestHtml+customProblemHtml;
   el('custom-inv-list').innerHTML='<div class="empty"><div class="empty-ico" style="font-size:14px;color:var(--t3)">—</div><div style="font-size:12px;color:var(--t3)">No invitations</div></div>';
 }
 
-function openCustomCreator(){
+function canEditProblem(problem){
+  if(!S.user)return false;
+  if(isMaster())return true;
+  if(!problem)return true;
+  return problem.isCustom===true&&isOwnedByCurrentUser(problem.createdBy);
+}
+
+function openCustomCreator(id){
   if(!S.user){toast('Please sign in first','error');return;}
+  const ex=id?S.customContests.find(c=>c.id===id):null;
+  if(id&&!ex){toast('Contest not found','error');return;}
+  if(ex&&!isOwnedByCurrentUser(ex.createdBy)&&!isMaster()){toast('Permission denied','error');return;}
+  S.editingCustomContest=ex?{...ex,_existing:true}:null;
+  const c=ex||{title:'',description:'',duration:120,isPublic:false,startTime:Date.now()+3600000,problemIds:[],invitees:[],password:''};
+  const startVal=new Date(c.startTime||Date.now()+3600000).toISOString().slice(0,16);
+  const selectedIds=new Set(c.problemIds||[]);
+  const modalTitle=el('custom-editor-title');
+  const modalBtn=el('custom-editor-save-btn');
+  if(modalTitle)modalTitle.textContent=ex?'EDIT CUSTOM CONTEST':'CREATE CUSTOM CONTEST';
+  if(modalBtn)modalBtn.textContent=ex?'Save Changes':'Create Contest';
   el('custom-creator-body').innerHTML=`
-    <div class="fg"><label class="lbl">Contest Title</label><input class="inp" id="cc-title" placeholder="e.g. Study Group Round 1"></div>
-    <div class="fg"><label class="lbl">Description</label><textarea class="ta" rows="3" id="cc-desc" placeholder="What is this contest about?"></textarea></div>
-    <div class="g2">
-      <div class="fg"><label class="lbl">Duration (minutes)</label><input class="inp" type="number" id="cc-dur" value="120"></div>
-      <div class="fg"><label class="lbl">Visibility</label><select class="sel" id="cc-vis"><option value="private">Private (invite only)</option><option value="public">Public</option></select></div>
+    <div class="fg"><label class="lbl">Contest Title</label><input class="inp" id="cc-title" value="${esc(c.title||'')}" placeholder="e.g. Study Group Round 1"></div>
+    <div class="fg"><label class="lbl">Description</label><textarea class="ta" rows="3" id="cc-desc" placeholder="What is this contest about?">${esc(c.description||'')}</textarea></div>
+    <div class="g3">
+      <div class="fg"><label class="lbl">Start Time</label><input class="inp" type="datetime-local" id="cc-start" value="${startVal}"></div>
+      <div class="fg"><label class="lbl">Duration (minutes)</label><input class="inp" type="number" id="cc-dur" value="${Number(c.duration||120)}"></div>
+      <div class="fg"><label class="lbl">Visibility</label><select class="sel" id="cc-vis" onchange="updateContestPrivacyUI()"><option value="private" ${c.isPublic?'':'selected'}>Private (invite only)</option><option value="public" ${c.isPublic?'selected':''}>Public</option></select></div>
     </div>
+    <div class="fg" id="cc-pass-wrap"><label class="lbl">Contest Password</label><input class="inp" id="cc-pass" type="password" value="${esc(c.password||'')}" placeholder="Required for private contests"></div>
     <div class="fg">
       <label class="lbl">Add Problem by Code</label>
       <div style="display:flex;gap:8px;margin-bottom:8px">
@@ -1813,7 +2397,7 @@ function openCustomCreator(){
       <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto">
         ${S.problems.map(p=>`
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 10px;border-radius:4px;background:var(--bg2);border:1px solid var(--line)" onclick="setTimeout(ccRefreshSelected,10)">
-            <input type="checkbox" class="cc-prob-check" value="${p.id}" id="cc-chk-${p.id}">
+            <input type="checkbox" class="cc-prob-check" value="${p.id}" id="cc-chk-${p.id}" ${selectedIds.has(p.id)?'checked':''}>
             <span style="font-size:10px;font-family:var(--mono);color:var(--grn);font-weight:700;width:64px;flex-shrink:0">${p.code||p.id.toUpperCase()}</span>
             <span style="flex:1;font-size:12px;color:var(--t1)">${esc(p.title)}</span>
             <span class="${diffCls(p.difficulty)}">${p.difficulty}</span>
@@ -1821,8 +2405,17 @@ function openCustomCreator(){
           </label>`).join('')}
       </div>
     </div>
-    <div class="fg"><label class="lbl">Invite Users (comma separated usernames)</label><input class="inp" id="cc-invite" placeholder="user1, user2, ..."></div>`;
+    <div class="fg"><label class="lbl">Invite Users (comma separated usernames)</label><input class="inp" id="cc-invite" value="${esc((c.invitees||[]).join(', '))}" placeholder="user1, user2, ..."></div>`;
+  ccRefreshSelected();
+  updateContestPrivacyUI();
   openModal('modal-custom');
+}
+
+function updateContestPrivacyUI(){
+  const vis=(el('cc-vis')||{}).value||'private';
+  const wrap=el('cc-pass-wrap');
+  if(!wrap)return;
+  wrap.style.display=vis==='private'?'block':'none';
 }
 
 function ccAddByCode(){
@@ -1856,21 +2449,57 @@ function saveCustomContest(){
   if(!title){toast('Enter a title','warn');return;}
   const ids=[...document.querySelectorAll('.cc-prob-check:checked')].map(c=>c.value);
   if(!ids.length){toast('Select at least one problem','warn');return;}
+  const isPublic=(el('cc-vis')||{}).value==='public';
+  const pass=((el('cc-pass')||{}).value||'').trim();
+  const dur=parseInt((el('cc-dur')||{}).value)||120;
+  const startTs=new Date((el('cc-start')||{}).value).getTime()||Date.now()+3600000;
+  if(!isPublic&&pass.length<4){toast('Private contest password must be at least 4 characters','warn');return;}
+  const existing=S.editingCustomContest;
   const c={
-    id:genId(),title,
+    id:existing?.id||genId(),title,
     description:(el('cc-desc')||{}).value?.trim()||'',
-    duration:parseInt((el('cc-dur')||{}).value)||120,
-    isPublic:(el('cc-vis')||{}).value==='public',
+    duration:dur,
+    isPublic,
     problemIds:ids,type:'custom',status:'upcoming',
-    createdBy:S.user.userId,
-    startTime:Date.now()+3600000,endTime:Date.now()+3600000+7200000,
-    announcement:'',
+    createdBy:existing?.createdBy||S.user.userId||S.user.username,
+    startTime:startTs,endTime:startTs+dur*60000,
+    announcement:existing?.announcement||'',
+    participants:Array.isArray(existing?.participants)?existing.participants:[S.user.userId],
     invitees:((el('cc-invite')||{}).value||'').split(',').map(u=>u.trim()).filter(Boolean),
+    password:isPublic?'':pass,
   };
-  S.customContests.push(c);
+  if(existing?._existing){
+    const idx=S.customContests.findIndex(x=>x.id===c.id);
+    if(idx>=0)S.customContests[idx]=c;
+    else S.customContests.push(c);
+  }else S.customContests.push(c);
+  LS.set('customContests',S.customContests);
   LS.set(`custom:${S.user.userId}`,S.customContests);
+  syncContestToRelational(c).catch(err=>console.warn('Background custom contest sync failed:',err));
+  S.editingCustomContest=null;
   closeModal('modal-custom'); renderCustom();
-  toast('Custom contest created!','success');
+  toast(existing?._existing?'Custom contest updated!':'Custom contest created!','success');
+}
+
+function deleteCustomContest(id){
+  const contest=S.customContests.find(c=>c.id===id);
+  if(!contest){toast('Contest not found','error');return;}
+  if(!isOwnedByCurrentUser(contest.createdBy)&&!isMaster()){
+    toast('Permission denied','error');
+    return;
+  }
+  if(!confirm('Delete this contest? This cannot be undone.'))return;
+  S.customContests=S.customContests.filter(c=>c.id!==id);
+  LS.set('customContests',S.customContests);
+  if(S.user?.userId){
+    const mine=S.customContests.filter(c=>isOwnedByCurrentUser(c.createdBy));
+    LS.set(`custom:${S.user.userId}`,mine);
+  }
+  deleteContestFromRelational(id).catch(err=>console.warn('Background custom contest delete sync failed:',err));
+  renderCustom();
+  renderContests();
+  renderSidebar();
+  toast('Custom contest deleted','info');
 }
 
 function customTab(tab,btn){
@@ -1884,6 +2513,7 @@ function customTab(tab,btn){
 ══════════════════════════════════════════════════════════ */
 function renderPractice(){
   const solved=getSolvedIds();
+  const publicProblems=getPublicPracticeProblems();
   const mode=S.practiceMode||'problems';
   const paneProblems=el('practice-pane-problems');
   const panePlayground=el('practice-pane-playground');
@@ -1898,7 +2528,7 @@ function renderPractice(){
   el('practice-filters').innerHTML=diffs.map(d=>`
     <button class="btn btn-sm ${S.practiceFilter===d?'btn-blue':'btn-ghost'}" onclick="setPracticeFilter('${d}')">${d}</button>`).join('');
 
-  const filtered=S.practiceFilter==='All'?S.problems:S.problems.filter(p=>p.difficulty===S.practiceFilter);
+  const filtered=S.practiceFilter==='All'?publicProblems:publicProblems.filter(p=>p.difficulty===S.practiceFilter);
   el('practice-problem-list').innerHTML=`<div class="card">${filtered.map((p,i)=>`
     <div class="prob-row ${solved.has(p.id)?'solved':''}" onclick="nav('judge',{problemId:'${p.id}',backView:'practice'})">
       <div class="prob-num" style="width:28px">${i+1}</div>
@@ -1931,7 +2561,7 @@ function renderPractice(){
 
   // Diff stats
   el('practice-diff-stats').innerHTML=['Easy','Medium','Hard','Expert'].map(d=>{
-    const dp=S.problems.filter(p=>p.difficulty===d);
+    const dp=publicProblems.filter(p=>p.difficulty===d);
     const ds=dp.filter(p=>solved.has(p.id)).length;
     const pct=dp.length?Math.round(ds/dp.length*100):0;
     const color=d==='Easy'?'var(--grn)':d==='Medium'?'var(--gold)':d==='Hard'?'var(--rose)':'var(--violet)';
@@ -2147,10 +2777,11 @@ function renderAdminAnalytics(){
 
 /* Problem Editor Modal */
 function openProblemEditor(id){
-  if(!isMaster()){toast('Permission denied','error');return;}
+  const target=id?S.problems.find(p=>p.id===id):null;
+  if(!canEditProblem(target)){toast('Permission denied','error');return;}
   S.editingProblem=id
-    ?{...S.problems.find(p=>p.id===id),_existing:true}
-    :{id:getNextBsqCode(),code:getNextBsqCode(),title:'',difficulty:'Easy',points:100,timeLimit:300,category:'Filtering',tags:[],description:'',solution:'',testCases:[],dailyDate:null,_existing:false};
+    ?{...target,_existing:true}
+    :{id:getNextBsqCode(),code:getNextBsqCode(),title:'',difficulty:'Easy',points:100,timeLimit:300,category:'Filtering',tags:[],description:'',solution:'',testCases:[],dailyDate:null,isCustom:!isMaster(),createdBy:S.user?.userId,_existing:false};
   el('prob-editor-title').textContent=id?'EDIT PROBLEM':'NEW PROBLEM';
   const p=S.editingProblem;
   el('prob-editor-body').innerHTML=`
@@ -2263,6 +2894,8 @@ function saveProblem(){
     description:(el('pe-desc')||{}).value?.trim(),
     tags, testCases:tcs,
     dailyDate:(el('pe-daily')||{}).value||null,
+    isCustom:S.editingProblem.isCustom===true||!isMaster(),
+    createdBy:S.editingProblem.createdBy||S.user?.userId||S.user?.username,
   };
 
   if(S.editingProblem._existing){
@@ -2279,6 +2912,8 @@ function saveProblem(){
 }
 
 function deleteProblem(id){
+  const p=S.problems.find(x=>x.id===id);
+  if(!canEditProblem(p)){toast('Permission denied','error');return;}
   if(!confirm('Delete this problem?'))return;
   S.problems=S.problems.filter(p=>p.id!==id);
   // Deactivate problem in Supabase in background - don't wait
@@ -2291,7 +2926,7 @@ function deleteProblem(id){
 function openContestCreator(id){
   if(!isMaster()){toast('Permission denied','error');return;}
   const ex=id?S.contests.find(c=>c.id===id):null;
-  S.editingContest=ex?{...ex,_existing:true}:{id:genId(),title:'',description:'',type:'official',status:'upcoming',startTime:Date.now()+86400000,endTime:Date.now()+86400000+7200000,duration:120,problemIds:[],isPublic:true,maxParticipants:500,announcement:'',createdBy:S.user?.userId,_existing:false};
+  S.editingContest=ex?{...ex,_existing:true}:{id:genId(),title:'',description:'',type:'official',status:'upcoming',startTime:Date.now()+86400000,endTime:Date.now()+86400000+7200000,duration:120,problemIds:[],isPublic:true,maxParticipants:500,announcement:'',password:'',createdBy:S.user?.userId,_existing:false};
   el('contest-editor-title').textContent=id?'EDIT CONTEST':'CREATE CONTEST';
   const c=S.editingContest;
   const startVal=new Date(c.startTime).toISOString().slice(0,16);
@@ -2318,10 +2953,22 @@ function openContestCreator(id){
     </div>
     <div class="fg">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--t1)">
-        <input type="checkbox" id="ce-pub" ${c.isPublic?'checked':''}> Public contest (visible to all)
+        <input type="checkbox" id="ce-pub" ${c.isPublic?'checked':''} onchange="updateContestCreatorPrivacyUI()"> Public contest (visible to all)
       </label>
+    </div>
+    <div class="fg" id="ce-pass-wrap">
+      <label class="lbl">Contest Password</label>
+      <input class="inp" id="ce-pass" type="password" value="${esc(c.password||'')}" placeholder="Required for private contests">
     </div>`;
+  updateContestCreatorPrivacyUI();
   openModal('modal-contest');
+}
+
+function updateContestCreatorPrivacyUI(){
+  const isPublic=(el('ce-pub')||{}).checked;
+  const wrap=el('ce-pass-wrap');
+  if(!wrap)return;
+  wrap.style.display=isPublic?'none':'block';
 }
 
 function saveContest(){
@@ -2331,18 +2978,23 @@ function saveContest(){
   if(!ids.length){toast('Select at least one problem','warn');return;}
   const dur=parseInt((el('ce-dur')||{}).value)||120;
   const startTs=new Date((el('ce-start')||{}).value).getTime()||Date.now()+86400000;
+  const isPublic=(el('ce-pub')||{}).checked;
+  const pass=((el('ce-pass')||{}).value||'').trim();
+  if(!isPublic&&pass.length<4){toast('Private contest password must be at least 4 characters','warn');return;}
   const updated={
     ...S.editingContest,title,
     description:(el('ce-desc')||{}).value?.trim()||'',
     duration:dur,maxParticipants:parseInt((el('ce-max')||{}).value)||500,
     type:(el('ce-type')||{}).value||'official',
     startTime:startTs, endTime:startTs+dur*60000,
-    problemIds:ids, isPublic:(el('ce-pub')||{}).checked,
+    problemIds:ids, isPublic,
+    password:isPublic?'':pass,
     announcement:(el('ce-ann')||{}).value?.trim()||'',
   };
   if(S.editingContest._existing){const i=S.contests.findIndex(c=>c.id===updated.id);if(i>=0)S.contests[i]=updated;}
   else S.contests.push(updated);
   LS.set('contests',S.contests.map(({announce,...r})=>r));
+  syncContestToRelational(updated).catch(err=>console.warn('Background contest sync failed:',err));
   closeModal('modal-contest'); renderAdminContests(); renderContests();
   toast('Contest saved','success');
 }
@@ -2352,13 +3004,16 @@ function launchContest(id){
   if(!c)return;
   c.status='live'; c.startTime=Date.now(); c.endTime=Date.now()+c.duration*60000;
   LS.set('contests',S.contests); renderAdminContests(); renderContests(); renderSidebar();
+  syncContestToRelational(c).catch(err=>console.warn('Background contest launch sync failed:',err));
   toast(`${c.title} is now LIVE!`,'success');
 }
 function endContest(id){
   const c=S.contests.find(x=>x.id===id);
   if(!c)return;
   c.status='ended'; c.endTime=Date.now();
+  c.isPublic=true; c.password='';
   LS.set('contests',S.contests); renderAdminContests(); renderContests(); renderSidebar();
+  syncContestToRelational(c).catch(err=>console.warn('Background contest end sync failed:',err));
   toast(`Contest ended`,'info');
 }
 
@@ -2422,16 +3077,22 @@ async function init(){
   }
   S.problems=injectHiddenStrongTestCases(S.problems);
 
-  // Load contests
-  const savedC=LS.get('contests');
-  if(savedC&&savedC.length>0)S.contests=savedC;
-  else{S.contests=[...CONTESTS_DEFAULT];LS.set('contests',S.contests);}
+  // Load contests from relational table first when available.
+  const relContestResult=await safeCloudCall(()=>loadContestsFromRelational(),'loadContestsFromRelational')||{success:false,contests:null};
+  if(relContestResult.success&&Array.isArray(relContestResult.contests)&&relContestResult.contests.length>0){
+    const allContests=relContestResult.contests;
+    S.contests=allContests.filter(c=>c.type!=='custom');
+    S.customContests=allContests.filter(c=>c.type==='custom');
+    LS.set('contests',S.contests.map(({announce,...r})=>r));
+    LS.set('customContests',S.customContests);
+  } else {
+    const savedC=LS.get('contests');
+    if(savedC&&savedC.length>0)S.contests=savedC;
+    else{S.contests=[...CONTESTS_DEFAULT];LS.set('contests',S.contests);}
+  }
 
-  // Auto-update contest statuses
-  S.contests.forEach(c=>{
-    if(c.status==='upcoming'&&Date.now()>c.startTime)c.status='live';
-    if(c.status==='live'&&Date.now()>c.endTime)c.status='ended';
-  });
+  // Auto-update contest statuses and normalize access for ended contests.
+  S.contests.forEach(normalizeContestLifecycle);
 
   // Seed admin account (admin123 / 123) — always ensure it exists
   if(!LS.get('user:admin123')){
@@ -2451,8 +3112,25 @@ async function init(){
   const sess=LS.get('session');
   if(sess){const u=LS.get(`user:${sess}`);if(u){S.user=u;S.submissions=LS.get(`subs:${u.userId}`)||[];}}
 
-  // Load custom contests
-  if(S.user)S.customContests=LS.get(`custom:${S.user.userId}`)||[];
+  // Load custom contests from local fallback only when relational is unavailable/empty.
+  if(!(relContestResult.success&&Array.isArray(relContestResult.contests)&&relContestResult.contests.length>0)){
+    const globalCustom=LS.get('customContests')||[];
+    const ownCustom=S.user?LS.get(`custom:${S.user.userId}`)||[]:[];
+    const mergedCustom=[...globalCustom,...ownCustom];
+    const seenCustom=new Set();
+    S.customContests=mergedCustom.filter(c=>{
+      if(!c||!c.id||seenCustom.has(c.id))return false;
+      seenCustom.add(c.id);
+      return true;
+    });
+  }
+
+  S.customContests.forEach(normalizeContestLifecycle);
+  LS.set('customContests',S.customContests);
+
+  if(relContestResult.success&&Array.isArray(relContestResult.contests)&&relContestResult.contests.length===0){
+    await safeCloudCall(()=>seedContestsToRelational([...S.contests,...S.customContests]),'seedContestsToRelational');
+  }
 
   // Announcement
   const ann=LS.get('announcement');
