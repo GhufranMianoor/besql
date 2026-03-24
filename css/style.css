@@ -42,6 +42,35 @@
   --sh2: 0 2px 8px rgba(0,0,0,.6),0 12px 40px rgba(0,0,0,.4);
 }
 
+body.light{
+  --bg:    #f6f8fb;
+  --bg1:   #ffffff;
+  --bg2:   #f2f5fa;
+  --bg3:   #eaf0f8;
+  --bg4:   #dde6f2;
+  --bg5:   #ccd8e9;
+  --line:  #d8e1ee;
+  --line2: #cad6e7;
+  --line3: #b8c8de;
+
+  --t0: #142134;
+  --t1: #2c3e57;
+  --t2: #4a6181;
+  --t3: #7389a6;
+  --t4: #9badc3;
+
+  --gdim:  rgba(46,200,102,.14);
+  --gdim2: rgba(46,200,102,.08);
+  --idim:  rgba(79,142,247,.14);
+  --idim2: rgba(79,142,247,.08);
+  --rdim:  rgba(240,80,96,.14);
+  --adim:  rgba(240,160,48,.14);
+  --vdim:  rgba(155,114,240,.14);
+
+  --sh:  0 1px 3px rgba(16,39,68,.12),0 8px 20px rgba(16,39,68,.08);
+  --sh2: 0 2px 10px rgba(16,39,68,.14),0 14px 34px rgba(16,39,68,.1);
+}
+
 /* Theme toggle button */
 .theme-btn{
   width:32px;height:32px;border-radius:5px;border:1px solid var(--line2);
@@ -170,15 +199,28 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
   font-size:13px!important;line-height:1.8!important;white-space:pre-wrap;word-break:break-word;
 }
 .sql-editor-shell .code-ta{
-  position:relative;z-index:2;background:transparent!important;color:transparent;
+  position:relative;z-index:2;background:var(--bg)!important;color:var(--t0)!important;
   caret-color:var(--t0);resize:vertical;
+  -webkit-text-fill-color:var(--t0)!important;
 }
 .sql-editor-shell .code-ta::placeholder{color:var(--t3)}
-.sql-editor-shell .code-ta::selection{background:rgba(79,142,247,.22)}
-.sql-kw{color:var(--ind);font-weight:700}
-.sql-str{color:var(--gold)}
-.sql-num{color:var(--grn)}
-.sql-com{color:var(--t3);font-style:italic}
+.sql-editor-shell .code-ta::selection{
+  background:rgba(79,142,247,.34);
+  color:var(--t0);
+  -webkit-text-fill-color:var(--t0);
+}
+.sql-editor-shell .sql-highlight{display:none!important}
+.sql-editor-shell.overlay-off .sql-highlight{display:none!important}
+.sql-editor-shell.overlay-off .code-ta{
+  background:var(--bg)!important;
+  color:var(--t0)!important;
+  caret-color:var(--t0)!important;
+  -webkit-text-fill-color:var(--t0)!important;
+}
+.sql-kw{color:var(--ind);font-weight:800}
+.sql-str{color:var(--gold);font-weight:700}
+.sql-num{color:var(--grn);font-weight:700}
+.sql-com{color:var(--t3);font-style:italic;font-weight:700}
 
 /* Mobile editor stability: disable overlay mode on touch devices */
 @media (hover:none), (pointer:coarse){

@@ -731,6 +731,7 @@ const S = {
   adminSubTab:'problems',
   practiceFilter:'All',
   practiceLab:{tables:{}},
+  judgeSessions:{},
   unlockedPrivateContests:{},
 };
 
@@ -763,15 +764,9 @@ function syncSqlHighlight(id){
   const ta=el(id);
   const hl=el(`${id}-hl`);
   if(!ta||!hl)return;
-  const touchMode=window.matchMedia&&window.matchMedia('(hover:none), (pointer:coarse)').matches;
-  if(touchMode){
-    hl.style.display='none';
-    return;
-  }
-  hl.style.display='';
-  hl.innerHTML=sqlHighlightHtml(ta.value);
-  hl.scrollTop=ta.scrollTop;
-  hl.scrollLeft=ta.scrollLeft;
+  const shell=ta.closest('.sql-editor-shell');
+  if(shell)shell.classList.add('overlay-off');
+  hl.style.display='none';
 }
 function attachSqlHighlighting(id){
   const ta=el(id);
@@ -2048,6 +2043,9 @@ function toggleSidebar(){
    NAVIGATION
 ══════════════════════════════════════════════════════════ */
 function nav(view, extra){
+  if(S.currentView==='judge'&&view!=='judge'){
+    saveJudgeSessionState(S.judgeContext);
+  }
   if(view!=='contests')stopContestListCountdown();
   // Close mobile sidebar
   const _sb=el('sidebar'),_bd=el('sb-backdrop'),_hb=el('ham-btn');
@@ -2080,6 +2078,9 @@ function nav(view, extra){
     renderContestDetail(extra);
   }
   if(view==='judge'){
+    if(S.currentView==='judge'&&S.judgeContext?.problemId){
+      saveJudgeSessionState(S.judgeContext);
+    }
     if(extra?.contestId){
       const contest=getContestById(extra.contestId);
       if(!contest){toast('Contest not found','error');return;}
@@ -2254,6 +2255,28 @@ function restoreSessionUser(){
   if(sess.userId&&u.userId&&String(sess.userId)!==String(u.userId))return null;
   if(sess.passwordHash&&u.passwordHash&&String(sess.passwordHash)!==String(u.passwordHash))return null;
   return u;
+}
+function getJudgeSessionKey(ctx){
+  if(!ctx?.problemId)return '';
+  return `${ctx.contestId||'practice'}::${ctx.problemId}`;
+}
+function getJudgeSessionState(ctx){
+  const key=getJudgeSessionKey(ctx);
+  if(!key)return null;
+  return S.judgeSessions?.[key]||null;
+}
+function saveJudgeSessionState(ctx=S.judgeContext,overrides={}){
+  const key=getJudgeSessionKey(ctx);
+  if(!key)return;
+  const editor=el('judge-editor');
+  const next={
+    draft:editor?editor.value:'',
+    elapsed:Number(S.judgeElapsed||0),
+    updatedAt:Date.now(),
+    ...overrides,
+  };
+  S.judgeSessions={...(S.judgeSessions||{}),[key]:next};
+  LS.set('judgeSessions',S.judgeSessions);
 }
 function saveRouteState(view,extra){
   const state={view:String(view||'home')};
@@ -2869,6 +2892,8 @@ function cdTab(tab,btn){
 ══════════════════════════════════════════════════════════ */
 function renderJudge(ctx){
   if(!ctx){nav('home');return;}
+  const prevCtx=S.judgeContext;
+  if(prevCtx?.problemId)saveJudgeSessionState(prevCtx);
   S.judgeContext=ctx;
   const p=S.problems.find(x=>x.id===ctx.problemId);
   if(!p){toast('Problem not found','error');nav(ctx.backView||'home');return;}
@@ -2965,17 +2990,23 @@ function renderJudge(ctx){
   const prevSub=S.submissions
     .filter(s=>s.problemId===p.id&&(ctx?.contestId?s.contestId===ctx.contestId:true))
     .sort((a,b)=>b.at-a.at)[0];
+  const sessionState=getJudgeSessionState(ctx);
   clearJudgeState();
 
   // Timer
   if(S.judgeTimer) clearInterval(S.judgeTimer);
-  S.judgeElapsed=0;
+  S.judgeElapsed=Math.max(0,Number(sessionState?.elapsed||0));
+  const timerNode=el('judge-timer-small');
+  if(timerNode){
+    timerNode.innerHTML=`<span style="font-size:11px;font-weight:600;font-family:var(--mono);color:var(--t2)">${fmtT(S.judgeElapsed)}</span>`;
+  }
   S.judgeTimer=setInterval(()=>{
     S.judgeElapsed++;
     const te=el('judge-timer-small');
     if(te){
       te.innerHTML=`<span style="font-size:11px;font-weight:600;font-family:var(--mono);color:var(--t2)">${fmtT(S.judgeElapsed)}</span>`;
     }
+    if(S.judgeElapsed%5===0)saveJudgeSessionState(S.judgeContext,{elapsed:S.judgeElapsed});
   },1000);
 
   // Bind editor — replace node to clear any stacked listeners from previous problem
@@ -2983,14 +3014,14 @@ function renderJudge(ctx){
   const edNew=edOld.cloneNode(true);
   edOld.parentNode.replaceChild(edNew,edOld);
   const ed=edNew;
-  ed.value=prevSub?.code||'';
-  el('judge-chars').textContent=`${(prevSub?.code||'').length}`;
+  ed.value=(sessionState&&typeof sessionState.draft==='string')?sessionState.draft:(prevSub?.code||'');
+  el('judge-chars').textContent=`${ed.value.length}`;
   if(el('judge-editor-hl'))syncSqlHighlight('judge-editor');
   ed.addEventListener('keydown',e=>{
     if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();judgeRun();}
     if(e.key==='Tab'){e.preventDefault();const s=e.target.selectionStart;ed.value=ed.value.slice(0,s)+'  '+ed.value.slice(e.target.selectionEnd);ed.selectionStart=ed.selectionEnd=s+2;}
   });
-  ed.addEventListener('input',()=>{el('judge-chars').textContent=ed.value.length;syncSqlHighlight('judge-editor');});
+  ed.addEventListener('input',()=>{el('judge-chars').textContent=ed.value.length;syncSqlHighlight('judge-editor');saveJudgeSessionState(S.judgeContext,{draft:ed.value});});
   ed.addEventListener('scroll',()=>syncSqlHighlight('judge-editor'));
   attachSqlHighlighting('judge-editor');
 
@@ -3004,6 +3035,7 @@ function renderJudge(ctx){
 function judgeEditorClear(){
   el('judge-editor').value='';el('judge-chars').textContent='0';
   syncSqlHighlight('judge-editor');
+  saveJudgeSessionState(S.judgeContext,{draft:''});
   clearJudgeState();
   const p=S.problems.find(x=>x.id===S.judgeContext?.problemId);
   if(p)p.testCases.forEach(tc=>resetTC(tc.id));
@@ -3985,8 +4017,22 @@ function endContest(id){
 /* ══════════════════════════════════════════════════════════
    THEME
 ══════════════════════════════════════════════════════════ */
-function toggleTheme(){}
-function applyTheme(){}
+function applyTheme(mode){
+  const saved=mode||LS.get('theme')||'dark';
+  const next=saved==='light'?'light':'dark';
+  document.body.classList.toggle('light',next==='light');
+  const btn=el('theme-btn');
+  if(btn){
+    btn.style.display='inline-flex';
+    btn.textContent=next==='light'?'☀':'◑';
+    btn.title=next==='light'?'Switch to dark mode':'Switch to light mode';
+  }
+  LS.set('theme',next);
+}
+function toggleTheme(){
+  const current=document.body.classList.contains('light')?'light':'dark';
+  applyTheme(current==='light'?'dark':'light');
+}
 
 function withTimeout(promise,ms,label='operation'){
   return Promise.race([
@@ -4107,6 +4153,8 @@ async function init(){
   // Practice lab sandbox
   S.practiceLab=LS.get('practiceLab')||createDefaultPracticeLab();
   S.practiceLabTaskDone=LS.get('practiceLabTaskDone')||{};
+  const persistedJudgeSessions=LS.get('judgeSessions');
+  S.judgeSessions=(persistedJudgeSessions&&typeof persistedJudgeSessions==='object')?persistedJudgeSessions:{};
   attachSqlHighlighting('practice-lab-editor');
 
   // Render
@@ -4129,8 +4177,7 @@ let lastBgRefreshAt=0;
 function rerenderCurrentViewPreserveState(){
   const view=S.currentView||'home';
   if(view==='judge'){
-    if(S.judgeContext?.problemId)renderJudge(S.judgeContext);
-    else renderHome();
+    saveJudgeSessionState(S.judgeContext);
     return;
   }
   if(view==='contest-detail'){
