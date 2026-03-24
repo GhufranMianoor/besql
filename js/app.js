@@ -115,7 +115,56 @@ function resolveExprValue(row,expr){
 }
 function r2(n){return Math.round(n*100)/100;}
 function psp(raw){const parts=[];let depth=0,cur='';for(const ch of raw+','){if(ch==='('){depth++;cur+=ch;}else if(ch===')'){depth--;cur+=ch;}else if(ch===','&&depth===0){const s=cur.trim();cur='';const am=s.match(/^(.+?)\s+AS\s+(\w+)$/i);if(am)parts.push({expr:am[1].trim(),alias:am[2]});else{const bare=s.split('.').pop();parts.push({expr:s,alias:bare||s});}}else cur+=ch;}return parts;}
-function ew(cond,row){const op=stl(cond,/\bOR\b/i);if(op.length>1)return op.some(p=>ew(p.trim(),row));const ap=stl(cond,/\bAND\b/i);if(ap.length>1)return ap.every(p=>ew(p.trim(),row));if(/^NOT\s+/i.test(cond))return !ew(cond.replace(/^NOT\s+/i,'').trim(),row);if(/IS\s+NOT\s+NULL/i.test(cond)){const c=cond.match(/^([^\s]+)/)[1];return rc(row,c)!=null;}if(/IS\s+NULL/i.test(cond)){const c=cond.match(/^([^\s]+)/)[1];return rc(row,c)==null;}const bt=cond.match(/^([^\s]+)\s+BETWEEN\s+(.+?)\s+AND\s+(.+)$/i);if(bt){const v=parseFloat(rc(row,bt[1]));return v>=parseFloat(bt[2])&&v<=parseFloat(bt[3]);}const im=cond.match(/^([^\s]+)\s+(NOT\s+)?IN\s*\(([^)]+)\)/i);if(im){const vals=im[3].split(',').map(s=>s.trim().replace(/^['"`]|['"`]$/g,''));const v=String(rc(row,im[1])??'');const found=vals.some(x=>x===v||x.toLowerCase()===v.toLowerCase());return im[2]?!found:found;}const m=cond.match(/^([^\s<>=!]+)\s*(>=|<=|!=|<>|>|<|=|(?:NOT\s+)?LIKE)/i);if(!m)return true;const col=m[1],op2=m[2].toUpperCase().replace(/\s+/,' '),rv2=cond.slice(m[0].length).trim().replace(/^['"`]|['"`]$/g,'');const rv=rc(row,col),nrv=parseFloat(rv),nv=parseFloat(rv2);if(op2==='=')return String(rv).toLowerCase()===rv2.toLowerCase()||(!isNaN(nrv)&&!isNaN(nv)&&nrv===nv);if(op2==='!='||op2==='<>')return String(rv).toLowerCase()!==rv2.toLowerCase();if(op2==='>') return nrv>nv;if(op2==='<') return nrv<nv;if(op2==='>=')return nrv>=nv;if(op2==='<=')return nrv<=nv;if(op2==='LIKE')return new RegExp('^'+rv2.replace(/%/g,'.*').replace(/_/g,'.')+'$','i').test(String(rv??''));if(op2==='NOT LIKE')return !new RegExp('^'+rv2.replace(/%/g,'.*').replace(/_/g,'.')+'$','i').test(String(rv??''));return true;}
+function ew(cond,row){
+  const op=stl(cond,/\bOR\b/i);
+  if(op.length>1)return op.some(p=>ew(p.trim(),row));
+  const ap=stl(cond,/\bAND\b/i);
+  if(ap.length>1)return ap.every(p=>ew(p.trim(),row));
+  if(/^NOT\s+/i.test(cond))return !ew(cond.replace(/^NOT\s+/i,'').trim(),row);
+  if(/IS\s+NOT\s+NULL/i.test(cond)){const c=cond.match(/^([^\s]+)/)[1];return rc(row,c)!=null;}
+  if(/IS\s+NULL/i.test(cond)){const c=cond.match(/^([^\s]+)/)[1];return rc(row,c)==null;}
+  const bt=cond.match(/^([^\s]+)\s+BETWEEN\s+(.+?)\s+AND\s+(.+)$/i);
+  if(bt){const v=parseFloat(rc(row,bt[1]));return v>=parseFloat(bt[2])&&v<=parseFloat(bt[3]);}
+
+  const im=cond.match(/^([^\s]+)\s+(NOT\s+)?IN\s*\((.*)\)$/i);
+  if(im){
+    const inBody=String(im[3]||'').trim();
+    const v=String(rc(row,im[1])??'');
+    let vals=[];
+    if(/^SELECT\b/i.test(inBody)){
+      const subRes=runSQL(inBody,DB);
+      if(subRes?.error)return false;
+      vals=(subRes?.rows||[]).map(r=>String((r&&r.length)?r[0]:'')).filter(x=>x!==undefined);
+    }else{
+      vals=inBody.split(',').map(s=>s.trim().replace(/^['"`]|['"`]$/g,''));
+    }
+    const found=vals.some(x=>x===v||String(x).toLowerCase()===v.toLowerCase());
+    return im[2]?!found:found;
+  }
+
+  const m=cond.match(/^([^\s<>=!]+)\s*(>=|<=|!=|<>|>|<|=|(?:NOT\s+)?LIKE)/i);
+  if(!m)return true;
+  const col=m[1],op2=m[2].toUpperCase().replace(/\s+/,' ');
+  const rhsRaw=cond.slice(m[0].length).trim();
+  let rhsValue=rhsRaw.replace(/^['"`]|['"`]$/g,'');
+  const scalarSubqueryMatch=rhsRaw.match(/^\((\s*SELECT[\s\S]+)\)$/i);
+  if(scalarSubqueryMatch){
+    const subRes=runSQL(String(scalarSubqueryMatch[1]||'').trim(),DB);
+    if(subRes?.error)return false;
+    rhsValue=(subRes?.rows&&subRes.rows[0]&&subRes.rows[0].length)?subRes.rows[0][0]:null;
+  }
+  const rv=rc(row,col),nrv=parseFloat(rv),nv=parseFloat(rhsValue);
+  if(op2==='=')return String(rv).toLowerCase()===String(rhsValue).toLowerCase()||(!isNaN(nrv)&&!isNaN(nv)&&nrv===nv);
+  if(op2==='!='||op2==='<>')return String(rv).toLowerCase()!==String(rhsValue).toLowerCase();
+  if(op2==='>') return nrv>nv;
+  if(op2==='<') return nrv<nv;
+  if(op2==='>=')return nrv>=nv;
+  if(op2==='<=')return nrv<=nv;
+  const rhsStr=String(rhsValue??'');
+  if(op2==='LIKE')return new RegExp('^'+rhsStr.replace(/%/g,'.*').replace(/_/g,'.')+'$','i').test(String(rv??''));
+  if(op2==='NOT LIKE')return !new RegExp('^'+rhsStr.replace(/%/g,'.*').replace(/_/g,'.')+'$','i').test(String(rv??''));
+  return true;
+}
 function stl(str,re){const parts=[];let cur='';const tokens=str.split(/(\s+(?:AND|OR)\s+)/i);for(const t of tokens){if(re.test(t.trim())){parts.push(cur.trim());cur='';}else cur+=t;}if(cur.trim())parts.push(cur.trim());return parts.length>1?parts:[str];}
 
 /* ══════════════════════════════════════════════════════════
@@ -1491,51 +1540,49 @@ function hasStoryDescription(desc){
 
 function makeStoryDescription(problem){
   const existing=String(problem?.description||'').trim();
-  if(!existing)return existing;
-  if(hasStoryDescription(existing))return existing;
-  const tables=inferTablesFromProblem(problem);
-  const tableText=tables.length?tables.join(', '):'the mission dataset';
-  const cols=Array.isArray(problem?.sampleOutput?.columns)?problem.sampleOutput.columns:[];
-  const colsText=cols.length?cols.join(', '):'the required columns';
-  const difficulty=String(problem?.difficulty||'Easy');
-  return [
-    `Mission Brief: You are the lead data analyst for the BeSQL Operations Desk. A live request has arrived and your team needs an accurate report before the next systems check.`,
-    `Context: Query ${tableText} to deliver a ${difficulty.toLowerCase()}-tier intelligence snapshot for command review.`,
-    `Your task: write a single SELECT query that solves the objective below and returns the expected result set.`,
-    existing,
-    `Output contract: return ${colsText}.`,
-    `Tip: make your final ordering deterministic so repeated runs produce the same result.`
-  ].join('\n\n');
+  if(existing)return existing;
+  return 'Write a single SELECT query that satisfies the stated requirements.';
 }
 
 function ensureProblemDescription(problem){
   const base=makeStoryDescription(problem);
   const sql=String(problem?.solution||'');
-  const needsReturn=!/\breturn\b/i.test(base);
+  const textScope=`${String(problem?.title||'')} ${base}`.toLowerCase();
+  const needsReturn=!/\breturn\b|\bcolumns?\b/i.test(base);
   const needsOrder=/\bORDER\s+BY\b/i.test(sql)&&!/\border\b/i.test(base);
-  const needsTable=Boolean(problem?.schemaHint?.table)&&!/(\btable\b|\btables\b|\bfrom\b|\bdataset\b)/i.test(base);
-  const needsTaskLine=!/(\byour task\b|\bwrite a query\b|\bgoal\b)/i.test(base);
+  const needsTable=Boolean(problem?.schemaHint?.table)&&!/(\btable\b|\btables\b|\bfrom\b|\bdataset\b|\bjoin\b)/i.test(base);
+  const needsTaskLine=!/(\bwrite\b.*\bselect\b|\byour task\b|\bgoal\b)/i.test(base);
+  const isGapOrSimilarityPrompt=/(skill\s*gap|gap\s*detection|similar\s*question|similarity|matching|mismatch)/i.test(textScope);
 
   if(!base)return base;
-  if(!needsReturn&&!needsOrder&&!needsTable&&!needsTaskLine)return base;
+  if(!needsReturn&&!needsOrder&&!needsTable&&!needsTaskLine&&!isGapOrSimilarityPrompt)return base;
 
   const extra=[];
   const cols=Array.isArray(problem?.sampleOutput?.columns)?problem.sampleOutput.columns:[];
   if(needsTaskLine){
-    extra.push('Your task: write a SELECT query that returns the required result set.');
+    extra.push('Requirement: write one SELECT query for this task.');
   }
   if(needsReturn&&cols.length){
     extra.push(`Return columns: ${cols.join(', ')}.`);
   }
   if(needsOrder){
-    extra.push('Follow the required sorting in your final output.');
+    const orderClause=sql.match(/\bORDER\s+BY\s+(.+?)(?:\s+LIMIT|$)/i)?.[1]?.trim();
+    if(orderClause)extra.push(`Order by: ${orderClause}.`);
+    else extra.push('Apply the required ordering in the final output.');
   }
   if(needsTable&&problem.schemaHint?.table){
     extra.push(`Use table(s): ${String(problem.schemaHint.table).replace(/\s*·\s*/g,', ')}.`);
   }
+  if(isGapOrSimilarityPrompt){
+    extra.push('Clarification: apply the exact matching/threshold rules in the prompt and return only qualifying records.');
+    if(cols.length){
+      extra.push(`Output schema: ${cols.join(', ')}.`);
+    }
+  }
 
   if(!extra.length)return base;
-  return `${base}\n\n${extra.join('\n')}`;
+  const compactBase=base.replace(/\n{3,}/g,'\n\n').trim();
+  return `${compactBase}\n\n${extra.join('\n')}`;
 }
 
 function ensureProblemCompleteness(problem){
@@ -2260,6 +2307,17 @@ function getJudgeSessionKey(ctx){
   if(!ctx?.problemId)return '';
   return `${ctx.contestId||'practice'}::${ctx.problemId}`;
 }
+function getJudgeSessionStorageKey(){
+  const uid=String(S.user?.userId||'').trim();
+  const uname=String(S.user?.username||'').trim();
+  const scope=uid||uname||'guest';
+  return `judgeSessions:${scope}`;
+}
+function hydrateJudgeSessionsForCurrentUser(){
+  const key=getJudgeSessionStorageKey();
+  const persisted=LS.get(key);
+  S.judgeSessions=(persisted&&typeof persisted==='object')?persisted:{};
+}
 function getJudgeSessionState(ctx){
   const key=getJudgeSessionKey(ctx);
   if(!key)return null;
@@ -2276,7 +2334,7 @@ function saveJudgeSessionState(ctx=S.judgeContext,overrides={}){
     ...overrides,
   };
   S.judgeSessions={...(S.judgeSessions||{}),[key]:next};
-  LS.set('judgeSessions',S.judgeSessions);
+  LS.set(getJudgeSessionStorageKey(),S.judgeSessions);
 }
 function saveRouteState(view,extra){
   const state={view:String(view||'home')};
@@ -2320,12 +2378,13 @@ function finishLogin(user){
   // Sync user to Supabase in background - don't wait
   syncUserToRelational(user).catch(err=>console.warn('Background user sync failed:',err));
   LS.set('session',buildSessionRecord(user));
+  hydrateJudgeSessionsForCurrentUser();
   S.submissions=LS.get(`subs:${user.userId}`)||[];
   closeModal('modal-auth');
   renderTopRight(); renderSidebar();
   nav('home'); toast(`Signed in as ${user.username}`,'success');
 }
-function doLogout(){S.user=null;LS.del('session');S.submissions=[];LS.del('routeState');renderTopRight();renderSidebar();nav('home');toast('Logged out.','info');}
+function doLogout(){S.user=null;S.judgeSessions={};S.judgeContext=null;LS.del('session');S.submissions=[];LS.del('routeState');renderTopRight();renderSidebar();nav('home');toast('Logged out.','info');}
 
 /* ══════════════════════════════════════════════════════════
    RENDER TOPRIGHT
@@ -2941,9 +3000,8 @@ function renderJudge(ctx){
         <div style="font-size:11px;font-weight:700;color:var(--grn);font-family:var(--mono);margin-bottom:4px">${esc(tname)}</div>
         <div style="overflow-x:auto"><table class="schema-table" style="font-size:11px">
           <thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead>
-          <tbody>${data.slice(0,5).map(row=>`<tr>${cols.map(c=>`<td>${row[c]==null?'<span class="tbl-null">NULL</span>':esc(String(row[c]))}</td>`).join('')}</tr>`).join('')}</tbody>
+          <tbody>${data.map(row=>`<tr>${cols.map(c=>`<td>${row[c]==null?'<span class="tbl-null">NULL</span>':esc(String(row[c]))}</td>`).join('')}</tr>`).join('')}</tbody>
         </table></div>
-        ${data.length>5?`<div style="font-size:10px;color:var(--t3);margin-top:2px">... and ${data.length-5} more rows</div>`:''}
       </div>`;
     }).join('');
     descHTML+=`<div class="prob-section">
@@ -3225,7 +3283,13 @@ function runTestCases(p,result,isSubmit){
   el('tc-summary').textContent=p?.sampleOutput
     ? `${baseSummary} · sample ${sampleOk?'✓':'✗'}`
     : baseSummary;
-  return passed===p.testCases.length&&sampleOk;
+  return {
+    allPassed: passed===p.testCases.length&&sampleOk,
+    passed,
+    publicPassed,
+    publicTotal,
+    sampleOk,
+  };
 }
 
 function showJudgeResult(result){
@@ -3260,12 +3324,12 @@ function judgeSubmit(){
   setTimeout(()=>{
     const result=runSQL(sql,DB);
     showJudgeResult(result);
-    const allPassed=runTestCases(p,result,true);
+    const testSummary=runTestCases(p,result,true);
 
     // Determine verdict
     let verdict='WA';
     if(result.error) verdict='CE';
-    else if(allPassed) verdict='AC';
+    else if(testSummary.allPassed) verdict='AC';
 
     if(isContestReattemptBlocked(p.id,effectiveContestId)){
       el('btn-judge-submit').disabled=true;
@@ -3278,16 +3342,14 @@ function judgeSubmit(){
     const alreadySolved=getSolvedIds().has(p.id);
 
     // Record submission
-    const publicTotal=p.testCases.filter(tc=>!tc.hidden).length;
-    const publicPassed=p.testCases.filter(tc=>!tc.hidden&&tc.validate(result)).length;
     const sub={
       id:genId(), userId:S.user.userId, problemId:p.id,
       contestId:effectiveContestId,
       code:sql, verdict, timeTaken:S.judgeElapsed,
-      at:Date.now(), tcPassed:p.testCases.filter(tc=>tc.validate(result)).length,
+      at:Date.now(), tcPassed:testSummary.passed,
       tcTotal:p.testCases.length,
-      publicPassed,
-      publicTotal,
+      publicPassed:testSummary.publicPassed,
+      publicTotal:testSummary.publicTotal,
     };
     S.submissions.unshift(sub);
     LS.set(`subs:${S.user.userId}`,S.submissions);
@@ -4153,8 +4215,7 @@ async function init(){
   // Practice lab sandbox
   S.practiceLab=LS.get('practiceLab')||createDefaultPracticeLab();
   S.practiceLabTaskDone=LS.get('practiceLabTaskDone')||{};
-  const persistedJudgeSessions=LS.get('judgeSessions');
-  S.judgeSessions=(persistedJudgeSessions&&typeof persistedJudgeSessions==='object')?persistedJudgeSessions:{};
+  hydrateJudgeSessionsForCurrentUser();
   attachSqlHighlighting('practice-lab-editor');
 
   // Render
