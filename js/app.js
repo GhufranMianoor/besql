@@ -711,48 +711,35 @@ const PROBLEMS_DEFAULT = [
 /* ══════════════════════════════════════════════════════════
    CONTESTS DATA
 ══════════════════════════════════════════════════════════ */
-const now = Date.now();
-const CONTESTS_DEFAULT = [
-  {
-    id:'con1',title:'SQL Fundamentals Championship',type:'official',
-    status:'live',
-    startTime: now - 3600000,
-    endTime:   now + 7200000,
-    duration:180,
-    description:'Test your fundamental SQL skills — filtering, aggregation, and joins.',
-    problemIds:['p1','p2','p3'],
-    createdBy:'admin',
-    isPublic:true,
-    maxParticipants:500,
-    announcement:'Welcome! Remember: only SELECT statements. Good luck!',
-  },
-  {
-    id:'con2',title:'Advanced Query Masters',type:'official',
-    status:'upcoming',
-    startTime: now + 86400000,
-    endTime:   now + 86400000 + 14400000,
-    duration:240,
-    description:'Advanced SQL: multi-table joins, subqueries, window functions.',
-    problemIds:['p4','p5','p6','p7'],
-    createdBy:'admin',
-    isPublic:true,
-    maxParticipants:200,
-    announcement:'',
-  },
-  {
-    id:'con3',title:'Weekend Grind',type:'official',
-    status:'ended',
-    startTime: now - 604800000,
-    endTime:   now - 604800000 + 7200000,
-    duration:120,
-    description:'A quick 2-hour warm-up contest.',
-    problemIds:['p1','p5'],
-    createdBy:'admin',
-    isPublic:true,
-    maxParticipants:100,
-    announcement:'',
-  },
-];
+const CONTESTS_DEFAULT = [];
+const REMOVED_CONTEST_IDS = new Set(['con3']);
+const REMOVED_CONTEST_TITLES = new Set(['weekend grind']);
+
+function shouldRemoveContest(contest){
+  if(!contest)return false;
+  const id=String(contest.id||'').trim();
+  const title=String(contest.title||'').trim().toLowerCase();
+  return REMOVED_CONTEST_IDS.has(id)||REMOVED_CONTEST_TITLES.has(title);
+}
+
+function purgeRemovedContestsFromState(){
+  const removedIds=[];
+  const collect=(arr)=>{
+    const next=[];
+    for(const contest of arr||[]){
+      if(shouldRemoveContest(contest)){
+        const cid=String(contest?.id||'').trim();
+        if(cid&&!removedIds.includes(cid))removedIds.push(cid);
+        continue;
+      }
+      next.push(contest);
+    }
+    return next;
+  };
+  S.contests=collect(S.contests);
+  S.customContests=collect(S.customContests);
+  return removedIds;
+}
 
 const DEFAULT_PROBLEM_BY_ID=Object.fromEntries(PROBLEMS_DEFAULT.map(p=>[String(p.id||''),p]));
 const DEFAULT_PROBLEM_BY_CODE=Object.fromEntries(PROBLEMS_DEFAULT.map(p=>[String(p.code||'').toUpperCase(),p]));
@@ -3745,6 +3732,7 @@ function renderAdminContests(){
             <button class="btn btn-ghost btn-xs" onclick="openContestCreator('${c2.id}')">Edit</button>
             ${c2.status==='upcoming'?`<button class="btn btn-success btn-xs" onclick="launchContest('${c2.id}')">Launch</button>`:''}
             ${c2.status==='live'?`<button class="btn btn-danger btn-xs" onclick="endContest('${c2.id}')">End</button>`:''}
+            <button class="btn btn-danger btn-xs" onclick="deleteOfficialContest('${c2.id}')">Delete</button>
           </div></td>
         </tr>`).join('')}
       </tbody></table></div></div>`;
@@ -4076,6 +4064,27 @@ function endContest(id){
   toast(`Contest ended`,'info');
 }
 
+function deleteOfficialContest(id){
+  if(!isMaster()){toast('Permission denied','error');return;}
+  const contest=S.contests.find(c=>c.id===id);
+  if(!contest){toast('Contest not found','error');return;}
+  if(!confirm('Delete this official contest? This cannot be undone.'))return;
+
+  S.contests=S.contests.filter(c=>c.id!==id);
+  if(S.currentContest===id)S.currentContest=null;
+  if(S.pendingContestAccess?.contestId===id)S.pendingContestAccess=null;
+  if(S.unlockedPrivateContests&&S.unlockedPrivateContests[id])delete S.unlockedPrivateContests[id];
+
+  LS.set('contests',S.contests.map(({announce,...r})=>r));
+  deleteContestFromRelational(id).catch(err=>console.warn('Background official contest delete sync failed:',err));
+
+  if(S.currentView==='contest-detail'&&S.currentContest===null)nav('contests');
+  renderAdminContests();
+  renderContests();
+  renderSidebar();
+  toast('Official contest deleted','info');
+}
+
 /* ══════════════════════════════════════════════════════════
    THEME
 ══════════════════════════════════════════════════════════ */
@@ -4201,7 +4210,16 @@ async function init(){
     });
   }
 
+  const removedContestIds=purgeRemovedContestsFromState();
+  if(removedContestIds.length){
+    removedContestIds.forEach(id=>{
+      deleteContestFromRelational(id).catch(err=>console.warn('Background removed contest cleanup failed:',err));
+    });
+  }
+
   S.customContests.forEach(normalizeContestLifecycle);
+  S.contests.forEach(normalizeContestLifecycle);
+  LS.set('contests',S.contests.map(({announce,...r})=>r));
   LS.set('customContests',S.customContests);
 
   if(relContestResult.success&&Array.isArray(relContestResult.contests)&&relContestResult.contests.length===0){
@@ -4288,6 +4306,12 @@ async function refreshDataInBackground(reason='tab-return'){
       const all=relContests.contests;
       S.contests=all.filter(c=>c.type!=='custom');
       S.customContests=all.filter(c=>c.type==='custom');
+      const removedContestIds=purgeRemovedContestsFromState();
+      if(removedContestIds.length){
+        removedContestIds.forEach(id=>{
+          deleteContestFromRelational(id).catch(err=>console.warn('Background removed contest cleanup failed:',err));
+        });
+      }
       S.contests.forEach(normalizeContestLifecycle);
       S.customContests.forEach(normalizeContestLifecycle);
       LS.set('contests',S.contests.map(({announce,...r})=>r));
