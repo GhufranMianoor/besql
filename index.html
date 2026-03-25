@@ -102,6 +102,7 @@
         <div class="fx ic sb mb4">
           <div style="font-size:24px;font-weight:700;letter-spacing:-.3px">Contests</div>
           <div class="fx gap3">
+            <button class="btn btn-ghost btn-sm" onclick="nav('scoreboards')">Scoreboards</button>
             <select class="sel" id="contest-filter" style="width:130px" onchange="filterContests()">
               <option value="all">All Status</option>
               <option value="live">Live</option>
@@ -112,6 +113,25 @@
           </div>
         </div>
         <div id="contest-list"></div>
+      </div>
+
+      <!-- ══ CONTEST SCOREBOARDS VIEW ════════════════════ -->
+      <div class="view hidden" id="view-scoreboards">
+        <div class="fx ic sb mb4">
+          <div class="fx ic gap2">
+            <button class="btn btn-ghost btn-sm hidden" id="scoreboard-back-btn" onclick="goBackFromScoreboard()" title="Back to contest">← Back</button>
+            <div>
+              <div style="font-size:24px;font-weight:700;letter-spacing:-.3px">Contest Scoreboards</div>
+              <div style="font-size:12px;color:var(--t2);margin-top:2px">Rankings across active and archived contests</div>
+            </div>
+          </div>
+          <div class="fx ic gap3">
+            <select class="sel" id="contest-scoreboard-filter" style="width:260px" onchange="filterContestScoreboards()">
+              <option value="all">All Contests</option>
+            </select>
+          </div>
+        </div>
+        <div id="contest-scoreboard-list"></div>
       </div>
 
       <!-- ══ CONTEST DETAIL VIEW ════════════════════════ -->
@@ -399,6 +419,12 @@ window.SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5
 <script src="js/storage/storage.js"></script>
 <script src="js/storage/relational.js"></script>
 <script src="js/storage/index.js"></script>
+<script src="data/db.js"></script>
+<script src="js/core/route-entry.js"></script>
+<script src="js/features/auth.js"></script>
+<script src="js/features/contests.js"></script>
+<script src="js/features/admin.js"></script>
+<script src="js/features/scoreboards.js"></script>
 <!-- Main application -->
 <script src="js/app.js?v=20260320k"></script>
 </body>

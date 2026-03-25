@@ -93,413 +93,167 @@ function rc(row,expr){
   }
   return undefined;
 }
-function evalNumericExpr(row,expr){
-  if(!expr)return undefined;
-  const cleaned=String(expr).trim().replace(/^\((.*)\)$/,'$1').trim();
-  if(!cleaned||!/^[A-Za-z0-9_\.\s+\-*/()%]+$/.test(cleaned))return undefined;
-  const tokens=cleaned.match(/[A-Za-z_][A-Za-z0-9_\.]*/g)||[];
-  let mapped=cleaned;
-  for(const t of tokens){
-    const v=rc(row,t);
-    const n=Number(v);
-    if(!Number.isFinite(n))return undefined;
-    const re=new RegExp(`\\b${t.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')}\\b`,'g');
-    mapped=mapped.replace(re,String(n));
-  }
-  try{return Function(`return (${mapped})`)();}catch{return undefined;}
-}
-function resolveExprValue(row,expr){
-  const direct=rc(row,expr);
-  if(direct!==undefined)return direct;
-  return evalNumericExpr(row,expr);
-}
-function r2(n){return Math.round(n*100)/100;}
-function psp(raw){const parts=[];let depth=0,cur='';for(const ch of raw+','){if(ch==='('){depth++;cur+=ch;}else if(ch===')'){depth--;cur+=ch;}else if(ch===','&&depth===0){const s=cur.trim();cur='';const am=s.match(/^(.+?)\s+AS\s+(\w+)$/i);if(am)parts.push({expr:am[1].trim(),alias:am[2]});else{const bare=s.split('.').pop();parts.push({expr:s,alias:bare||s});}}else cur+=ch;}return parts;}
-function ew(cond,row){
-  const op=stl(cond,/\bOR\b/i);
-  if(op.length>1)return op.some(p=>ew(p.trim(),row));
-  const ap=stl(cond,/\bAND\b/i);
-  if(ap.length>1)return ap.every(p=>ew(p.trim(),row));
-  if(/^NOT\s+/i.test(cond))return !ew(cond.replace(/^NOT\s+/i,'').trim(),row);
-  if(/IS\s+NOT\s+NULL/i.test(cond)){const c=cond.match(/^([^\s]+)/)[1];return rc(row,c)!=null;}
-  if(/IS\s+NULL/i.test(cond)){const c=cond.match(/^([^\s]+)/)[1];return rc(row,c)==null;}
-  const bt=cond.match(/^([^\s]+)\s+BETWEEN\s+(.+?)\s+AND\s+(.+)$/i);
-  if(bt){const v=parseFloat(rc(row,bt[1]));return v>=parseFloat(bt[2])&&v<=parseFloat(bt[3]);}
 
-  const im=cond.match(/^([^\s]+)\s+(NOT\s+)?IN\s*\((.*)\)$/i);
-  if(im){
-    const inBody=String(im[3]||'').trim();
-    const v=String(rc(row,im[1])??'');
-    let vals=[];
-    if(/^SELECT\b/i.test(inBody)){
-      const subRes=runSQL(inBody,DB);
-      if(subRes?.error)return false;
-      vals=(subRes?.rows||[]).map(r=>String((r&&r.length)?r[0]:'')).filter(x=>x!==undefined);
-    }else{
-      vals=inBody.split(',').map(s=>s.trim().replace(/^['"`]|['"`]$/g,''));
+function r2(n){
+  const x=Number(n);
+  if(!Number.isFinite(x))return x;
+  return Math.round((x+Number.EPSILON)*100)/100;
+}
+
+function splitCommaAware(input){
+  const out=[];
+  let cur='';
+  let depth=0;
+  let quote='';
+  for(let i=0;i<input.length;i++){
+    const ch=input[i];
+    if(quote){
+      cur+=ch;
+      if(ch===quote&&input[i-1]!=='\\')quote='';
+      continue;
     }
-    const found=vals.some(x=>x===v||String(x).toLowerCase()===v.toLowerCase());
-    return im[2]?!found:found;
+    if(ch==='\''||ch==='"'){
+      quote=ch;
+      cur+=ch;
+      continue;
+    }
+    if(ch==='('){depth++;cur+=ch;continue;}
+    if(ch===')'){depth=Math.max(0,depth-1);cur+=ch;continue;}
+    if(ch===','&&depth===0){out.push(cur.trim());cur='';continue;}
+    cur+=ch;
   }
-
-  const m=cond.match(/^([^\s<>=!]+)\s*(>=|<=|!=|<>|>|<|=|(?:NOT\s+)?LIKE)/i);
-  if(!m)return true;
-  const col=m[1],op2=m[2].toUpperCase().replace(/\s+/,' ');
-  const rhsRaw=cond.slice(m[0].length).trim();
-  let rhsValue=rhsRaw.replace(/^['"`]|['"`]$/g,'');
-  const scalarSubqueryMatch=rhsRaw.match(/^\((\s*SELECT[\s\S]+)\)$/i);
-  if(scalarSubqueryMatch){
-    const subRes=runSQL(String(scalarSubqueryMatch[1]||'').trim(),DB);
-    if(subRes?.error)return false;
-    rhsValue=(subRes?.rows&&subRes.rows[0]&&subRes.rows[0].length)?subRes.rows[0][0]:null;
-  }
-  const rv=rc(row,col),nrv=parseFloat(rv),nv=parseFloat(rhsValue);
-  if(op2==='=')return String(rv).toLowerCase()===String(rhsValue).toLowerCase()||(!isNaN(nrv)&&!isNaN(nv)&&nrv===nv);
-  if(op2==='!='||op2==='<>')return String(rv).toLowerCase()!==String(rhsValue).toLowerCase();
-  if(op2==='>') return nrv>nv;
-  if(op2==='<') return nrv<nv;
-  if(op2==='>=')return nrv>=nv;
-  if(op2==='<=')return nrv<=nv;
-  const rhsStr=String(rhsValue??'');
-  if(op2==='LIKE')return new RegExp('^'+rhsStr.replace(/%/g,'.*').replace(/_/g,'.')+'$','i').test(String(rv??''));
-  if(op2==='NOT LIKE')return !new RegExp('^'+rhsStr.replace(/%/g,'.*').replace(/_/g,'.')+'$','i').test(String(rv??''));
-  return true;
+  if(cur.trim())out.push(cur.trim());
+  return out;
 }
-function stl(str,re){const parts=[];let cur='';const tokens=str.split(/(\s+(?:AND|OR)\s+)/i);for(const t of tokens){if(re.test(t.trim())){parts.push(cur.trim());cur='';}else cur+=t;}if(cur.trim())parts.push(cur.trim());return parts.length>1?parts:[str];}
+
+function psp(sr){
+  return splitCommaAware(String(sr||'')).map(part=>{
+    const asMatch=part.match(/^(.*?)(?:\s+AS\s+)([A-Za-z_][A-Za-z0-9_]*)$/i);
+    if(asMatch)return {expr:asMatch[1].trim(),alias:asMatch[2].trim()};
+    const bare=part.match(/^(.*?)(?:\s+)([A-Za-z_][A-Za-z0-9_]*)$/);
+    if(bare&&!/[()]/.test(bare[2]))return {expr:bare[1].trim(),alias:bare[2].trim()};
+    return {expr:part.trim(),alias:part.trim()};
+  });
+}
+
+function parseWhereLiteral(raw){
+  const v=String(raw||'').trim();
+  if(/^'.*'$/.test(v)||/^".*"$/.test(v))return v.slice(1,-1);
+  if(/^null$/i.test(v))return null;
+  if(/^true$/i.test(v))return true;
+  if(/^false$/i.test(v))return false;
+  const n=Number(v);
+  return Number.isFinite(n)?n:v;
+}
+
+function resolveExprValue(row,expr){
+  const e=String(expr||'').trim();
+  if(!e)return undefined;
+  const direct=rc(row,e);
+  if(direct!==undefined)return direct;
+  if(/^'.*'$/.test(e)||/^".*"$/.test(e))return e.slice(1,-1);
+  if(/^[-+]?\d+(?:\.\d+)?$/.test(e))return Number(e);
+  const calc=e.match(/^(.+?)\s*([+\-*/])\s*(.+)$/);
+  if(calc){
+    const a=Number(resolveExprValue(row,calc[1]));
+    const b=Number(resolveExprValue(row,calc[3]));
+    if(Number.isFinite(a)&&Number.isFinite(b)){
+      if(calc[2]==='+')return a+b;
+      if(calc[2]==='-')return a-b;
+      if(calc[2]==='*')return a*b;
+      if(calc[2]==='/')return b===0?null:a/b;
+    }
+  }
+  return undefined;
+}
+
+function evalWhereAtom(atom,row){
+  let m=atom.match(/^(.+?)\s+IS\s+NOT\s+NULL$/i);
+  if(m)return resolveExprValue(row,m[1])!=null;
+  m=atom.match(/^(.+?)\s+IS\s+NULL$/i);
+  if(m)return resolveExprValue(row,m[1])==null;
+
+  m=atom.match(/^(.+?)\s+IN\s*\((.*)\)$/i);
+  if(m){
+    const lv=resolveExprValue(row,m[1]);
+    const vals=splitCommaAware(m[2]).map(parseWhereLiteral);
+    return vals.some(v=>String(v)===String(lv));
+  }
+
+  m=atom.match(/^(.+?)\s+LIKE\s+(.+)$/i);
+  if(m){
+    const lv=String(resolveExprValue(row,m[1])??'');
+    const raw=parseWhereLiteral(m[2]);
+    const pat=String(raw)
+      .replace(/[.*+?^${}()|[\]\\]/g,'\\$&')
+      .replace(/%/g,'.*')
+      .replace(/_/g,'.');
+    return new RegExp(`^${pat}$`,'i').test(lv);
+  }
+
+  m=atom.match(/^(.+?)\s*(<=|>=|<>|!=|=|<|>)\s*(.+)$/);
+  if(m){
+    const lRaw=resolveExprValue(row,m[1]);
+    const rRaw=resolveExprValue(row,m[3]);
+    const rv=rRaw===undefined?parseWhereLiteral(m[3]):rRaw;
+    const ln=Number(lRaw),rn=Number(rv);
+    const useNum=Number.isFinite(ln)&&Number.isFinite(rn);
+    const l=useNum?ln:String(lRaw??'');
+    const r=useNum?rn:String(rv??'');
+    if(m[2]==='=' )return l==r;
+    if(m[2]==='!='||m[2]==='<>')return l!=r;
+    if(m[2]==='<')return l<r;
+    if(m[2]==='>')return l>r;
+    if(m[2]==='<=')return l<=r;
+    if(m[2]==='>=')return l>=r;
+  }
+  return false;
+}
+
+function ew(where,row){
+  const orParts=String(where||'').split(/\s+OR\s+/i);
+  return orParts.some(orPart=>{
+    const andParts=orPart.split(/\s+AND\s+/i).map(s=>s.trim()).filter(Boolean);
+    if(!andParts.length)return true;
+    return andParts.every(part=>evalWhereAtom(part,row));
+  });
+}
 
 /* ══════════════════════════════════════════════════════════
-   DATABASE / SCHEMA
-══════════════════════════════════════════════════════════ */
-const DB = {
-  employees:[
-    {id:1,name:"Alice Chen",dept_id:1,salary:95000,hire_year:2019,age:32,level:"Senior"},
-    {id:2,name:"Bob Martin",dept_id:2,salary:72000,hire_year:2020,age:28,level:"Junior"},
-    {id:3,name:"Carol White",dept_id:1,salary:110000,hire_year:2017,age:41,level:"Staff"},
-    {id:4,name:"David Lee",dept_id:3,salary:88000,hire_year:2021,age:35,level:"Mid"},
-    {id:5,name:"Eva Ramos",dept_id:2,salary:67000,hire_year:2022,age:26,level:"Junior"},
-    {id:6,name:"Frank Kim",dept_id:3,salary:105000,hire_year:2018,age:39,level:"Senior"},
-    {id:7,name:"Grace Park",dept_id:1,salary:99000,hire_year:2020,age:33,level:"Senior"},
-    {id:8,name:"Henry Zhao",dept_id:4,salary:115000,hire_year:2016,age:44,level:"Staff"},
-    {id:9,name:"Iris Novak",dept_id:4,salary:78000,hire_year:2023,age:29,level:"Mid"},
-    {id:10,name:"Jake Torres",dept_id:2,salary:82000,hire_year:2019,age:31,level:"Mid"},
-  ],
-  departments:[
-    {id:1,name:"Engineering",budget:500000,location:"San Francisco",headcount:3},
-    {id:2,name:"Marketing",budget:200000,location:"New York",headcount:3},
-    {id:3,name:"Finance",budget:300000,location:"Chicago",headcount:2},
-    {id:4,name:"Executive",budget:800000,location:"San Francisco",headcount:2},
-  ],
-  orders:[
-    {id:1,customer:"TechCorp",product_id:1,amount:12500,status:"delivered",month:"Jan"},
-    {id:2,customer:"MegaRetail",product_id:2,amount:8300,status:"pending",month:"Feb"},
-    {id:3,customer:"TechCorp",product_id:1,amount:5700,status:"delivered",month:"Feb"},
-    {id:4,customer:"StartupXYZ",product_id:3,amount:2100,status:"cancelled",month:"Feb"},
-    {id:5,customer:"MegaRetail",product_id:2,amount:19800,status:"delivered",month:"Mar"},
-    {id:6,customer:"GlobalCo",product_id:1,amount:31000,status:"delivered",month:"Mar"},
-    {id:7,customer:"TechCorp",product_id:3,amount:4200,status:"pending",month:"Mar"},
-    {id:8,customer:"StartupXYZ",product_id:2,amount:9900,status:"delivered",month:"Apr"},
-    {id:9,customer:"GlobalCo",product_id:1,amount:15600,status:"delivered",month:"Apr"},
-    {id:10,customer:"NewCo",product_id:3,amount:7200,status:"pending",month:"Apr"},
-  ],
-  products:[
-    {id:1,name:"Enterprise Suite",category:"Software",price:15000,stock:999},
-    {id:2,name:"Analytics Pro",category:"Software",price:8000,stock:999},
-    {id:3,name:"Consulting Pack",category:"Services",price:5000,stock:50},
-  ],
-  students:[
-    {id:1,name:"Ahmed Ali",grade:85,course_id:1,year:2022,gpa:3.5},
-    {id:2,name:"Sara Khan",grade:92,course_id:2,year:2021,gpa:3.8},
-    {id:3,name:"Omar Raza",grade:78,course_id:1,year:2023,gpa:3.2},
-    {id:4,name:"Fatima Malik",grade:95,course_id:3,year:2022,gpa:3.9},
-    {id:5,name:"Bilal Hassan",grade:68,course_id:2,year:2023,gpa:2.9},
-    {id:6,name:"Zara Sheikh",grade:88,course_id:3,year:2021,gpa:3.6},
-  ],
-  courses:[
-    {id:1,name:"Database Systems",credits:3,instructor:"Dr. Smith",dept:"CS"},
-    {id:2,name:"Data Structures",credits:3,instructor:"Dr. Jones",dept:"CS"},
-    {id:3,name:"Machine Learning",credits:4,instructor:"Dr. Ahmed",dept:"AI"},
-  ],
-  citizenmentalhealth:[
-    {citizen_id:1,citizen_name:'Vex',sector:'Alpha',stability_rating:4.2,last_checkup:'2901-01-01'},
-    {citizen_id:2,citizen_name:'Nova',sector:'Beta',stability_rating:1.5,last_checkup:'2901-01-01'},
-    {citizen_id:3,citizen_name:'Echo',sector:'Gamma',stability_rating:2.0,last_checkup:'2901-01-02'},
-    {citizen_id:4,citizen_name:'Ryn',sector:'Delta',stability_rating:0.8,last_checkup:'2901-01-02'},
-    {citizen_id:5,citizen_name:'Zara',sector:'Alpha',stability_rating:3.7,last_checkup:'2901-01-03'},
-    {citizen_id:6,citizen_name:'Marcus',sector:'Beta',stability_rating:1.9,last_checkup:'2901-01-03'},
-  ],
-  operativeprofiles:[
-    {operative_id:1,operative_name:'Zara',clearance_level:'Alpha',organizations_count:3,recruitment_date:'2900-01-01'},
-    {operative_id:2,operative_name:'Marcus',clearance_level:'Beta',organizations_count:2,recruitment_date:'2900-06-15'},
-    {operative_id:3,operative_name:'Nova',clearance_level:'Alpha',organizations_count:1,recruitment_date:'2901-01-01'},
-    {operative_id:4,operative_name:'Ryn',clearance_level:'Alpha',organizations_count:2,recruitment_date:'2900-03-20'},
-    {operative_id:5,operative_name:'Echo',clearance_level:'Gamma',organizations_count:4,recruitment_date:'2899-11-10'},
-    {operative_id:6,operative_name:'Vex',clearance_level:'Alpha',organizations_count:1,recruitment_date:'2901-02-01'},
-  ],
-  agentrecords:[
-    {record_id:1,agent_name:'Zara',division_name:'Recon',entry_date:'2901-01-01'},
-    {record_id:2,agent_name:'Zara',division_name:'Recon',entry_date:'2901-01-05'},
-    {record_id:3,agent_name:'Marcus',division_name:'Intel',entry_date:'2901-01-02'},
-    {record_id:4,agent_name:'Nova',division_name:'Field',entry_date:'2901-01-03'},
-    {record_id:5,agent_name:'Zara',division_name:'Intel',entry_date:'2901-01-04'},
-    {record_id:6,agent_name:'Nova',division_name:'Field',entry_date:'2901-01-06'},
-    {record_id:7,agent_name:'Nova',division_name:'Field',entry_date:'2901-01-07'},
-  ],
-  creditledger:[
-    {txn_id:1,account_id:101,credits:100,txn_date:'2901-01-01'},
-    {txn_id:2,account_id:101,credits:200,txn_date:'2901-01-02'},
-    {txn_id:3,account_id:102,credits:150,txn_date:'2901-01-01'},
-    {txn_id:4,account_id:101,credits:400,txn_date:'2901-01-03'},
-    {txn_id:5,account_id:102,credits:300,txn_date:'2901-01-04'},
-    {txn_id:6,account_id:103,credits:500,txn_date:'2901-01-01'},
-  ],
-  agents:[
-    {agent_id:1,agent_name:'Zara'},
-    {agent_id:2,agent_name:'Marcus'},
-    {agent_id:3,agent_name:'Nova'},
-    {agent_id:4,agent_name:'Ryn'},
-  ],
-  exchanges:[
-    {year:2899,giver_id:1,receiver_id:2},
-    {year:2899,giver_id:3,receiver_id:4},
-    {year:2900,giver_id:2,receiver_id:1},
-    {year:2900,giver_id:4,receiver_id:3},
-    {year:2901,giver_id:1,receiver_id:3},
-  ],
-  follows:[
-    {citizen_id:1,followed_citizen_id:2},
-    {citizen_id:1,followed_citizen_id:3},
-    {citizen_id:2,followed_citizen_id:3},
-    {citizen_id:4,followed_citizen_id:1},
-    {citizen_id:5,followed_citizen_id:2},
-  ],
-  posts:[
-    {post_id:1,citizen_id:2,content:'Hello World',post_date:'2901-01-01'},
-    {post_id:2,citizen_id:3,content:'First post',post_date:'2901-01-02'},
-    {post_id:3,citizen_id:2,content:'Another one',post_date:'2901-01-03'},
-  ],
-  divisions:[
-    {division_id:1,division_name:'Recon',chief_id:101},
-    {division_id:2,division_name:'Intel',chief_id:null},
-    {division_id:3,division_name:'Field',chief_id:103},
-    {division_id:4,division_name:'Tech',chief_id:999},
-  ],
-  divisionagents:[
-    {agent_id:101,agent_name:'Zara'},
-    {agent_id:103,agent_name:'Nova'},
-  ],
-  operativestatus:[
-    {operative_id:1,operative_name:'Zara',division:'Recon',energy_level:75,last_mission_date:'2901-01-01'},
-    {operative_id:2,operative_name:'Marcus',division:'Intel',energy_level:32,last_mission_date:'2901-01-01'},
-    {operative_id:3,operative_name:'Nova',division:'Field',energy_level:48,last_mission_date:'2901-01-02'},
-    {operative_id:4,operative_name:'Ryn',division:'Tech',energy_level:15,last_mission_date:'2901-01-02'},
-    {operative_id:5,operative_name:'Echo',division:'Recon',energy_level:89,last_mission_date:'2901-01-03'},
-  ],
-  credittransactions:[
-    {transaction_id:1,sender_name:'Vex',receiver_name:'Nova',base_value:100,multiplier:3},
-    {transaction_id:2,sender_name:'Echo',receiver_name:'Ryn',base_value:200,multiplier:4},
-    {transaction_id:3,sender_name:'Zara',receiver_name:'Marcus',base_value:50,multiplier:5},
-    {transaction_id:4,sender_name:'Nova',receiver_name:'Echo',base_value:150,multiplier:2},
-    {transaction_id:5,sender_name:'Ryn',receiver_name:'Zara',base_value:300,multiplier:3},
-  ],
-  sectorstats:[
-    {sector_id:1,sector:'Alpha',population:12000,threat_level:'Low',commander:'Vex',established:2850},
-    {sector_id:2,sector:'Beta',population:8500,threat_level:'High',commander:'Nova',established:2860},
-    {sector_id:3,sector:'Gamma',population:15000,threat_level:'Medium',commander:'Echo',established:2840},
-    {sector_id:4,sector:'Delta',population:3200,threat_level:'Critical',commander:'Ryn',established:2870},
-    {sector_id:5,sector:'Epsilon',population:9800,threat_level:'Low',commander:'Zara',established:2855},
-    {sector_id:6,sector:'Zeta',population:6100,threat_level:'High',commander:'Marcus',established:2865},
-  ],
-  missionlogs:[
-    {mission_id:1,agent_name:'Zara',mission_type:'Recon',success:1,duration_hrs:4,mission_date:'2901-01-01',sector:'Alpha'},
-    {mission_id:2,agent_name:'Marcus',mission_type:'Combat',success:0,duration_hrs:8,mission_date:'2901-01-02',sector:'Beta'},
-    {mission_id:3,agent_name:'Nova',mission_type:'Recon',success:1,duration_hrs:3,mission_date:'2901-01-03',sector:'Alpha'},
-    {mission_id:4,agent_name:'Ryn',mission_type:'Extraction',success:1,duration_hrs:6,mission_date:'2901-01-04',sector:'Delta'},
-    {mission_id:5,agent_name:'Zara',mission_type:'Combat',success:1,duration_hrs:10,mission_date:'2901-01-05',sector:'Beta'},
-    {mission_id:6,agent_name:'Echo',mission_type:'Recon',success:0,duration_hrs:2,mission_date:'2901-01-06',sector:'Gamma'},
-    {mission_id:7,agent_name:'Marcus',mission_type:'Extraction',success:1,duration_hrs:5,mission_date:'2901-01-07',sector:'Alpha'},
-    {mission_id:8,agent_name:'Nova',mission_type:'Combat',success:1,duration_hrs:9,mission_date:'2901-01-08',sector:'Delta'},
-    {mission_id:9,agent_name:'Ryn',mission_type:'Recon',success:0,duration_hrs:3,mission_date:'2901-01-09',sector:'Gamma'},
-    {mission_id:10,agent_name:'Zara',mission_type:'Extraction',success:1,duration_hrs:7,mission_date:'2901-01-10',sector:'Beta'},
-    {mission_id:11,agent_name:'Echo',mission_type:'Combat',success:1,duration_hrs:11,mission_date:'2901-01-11',sector:'Alpha'},
-    {mission_id:12,agent_name:'Vex',mission_type:'Recon',success:1,duration_hrs:4,mission_date:'2901-01-12',sector:'Delta'},
-  ],
-  agentskills:[
-    {agent_id:1,agent_name:'Zara',skill:'Hacking',proficiency:90,certified:1},
-    {agent_id:1,agent_name:'Zara',skill:'Combat',proficiency:75,certified:1},
-    {agent_id:2,agent_name:'Marcus',skill:'Hacking',proficiency:60,certified:0},
-    {agent_id:2,agent_name:'Marcus',skill:'Stealth',proficiency:85,certified:1},
-    {agent_id:3,agent_name:'Nova',skill:'Combat',proficiency:95,certified:1},
-    {agent_id:3,agent_name:'Nova',skill:'Stealth',proficiency:70,certified:1},
-    {agent_id:4,agent_name:'Ryn',skill:'Hacking',proficiency:88,certified:1},
-    {agent_id:4,agent_name:'Ryn',skill:'Analysis',proficiency:92,certified:1},
-    {agent_id:5,agent_name:'Echo',skill:'Analysis',proficiency:78,certified:0},
-    {agent_id:5,agent_name:'Echo',skill:'Stealth',proficiency:55,certified:0},
-    {agent_id:6,agent_name:'Vex',skill:'Combat',proficiency:88,certified:1},
-    {agent_id:6,agent_name:'Vex',skill:'Analysis',proficiency:65,certified:0},
-  ],
-  datavaultinventory:[
-    {item_id:1,item_name:'Plasma Core',category:'Weapon',quantity:5,unit_cost:2000,last_restocked:'2900-12-01'},
-    {item_id:2,item_name:'Shield Matrix',category:'Defense',quantity:12,unit_cost:1500,last_restocked:'2900-11-15'},
-    {item_id:3,item_name:'Neural Chip',category:'Tech',quantity:30,unit_cost:800,last_restocked:'2901-01-01'},
-    {item_id:4,item_name:'Stealth Suit',category:'Gear',quantity:8,unit_cost:3500,last_restocked:'2900-10-20'},
-    {item_id:5,item_name:'EMP Device',category:'Weapon',quantity:3,unit_cost:4000,last_restocked:'2900-09-05'},
-    {item_id:6,item_name:'Med Pack',category:'Medical',quantity:50,unit_cost:200,last_restocked:'2901-01-10'},
-    {item_id:7,item_name:'Holo Lens',category:'Tech',quantity:15,unit_cost:1200,last_restocked:'2900-12-20'},
-    {item_id:8,item_name:'Null Grenade',category:'Weapon',quantity:2,unit_cost:5000,last_restocked:'2900-08-01'},
-    {item_id:9,item_name:'Crypto Key',category:'Tech',quantity:100,unit_cost:50,last_restocked:'2901-01-05'},
-    {item_id:10,item_name:'Pulse Rifle',category:'Weapon',quantity:7,unit_cost:6000,last_restocked:'2900-11-01'},
-  ],
-  agentrankhistory:[
-    {history_id:1,agent_name:'Zara',rank:'Operative',from_date:'2895-01-01',to_date:'2897-06-30'},
-    {history_id:2,agent_name:'Zara',rank:'Senior',from_date:'2897-07-01',to_date:'2899-12-31'},
-    {history_id:3,agent_name:'Zara',rank:'Commander',from_date:'2900-01-01',to_date:null},
-    {history_id:4,agent_name:'Marcus',rank:'Operative',from_date:'2896-03-01',to_date:'2899-02-28'},
-    {history_id:5,agent_name:'Marcus',rank:'Senior',from_date:'2899-03-01',to_date:null},
-    {history_id:6,agent_name:'Nova',rank:'Recruit',from_date:'2898-06-01',to_date:'2899-05-31'},
-    {history_id:7,agent_name:'Nova',rank:'Operative',from_date:'2899-06-01',to_date:null},
-    {history_id:8,agent_name:'Ryn',rank:'Recruit',from_date:'2900-01-01',to_date:'2900-12-31'},
-    {history_id:9,agent_name:'Ryn',rank:'Operative',from_date:'2901-01-01',to_date:null},
-    {history_id:10,agent_name:'Echo',rank:'Operative',from_date:'2897-01-01',to_date:null},
-  ],
-  threatalerts:[
-    {alert_id:1,sector:'Alpha',threat_type:'Infiltration',severity:'High',reported_at:'2901-01-01 08:00',resolved:1},
-    {alert_id:2,sector:'Beta',threat_type:'Data Breach',severity:'Critical',reported_at:'2901-01-01 12:00',resolved:0},
-    {alert_id:3,sector:'Gamma',threat_type:'Infiltration',severity:'Medium',reported_at:'2901-01-02 09:00',resolved:1},
-    {alert_id:4,sector:'Delta',threat_type:'Signal Jam',severity:'Low',reported_at:'2901-01-02 14:00',resolved:1},
-    {alert_id:5,sector:'Alpha',threat_type:'Data Breach',severity:'Critical',reported_at:'2901-01-03 07:00',resolved:0},
-    {alert_id:6,sector:'Beta',threat_type:'Infiltration',severity:'High',reported_at:'2901-01-03 11:00',resolved:0},
-    {alert_id:7,sector:'Epsilon',threat_type:'Signal Jam',severity:'Medium',reported_at:'2901-01-04 10:00',resolved:1},
-    {alert_id:8,sector:'Zeta',threat_type:'Data Breach',severity:'High',reported_at:'2901-01-05 16:00',resolved:0},
-  ],
-  citizenregistry:[
-    {citizen_id:1,citizen_name:'Vex',sector:'Alpha',registration_date:'2901-01-01'},
-    {citizen_id:2,citizen_name:'Nova',sector:'Beta',registration_date:'2901-01-01'},
-    {citizen_id:3,citizen_name:'Echo',sector:'Gamma',registration_date:'2901-01-02'},
-    {citizen_id:4,citizen_name:'Ryn',sector:'Alpha',registration_date:'2901-01-02'},
-  ],
-  sectorstatus:[
-    {sector_id:1,sector_name:'Alpha Core',stability_index:95,population:50000,last_scan_date:'2901-01-01'},
-    {sector_id:2,sector_name:'Beta Rim',stability_index:45,population:30000,last_scan_date:'2901-01-01'},
-    {sector_id:3,sector_name:'Gamma Void',stability_index:78,population:25000,last_scan_date:'2901-01-02'},
-    {sector_id:4,sector_name:'Delta Edge',stability_index:62,population:40000,last_scan_date:'2901-01-02'},
-    {sector_id:5,sector_name:'Omega Hub',stability_index:70,population:35000,last_scan_date:'2901-01-03'},
-  ],
-  anomalytracker:[
-    {anomaly_id:1,anomaly_name:'Time Loop Alpha',sector:'Sector 7',severity_score:85,detected_date:'2901-01-01'},
-    {anomaly_id:2,anomaly_name:'Reality Fracture',sector:'Sector 3',severity_score:92,detected_date:'2901-01-02'},
-    {anomaly_id:3,anomaly_name:'Echo Storm',sector:'Sector 5',severity_score:67,detected_date:'2901-01-02'},
-    {anomaly_id:4,anomaly_name:'Null Void',sector:'Sector 9',severity_score:99,detected_date:'2901-01-03'},
-    {anomaly_id:5,anomaly_name:'Data Corruption',sector:'Sector 1',severity_score:73,detected_date:'2901-01-03'},
-    {anomaly_id:6,anomaly_name:'Paradox Rift',sector:'Sector 4',severity_score:88,detected_date:'2901-01-04'},
-  ],
-  briefinglog:[
-    {log_id:1,agent_name:'Zara',team_size:1,briefing_date:'2901-01-01'},
-    {log_id:2,agent_name:'Marcus',team_size:2,briefing_date:'2901-01-01'},
-    {log_id:3,agent_name:'Zara',team_size:1,briefing_date:'2901-01-05'},
-    {log_id:4,agent_name:'Nova',team_size:1,briefing_date:'2901-01-02'},
-    {log_id:5,agent_name:'Marcus',team_size:1,briefing_date:'2901-01-06'},
-    {log_id:6,agent_name:'Nova',team_size:1,briefing_date:'2901-01-08'},
-  ],
-  archiveaccess:[
-    {agent_id:1,agent_name:'Zara',archive_id:101,archive_name:'Project Starfall'},
-    {agent_id:2,agent_name:'Marcus',archive_id:101,archive_name:'Project Starfall'},
-    {agent_id:3,agent_name:'Nova',archive_id:102,archive_name:'Echo Protocol'},
-    {agent_id:1,agent_name:'Zara',archive_id:103,archive_name:'Void Manifest'},
-    {agent_id:2,agent_name:'Marcus',archive_id:103,archive_name:'Void Manifest'},
-    {agent_id:3,agent_name:'Nova',archive_id:103,archive_name:'Void Manifest'},
-    {agent_id:4,agent_name:'Ryn',archive_id:104,archive_name:'Shadow Index'},
-  ],
-  sectors:[
-    {sector_id:1,sector_name:'Alpha Core'},
-    {sector_id:2,sector_name:'Beta Rim'},
-    {sector_id:3,sector_name:'Gamma Void'},
-    {sector_id:4,sector_name:'Delta Edge'},
-  ],
-  assignments:[
-    {agent_id:101,sector_id:1},
-    {agent_id:102,sector_id:1},
-    {agent_id:103,sector_id:3},
-  ],
-  cafeorders:[
-    {order_id:1,citizen_id:101,drink:'Quantum Latte',order_time:'2901-01-01 09:15:00'},
-    {order_id:2,citizen_id:101,drink:'Quantum Latte',order_time:'2901-01-01 09:45:00'},
-    {order_id:3,citizen_id:102,drink:'Nebula Mocha',order_time:'2901-01-01 10:00:00'},
-    {order_id:4,citizen_id:102,drink:'Void Espresso',order_time:'2901-01-01 10:30:00'},
-    {order_id:5,citizen_id:103,drink:'Star Brew',order_time:'2901-01-01 14:00:00'},
-    {order_id:6,citizen_id:103,drink:'Star Brew',order_time:'2901-01-01 15:00:00'},
-    {order_id:7,citizen_id:104,drink:'Rift Cap',order_time:'2901-01-01 11:10:00'},
-    {order_id:8,citizen_id:104,drink:'Rift Cap',order_time:'2901-01-01 11:55:00'},
-  ],
-  trainingscores:[
-    {session_id:1,agent_name:'Zara',session_date:'2901-01-01',points:500},
-    {session_id:2,agent_name:'Marcus',session_date:'2901-01-01',points:200},
-    {session_id:3,agent_name:'Nova',session_date:'2901-01-01',points:600},
-    {session_id:4,agent_name:'Ryn',session_date:'2901-01-02',points:400},
-    {session_id:5,agent_name:'Echo',session_date:'2901-01-02',points:150},
-    {session_id:6,agent_name:'Vex',session_date:'2901-01-03',points:300},
-  ],
-  yearlycredits:[
-    {year:2898,total_credits:10000},
-    {year:2899,total_credits:12000},
-    {year:2900,total_credits:15000},
-    {year:2901,total_credits:18000},
-  ],
-};
-
-/* ══════════════════════════════════════════════════════════
-   PROBLEM BANK — with test cases
+   PROBLEMS DATA
 ══════════════════════════════════════════════════════════ */
 const PROBLEMS_DEFAULT = [
   {
-    id:'p1',code:'BSQ-001',title:'High Salary Filter',difficulty:'Easy',points:100,timeLimit:null,
+    id:'p1',code:'BSQ-001',title:'High Salary Filter',difficulty:'Easy',points:100,timeLimit:300,
     category:'Filtering',tags:['WHERE','ORDER BY'],
     description:'Find all employees with a salary greater than $85,000.\n\nReturn the columns: name, salary, level.\nOrder results by salary in descending order.',
     sampleOutput:{columns:['name','salary','level'],rows:[['Henry Zhao','115000','Staff'],['Carol White','110000','Staff'],['Frank Kim','105000','Senior']]},
     schemaHint:{table:'employees',columns:[['id','INT'],['name','VARCHAR'],['dept_id','INT'],['salary','INT'],['hire_year','INT'],['age','INT'],['level','VARCHAR']]},
     testCases:[
-      {id:'tc1',name:'Row Count',desc:'Must return exactly 6 rows',
-       validate:r=>r.rowCount===6, hint:'WHERE salary > 85000'},
-      {id:'tc2',name:'Salary Filter',desc:'All returned salaries must be > 85000',
-       validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase()==='salary');return r.rows.every(row=>Number(row[i])>85000);},hint:'Check your WHERE condition'},
-      {id:'tc3',name:'Ordered Descending',desc:'Must be ordered by salary DESC',
-       validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase()==='salary');for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])>Number(r.rows[x-1][i]))return false;return true;},hint:'Add ORDER BY salary DESC'},
+      {id:'tc1',name:'Row Count',desc:'Must return exactly 6 rows',validate:r=>r.rowCount===6,hint:'WHERE salary > 85000',hidden:true},
+      {id:'tc2',name:'Salary Filter',desc:'All returned salaries must be > 85000',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase()==='salary');return r.rows.every(row=>Number(row[i])>85000);},hint:'Check your WHERE condition',hidden:true},
+      {id:'tc3',name:'Ordered Descending',desc:'Must be ordered by salary DESC',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase()==='salary');for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])>Number(r.rows[x-1][i]))return false;return true;},hint:'Add ORDER BY salary DESC',hidden:true},
+      {id:'tc4',name:'Correct Columns',desc:'Must return name, salary, and level columns',validate:r=>r.columns.length===3&&r.columns.includes('name')&&r.columns.includes('salary')&&r.columns.includes('level'),hint:'Check your SELECT statement',hidden:true},
+      {id:'tc5',name:'Top Earner',desc:'The first row should be Henry Zhao',validate:r=>r.rows[0][r.columns.indexOf('name')]==='Henry Zhao',hint:'Is your data ordered correctly?',hidden:true},
     ],
     solution:'SELECT name, salary, level FROM employees WHERE salary > 85000 ORDER BY salary DESC',
-    dailyDate: getTodayStr(),
+    dailyDate:getTodayStr(),
   },
   {
-    id:'p2',code:'BSQ-002',title:'Department Employee Count',difficulty:'Easy',points:150,timeLimit:null,
+    id:'p2',code:'BSQ-002',title:'Department Employee Count',difficulty:'Easy',points:150,timeLimit:300,
     category:'Aggregation',tags:['GROUP BY','COUNT'],
     description:'Count the number of employees in each department.\n\nReturn the columns: dept_id, total_employees.\nOrder results by total_employees in descending order.',
     sampleOutput:{columns:['dept_id','total_employees'],rows:[['1','3'],['2','3'],['3','2'],['4','2']]},
     schemaHint:{table:'employees',columns:[['id','INT'],['name','VARCHAR'],['dept_id','INT'],['salary','INT']]},
     testCases:[
-      {id:'tc1',name:'Four departments',desc:'Must return 4 rows (one per dept)',
-       validate:r=>r.rowCount===4,hint:'GROUP BY dept_id'},
-      {id:'tc2',name:'Count column exists',desc:'Must have a column for the count',
-       validate:r=>r.columns.some(c=>c.toLowerCase().includes('total')||c.toLowerCase().includes('count')||c.toLowerCase().includes('emp')),hint:'Use COUNT(*) AS total_employees'},
-      {id:'tc3',name:'Descending order',desc:'Highest count first',
-       validate:r=>{const ci=r.columns.findIndex(c=>c.toLowerCase().includes('total')||c.toLowerCase().includes('count'));if(ci<0)return false;for(let i=1;i<r.rows.length;i++)if(Number(r.rows[i][ci])>Number(r.rows[i-1][ci]))return false;return true;},hint:'ORDER BY total_employees DESC'},
+      {id:'tc1',name:'Row Count',desc:'Must return a row for each department',validate:r=>r.rowCount===4,hint:'Ensure you are grouping by department',hidden:true},
+      {id:'tc2',name:'Correct Columns',desc:'Must return dept_id and total_employees',validate:r=>r.columns.length===2&&r.columns.includes('dept_id')&&r.columns.includes('total_employees'),hint:'Check your SELECT statement and aliases',hidden:true},
+      {id:'tc3',name:'Engineering Count',desc:'Engineering department (ID 1) should have 3 employees',validate:r=>{const iDept=r.columns.indexOf('dept_id');const iCount=r.columns.indexOf('total_employees');return r.rows.some(row=>row[iDept]==1&&row[iCount]==3);},hint:'Check your COUNT aggregation',hidden:true},
+      {id:'tc4',name:'Marketing Count',desc:'Marketing department (ID 2) should have 3 employees',validate:r=>{const iDept=r.columns.indexOf('dept_id');const iCount=r.columns.indexOf('total_employees');return r.rows.some(row=>row[iDept]==2&&row[iCount]==3);},hint:'Check your COUNT aggregation',hidden:true},
+      {id:'tc5',name:'Order Descending',desc:'Results must be ordered by total_employees DESC',validate:r=>{const i=r.columns.indexOf('total_employees');for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])>Number(r.rows[x-1][i]))return false;return true;},hint:'Add ORDER BY total_employees DESC',hidden:true},
     ],
-    solution:'SELECT dept_id, COUNT(*) AS total_employees FROM employees GROUP BY dept_id ORDER BY total_employees DESC',
-    dailyDate: null,
-  },
-  {
-    id:'p3',code:'BSQ-003',title:'Join Employees & Departments',difficulty:'Medium',points:200,timeLimit:null,
-    category:'Joins',tags:['JOIN','WHERE'],
-    description:'Join employees with departments.\nReturn: employee name, department name (as dept_name), salary, location.\nOnly San Francisco employees. Order by salary DESC.',
-    sampleOutput:{columns:['name','dept_name','salary','location'],rows:[['Henry Zhao','Executive','115000','San Francisco'],['Carol White','Engineering','110000','San Francisco'],['Grace Park','Engineering','99000','San Francisco'],['Alice Chen','Engineering','95000','San Francisco'],['Iris Novak','Executive','78000','San Francisco']]},
-    schemaHint:{table:'employees  ·  departments',columns:[['employees.id','INT'],['employees.name','VARCHAR'],['employees.dept_id','INT'],['employees.salary','INT'],['departments.id','INT'],['departments.name','VARCHAR'],['departments.location','VARCHAR']]},
-    testCases:[
-      {id:'tc1',name:'Five rows',desc:'San Francisco has 5 employees',
-       validate:r=>r.rowCount===5,hint:'JOIN departments d ON dept_id = d.id, WHERE location = \'San Francisco\''},
-      {id:'tc2',name:'dept_name column',desc:'Must have a column called dept_name',
-       validate:r=>r.columns.some(c=>c.toLowerCase().includes('dept')),hint:'Use d.name AS dept_name'},
-      {id:'tc3',name:'Location filter',desc:'All employees from SF',
-       validate:r=>{const li=r.columns.findIndex(c=>c.toLowerCase().includes('loc'));if(li<0)return true;return r.rows.every(row=>String(row[li]).toLowerCase().includes('san francisco'));},hint:'WHERE d.location = \'San Francisco\''},
-    ],
-    solution:"SELECT e.name, d.name AS dept_name, e.salary, d.location FROM employees e JOIN departments d ON e.dept_id = d.id WHERE d.location = 'San Francisco' ORDER BY e.salary DESC",
-    dailyDate: null,
+    solution:'SELECT dept_id, COUNT(*) as total_employees FROM employees GROUP BY dept_id ORDER BY total_employees DESC',
+    dailyDate:null,
   },
   {
     id:'p4',code:'BSQ-004',title:'Average Salary by Department',difficulty:'Medium',points:200,timeLimit:null,
@@ -753,6 +507,7 @@ const S = {
   contests:[],
   submissions:[],
   customContests:[],
+  scoreboardContestFilter:'all',
   currentView:'home',
   currentContest:null,
   currentProblem:null,
@@ -838,6 +593,19 @@ function fmtDur(ms){const m=Math.floor(ms/60000);const h=Math.floor(m/60);return
 function getTodayStr(){const d=new Date();return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;}
 function diffCls(d){return d==='Easy'?'diff-easy':d==='Medium'?'diff-med':d==='Hard'?'diff-hard':'diff-expert';}
 function roleBadge(role){return `<span class="role-badge rb-${role}">${role}</span>`;}
+function getEntryViewOverride(){
+  const allowed=new Set(['home','contests','custom','practice','playground','submissions','profile','admin','scoreboards']);
+  const fromCore=String(window.__BESQL_ENTRY_VIEW||'').trim().toLowerCase();
+  if(allowed.has(fromCore))return fromCore;
+  const fromQuery=new URLSearchParams(window.location.search).get('view');
+  const fromHash=(window.location.hash||'').replace(/^#\/??/,'').replace(/^view=/,'').trim();
+  const raw=(fromQuery||fromHash||'').toLowerCase();
+  return allowed.has(raw)?raw:'';
+}
+function getEntryContestId(){
+  const cid=new URLSearchParams(window.location.search).get('contestId');
+  return cid?String(cid).trim():'';
+}
 function canCreate(){return S.user&&(S.user.role==='admin'||S.user.role==='master');}
 function isAdmin(){return S.user?.role==='admin';}
 function isMaster(){return S.user?.role==='admin'||S.user?.role==='master';}
@@ -2081,6 +1849,7 @@ function nav(view, extra){
     saveJudgeSessionState(S.judgeContext);
   }
   if(view!=='contests')stopContestListCountdown();
+  if(view!=='scoreboards'&&typeof stopScoreboardAutoRefresh==='function')stopScoreboardAutoRefresh();
   // Close mobile sidebar
   const _sb=el('sidebar'),_bd=el('sb-backdrop'),_hb=el('ham-btn');
   if(_sb)_sb.classList.remove('open');
@@ -2099,6 +1868,7 @@ function nav(view, extra){
   if(view==='practice')renderPractice();
   if(view==='playground')renderPlayground();
   if(view==='submissions')renderSubmissions();
+  if(view==='scoreboards')renderContestScoreboards(extra);
   if(view==='profile')renderProfile();
   if(view==='admin'){if(!isMaster()){nav('home');toast('Access denied','error');return;}renderAdmin();}
   if(view==='custom')renderCustom();
@@ -2142,236 +1912,6 @@ function nav(view, extra){
   else saveRouteState(view,extra);
 }
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>nav(b.dataset.view)));
-
-/* ══════════════════════════════════════════════════════════
-   AUTH
-══════════════════════════════════════════════════════════ */
-function openAuth(mode='login'){
-  el('auth-title').textContent=mode==='login'?'Sign In':'Create Account';
-  el('auth-body').innerHTML = mode==='login' ? `
-    <div class="fg"><label class="lbl">Username</label><input class="inp" id="au" placeholder="your_username" autocomplete="off"></div>
-    <div class="fg"><label class="lbl">Password</label><input class="inp" type="password" id="ap" placeholder="••••••••" autocomplete="current-password"></div>
-    <div id="a-err" class="hidden" style="color:var(--rose);font-size:11px;margin-bottom:10px"></div>
-    <div class="fx ic sb" style="margin-top:14px">
-      <span style="font-size:12px;color:var(--t2)">No account?</span>
-      <button class="btn btn-ghost btn-sm" onclick="openAuth('register')">Register →</button>
-    </div>
-    <div class="mfooter" style="padding:14px 0 0;border-top:1px solid var(--line);margin-top:14px;justify-content:flex-end;display:flex;gap:9px">
-      <button class="btn btn-ghost btn-md" onclick="closeModal('modal-auth')">Cancel</button>
-      <button class="btn btn-blue btn-md" onclick="doLogin()">Sign In</button>
-    </div>` : `
-    <div class="fg"><label class="lbl">Username</label><input class="inp" id="ru" placeholder="choose_username" autocomplete="off"></div>
-    <div class="fg"><label class="lbl">Email</label><input class="inp" id="re" placeholder="you@example.com" autocomplete="email"></div>
-    <div class="fg"><label class="lbl">Password</label><input class="inp" type="password" id="rp" placeholder="At least 8 chars, uppercase, lowercase, number, symbol" autocomplete="new-password"></div>
-    <div class="fg"><label class="lbl">Confirm Password</label><input class="inp" type="password" id="rpc" placeholder="Repeat password" autocomplete="new-password"></div>
-    <div id="r-err" class="hidden" style="color:var(--rose);font-size:11px;margin-bottom:10px"></div>
-    <div class="mfooter" style="padding:14px 0 0;border-top:1px solid var(--line);margin-top:14px;justify-content:flex-end;display:flex;gap:9px">
-      <button class="btn btn-ghost btn-md" onclick="openAuth('login')">← Back to Login</button>
-      <button class="btn btn-blue btn-md" onclick="doRegister()">Create Account</button>
-    </div>`;
-  openModal('modal-auth');
-  setTimeout(()=>{const f=el('au')||el('ru');if(f)f.focus();},100);
-}
-async function doLogin(){
-  const u=(el('au')||{}).value?.trim(), p=(el('ap')||{}).value;
-  if(!u||!p){showAErr('Enter username and password.');return;}
-  const userErr=validateUsername(u);
-  if(userErr){showAErr(userErr);return;}
-  const hp=await hashPassword(p);
-  let stored=LS.get(`user:${u}`);
-
-  if(!stored){
-    const dbUser=await fetchRelationalAuthUser(u);
-    if(!dbUser||!dbUser.passwordHash||dbUser.passwordHash!==hp){
-      showAErr('Invalid credentials.');
-      return;
-    }
-    LS.set(`user:${u}`,dbUser);
-    finishLogin(dbUser);
-    return;
-  }
-
-  const ok=stored.passwordHash?stored.passwordHash===hp:stored.password===p;
-  if(!ok){
-    const dbUser=await fetchRelationalAuthUser(u);
-    if(!dbUser||!dbUser.passwordHash||dbUser.passwordHash!==hp){
-      showAErr('Invalid credentials.');
-      return;
-    }
-    const merged={...stored,...dbUser,passwordHash:dbUser.passwordHash};
-    LS.set(`user:${u}`,merged);
-    finishLogin(merged);
-    return;
-  }
-
-  if(!stored.passwordHash){
-    stored.passwordHash=hp;
-    delete stored.password;
-    LS.set(`user:${u}`,stored);
-  }
-  finishLogin(stored);
-}
-async function doRegister(){
-  const u=(el('ru')||{}).value?.trim(), p=(el('rp')||{}).value;
-  const e=(el('re')||{}).value?.trim();
-  const pc=(el('rpc')||{}).value;
-
-  const userErr=validateUsername(u);
-  if(userErr){showRErr(userErr);return;}
-  const emailErr=validateEmail(e);
-  if(emailErr){showRErr(emailErr);return;}
-  const passErr=validatePassword(p);
-  if(passErr){showRErr(passErr);return;}
-  if(p!==pc){showRErr('Passwords do not match.');return;}
-  if(LS.get(`user:${u}`)){showRErr('Username already taken.');return;}
-
-  const nu={
-    userId:genId(),
-    username:u,
-    email:e,
-    passwordHash:await hashPassword(p),
-    role:'contestant',
-    score:0,
-    solved:0,
-    joinedAt:Date.now(),
-  };
-  LS.set(`user:${u}`,nu);
-  await syncUserToRelational(nu);
-  finishLogin(nu);
-  closeModal('modal-auth');
-  toast(`Welcome, ${u}!`,'success');
-}
-async function quickLogin(uname,role){
-  let u=LS.get(`user:${uname}`);
-  if(!u){
-    u={
-      userId:genId(),
-      username:uname,
-      email:`${uname}@besql.local`,
-      passwordHash:await hashPassword('demo'),
-      role,
-      score:0,
-      solved:0,
-      joinedAt:Date.now(),
-    };
-    LS.set(`user:${uname}`,u);
-    await syncUserToRelational(u);
-  }
-  finishLogin(u); closeModal('modal-auth');
-}
-function showAErr(m){const e=el('a-err');if(e){e.textContent=m;show(e);}}
-function showRErr(m){const e=el('r-err');if(e){e.textContent=m;show(e);}}
-function buildSessionRecord(user){
-  if(!user?.username)return null;
-  return {
-    username:user.username,
-    userId:user.userId||null,
-    passwordHash:user.passwordHash||null,
-    createdAt:Date.now(),
-  };
-}
-function restoreSessionUser(){
-  const sess=LS.get('session');
-  if(!sess)return null;
-
-  // Backward compatibility for legacy string session format.
-  if(typeof sess==='string'){
-    const u=LS.get(`user:${sess}`);
-    if(u)LS.set('session',buildSessionRecord(u));
-    return u||null;
-  }
-
-  if(typeof sess!=='object')return null;
-  const username=String(sess.username||'').trim();
-  if(!username)return null;
-  const u=LS.get(`user:${username}`);
-  if(!u)return null;
-  if(sess.userId&&u.userId&&String(sess.userId)!==String(u.userId))return null;
-  if(sess.passwordHash&&u.passwordHash&&String(sess.passwordHash)!==String(u.passwordHash))return null;
-  return u;
-}
-function getJudgeSessionKey(ctx){
-  if(!ctx?.problemId)return '';
-  return `${ctx.contestId||'practice'}::${ctx.problemId}`;
-}
-function getJudgeSessionStorageKey(){
-  const uid=String(S.user?.userId||'').trim();
-  const uname=String(S.user?.username||'').trim();
-  const scope=uid||uname||'guest';
-  return `judgeSessions:${scope}`;
-}
-function hydrateJudgeSessionsForCurrentUser(){
-  const key=getJudgeSessionStorageKey();
-  const persisted=LS.get(key);
-  S.judgeSessions=(persisted&&typeof persisted==='object')?persisted:{};
-}
-function getJudgeSessionState(ctx){
-  const key=getJudgeSessionKey(ctx);
-  if(!key)return null;
-  return S.judgeSessions?.[key]||null;
-}
-function saveJudgeSessionState(ctx=S.judgeContext,overrides={}){
-  const key=getJudgeSessionKey(ctx);
-  if(!key)return;
-  const editor=el('judge-editor');
-  const next={
-    draft:editor?editor.value:'',
-    elapsed:Number(S.judgeElapsed||0),
-    updatedAt:Date.now(),
-    ...overrides,
-  };
-  S.judgeSessions={...(S.judgeSessions||{}),[key]:next};
-  LS.set(getJudgeSessionStorageKey(),S.judgeSessions);
-}
-function saveRouteState(view,extra){
-  const state={view:String(view||'home')};
-  if(state.view==='contest-detail'){
-    const contestId=typeof extra==='string'?extra:extra?.contestId||S.currentContest;
-    if(contestId)state.contestId=contestId;
-  }
-  if(state.view==='judge'){
-    const ctx=(extra&&typeof extra==='object')?extra:S.judgeContext;
-    if(ctx?.problemId){
-      state.judgeContext={
-        problemId:ctx.problemId,
-        contestId:ctx.contestId||null,
-        backView:ctx.backView||'practice',
-      };
-    }
-  }
-  LS.set('routeState',state);
-}
-function restoreRouteState(){
-  const state=LS.get('routeState');
-  if(!state||typeof state!=='object')return false;
-  const view=String(state.view||'').trim();
-  if(!view)return false;
-  if(view==='contest-detail'&&state.contestId){
-    nav('contest-detail',state.contestId);
-    return true;
-  }
-  if(view==='judge'&&state.judgeContext?.problemId){
-    nav('judge',state.judgeContext);
-    return true;
-  }
-  if(['home','contests','practice','playground','submissions','profile','admin','custom'].includes(view)){
-    nav(view);
-    return true;
-  }
-  return false;
-}
-function finishLogin(user){
-  S.user=user;
-  // Sync user to Supabase in background - don't wait
-  syncUserToRelational(user).catch(err=>console.warn('Background user sync failed:',err));
-  LS.set('session',buildSessionRecord(user));
-  hydrateJudgeSessionsForCurrentUser();
-  S.submissions=LS.get(`subs:${user.userId}`)||[];
-  closeModal('modal-auth');
-  renderTopRight(); renderSidebar();
-  nav('home'); toast(`Signed in as ${user.username}`,'success');
-}
-function doLogout(){S.user=null;S.judgeSessions={};S.judgeContext=null;LS.del('session');S.submissions=[];LS.del('routeState');renderTopRight();renderSidebar();nav('home');toast('Logged out.','info');}
 
 /* ══════════════════════════════════════════════════════════
    RENDER TOPRIGHT
@@ -2661,277 +2201,6 @@ function buildLeaderboard(){
 /* ══════════════════════════════════════════════════════════
    CONTESTS
 ══════════════════════════════════════════════════════════ */
-function filterContests(){
-  renderContests();
-}
-function stopContestListCountdown(){
-  if(window._contestListInterval){
-    clearInterval(window._contestListInterval);
-    window._contestListInterval=null;
-  }
-}
-function startContestListCountdown(){
-  if(window._contestListInterval)return;
-  window._contestListInterval=setInterval(()=>{
-    if(S.currentView!=='contests'){
-      stopContestListCountdown();
-      return;
-    }
-    renderContests();
-  },1000);
-}
-function renderContests(){
-  const filter=(el('contest-filter')||{}).value||'all';
-  const allContests=getVisibleContestsForList();
-  const list=filter==='all'?allContests:allContests.filter(c=>c.status===filter);
-  el('contest-list').innerHTML=list.length?list.map(c=>contestCardHTML(c)).join(''):'<div class="empty"><div class="empty-ico"></div><div style="font-size:12px;color:var(--t3)">No contests found</div></div>';
-  if(S.currentView==='contests')startContestListCountdown();
-}
-function contestCardHTML(c){
-  const probs=S.problems.filter(p=>c.problemIds.includes(p.id));
-  const revealProblems=canRevealContestProblems(c);
-  const lockReason=getContestProblemLockReason(c);
-  const nowTs=Date.now();
-  const msToStart=Math.max(0,c.startTime-nowTs);
-  const msToEnd=Math.max(0,c.endTime-nowTs);
-  const timeText=c.status==='live'
-    ? `Ends in ${fmtCountdownDHMS(msToEnd/1000)}`
-    : c.status==='upcoming'
-      ? `Starts in ${fmtCountdownDHMS(msToStart/1000)}`
-      : `Ended ${fmtDate(c.endTime)}`;
-  return `
-    <div class="contest-card ${c.status} mb3" onclick="nav('contest-detail','${c.id}')">
-      <div class="fx ic sb mb2">
-        <div class="fx ic gap3">
-          ${c.status==='live'?'<span class="live-pill"><div class="live-dot" style="width:6px;height:6px"></div>LIVE</span>':
-            c.status==='upcoming'?'<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--idim);color:var(--ind);border:1px solid rgba(77,158,255,.3)">UPCOMING</span>':
-            '<span style="font-size:10px;color:var(--t3);padding:2px 8px;border-radius:10px;border:1px solid var(--line)">ENDED</span>'}
-          <span style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px">${c.type==='custom'?'Custom':'Official'}</span>
-        </div>
-        <span style="font-size:11px;color:var(--t2)">${revealProblems?`${probs.length} problems`:'Problems hidden'} · ${fmtDur(c.duration*60000)}</span>
-      </div>
-      <div style="font-size:16px;font-weight:700;margin-bottom:8px;line-height:1.3">${esc(c.title)}</div>
-      <div style="font-size:12px;color:var(--t2);margin-bottom:12px;line-height:1.6">${esc(c.description)}</div>
-      <div class="fx ic gap3 flex-wrap">
-        ${revealProblems?probs.map(p=>`<span class="tag">${esc(p.title)}</span>`).join(''):`<span class="tag">${esc(lockReason||'Problems are currently locked')}</span>`}
-        <div style="margin-left:auto;font-size:11px;color:var(--t2)">
-          ${timeText}
-        </div>
-      </div>
-    </div>`;
-}
-
-function renderContestDetail(contestId){
-  const cid=contestId||S.currentContest;
-  S.currentContest=cid;
-  const c=getContestById(cid);
-  if(!c){nav('contests');return;}
-  el('cd-title').textContent=c.title;
-  const probs=S.problems.filter(p=>c.problemIds.includes(p.id));
-  const revealProblems=canRevealContestProblems(c);
-  const participant=isContestParticipant(c);
-  el('cd-meta').innerHTML=`
-    ${c.status==='live'?'<span class="live-pill"><div class="live-dot" style="width:6px;height:6px"></div>LIVE</span>':''}
-    <span style="font-size:11px;color:var(--t2)">${revealProblems?`${probs.length} problems`:'Problems hidden'}</span>
-    <span style="font-size:11px;color:var(--t2)">${fmtDur(c.duration*60000)}</span>
-    ${participant?'<span class="tag">Participant</span>':'<span class="tag">Spectator</span>'}
-    ${c.isPublic?'<span class="tag">Public</span>':'<span class="tag">Private</span>'}`;
-  // Timer
-  const timerWrap=el('cd-timer-wrap');
-  stopContestCountdown();
-  if(c.status==='live'){
-    const left=Math.max(0,Math.floor((c.endTime-Date.now())/1000));
-    timerWrap.innerHTML=`<div style="text-align:right"><div style="font-size:10px;color:var(--t3);letter-spacing:1px">TIME LEFT</div><div class="countdown" id="cd-countdown">${fmtCountdownDHMS(left)}</div></div>`;
-    startContestCountdown(c.endTime,()=>{
-      normalizeContestLifecycle(c);
-      renderContestDetail(c.id);
-      renderContests();
-      renderSidebar();
-    });
-  } else if(c.status==='upcoming'&&hasContestStarted(c)===false){
-    const untilStart=Math.max(0,Math.floor((c.startTime-Date.now())/1000));
-    timerWrap.innerHTML=`<div style="text-align:right"><div style="font-size:10px;color:var(--t3);letter-spacing:1px">STARTS IN</div><div class="countdown" id="cd-countdown">${fmtCountdownDHMS(untilStart)}</div></div>`;
-    startContestCountdown(c.startTime,()=>{
-      normalizeContestLifecycle(c);
-      renderContestDetail(c.id);
-      renderContests();
-      renderSidebar();
-    });
-  } else {
-    timerWrap.innerHTML='';
-  }
-  renderCDProblems(c,probs);
-  renderCDScoreboard(c);
-  renderCDSubs(c);
-  renderCDAnnounce(c);
-}
-
-function stopContestCountdown(){
-  if(window._cdInterval){
-    clearInterval(window._cdInterval);
-    window._cdInterval=null;
-  }
-}
-
-function startContestCountdown(targetTime,onComplete){
-  if(window._cdInterval) clearInterval(window._cdInterval);
-  window._cdInterval=setInterval(()=>{
-    const left=Math.max(0,Math.floor((targetTime-Date.now())/1000));
-    const el2=el('cd-countdown');
-    if(el2){el2.textContent=fmtCountdownDHMS(left);if(left<300)el2.classList.add('urgent');}
-    if(left<=0){
-      stopContestCountdown();
-      if(typeof onComplete==='function')onComplete();
-    }
-  },1000);
-}
-
-function renderCDProblems(c,probs){
-  if(!canRevealContestProblems(c)){
-    const participant=isContestParticipant(c);
-    const canJoin=c.status!=='ended'&&!participant&&!isOwnedByCurrentUser(c.createdBy)&&!isMaster();
-    const reason=getContestProblemLockReason(c)||'Problems are currently locked.';
-    el('cd-problems').innerHTML=`<div class="card"><div class="empty"><div class="empty-ico" style="font-size:14px;color:var(--t3)">🔒</div><div style="font-size:12px;color:var(--t2)">${esc(reason)}</div>${canJoin?`<button class="btn btn-blue btn-sm" style="margin-top:10px" onclick="joinContest('${c.id}')">Join As Participant</button>`:''}</div></div>`;
-    return;
-  }
-  const solved=getSolvedIdsInContest(c.id);
-  el('cd-problems').innerHTML=`<div class="card">${probs.length?probs.map((p,i)=>`
-    <div class="prob-row ${solved.has(p.id)?'solved':''}" onclick="${solved.has(p.id)?"toast('Already solved in this contest. Reattempt is disabled.','info')":`openContestProblem('${c.id}','${p.id}')`}">
-      <div class="prob-num">${String.fromCharCode(65+i)}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;color:var(--t0)">${esc(p.title)}</div>
-        <div class="fx ic gap2 mt1">${p.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
-      </div>
-      <div class="fx ic gap3">
-        <span class="${diffCls(p.difficulty)}">${p.difficulty}</span>
-        <span style="font-size:12px;color:var(--gold);font-weight:700">${p.points}pt</span>
-        ${solved.has(p.id)?'<span style="color:var(--grn);font-weight:700;font-size:12px;margin-left:2px">AC</span>':''}
-        ${c.status!=='ended'?(
-          solved.has(p.id)
-            ? '<button class="btn btn-ghost btn-xs" disabled>Solved</button>'
-            : `<button class="btn btn-blue btn-xs" onclick="event.stopPropagation();openContestProblem('${c.id}','${p.id}')">Solve</button>`
-        ):`<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openContestProblem('${c.id}','${p.id}')">Practice</button>`}
-      </div>
-    </div>`).join(''):'<div class="empty"><div class="empty-ico" style="font-size:14px;color:var(--t3)">—</div></div>'}</div>`;
-}
-
-function openContestProblem(contestId,problemId){
-  const contest=getContestById(contestId);
-  if(!contest){toast('Contest not found','error');return;}
-  normalizeContestLifecycle(contest);
-  if(contest.status==='ended'){
-    toast('Contest ended. Opening as practice problem.','info');
-    nav('judge',{problemId,contestId:null,backView:'practice'});
-    return;
-  }
-  nav('judge',{problemId,contestId:contest.id,backView:'contest-detail'});
-}
-
-function buildContestLeaderboard(contest){
-  const userById=new Map();
-  LS.keys('user:').forEach(k=>{
-    const u=LS.get(k);
-    if(u&&u.userId)userById.set(u.userId,u);
-  });
-
-  const allSubs=LS.keys('subs:')
-    .map(k=>LS.get(k))
-    .filter(Array.isArray)
-    .flat()
-    .filter(s=>s&&s.contestId===contest.id)
-    .filter(s=>{
-      const at=Number(s.at||0);
-      if(!Number.isFinite(at)||at<=0)return false;
-      return at>=Number(contest.startTime||0)&&at<=Number(contest.endTime||0);
-    });
-
-  const problemById=new Map(
-    (contest.problemIds||[])
-      .map(pid=>S.problems.find(p=>p.id===pid))
-      .filter(Boolean)
-      .map(p=>[p.id,p])
-  );
-
-  const byUser=new Map();
-  const sortedSubs=[...allSubs].sort((a,b)=>Number(a.at||0)-Number(b.at||0));
-
-  sortedSubs.forEach(sub=>{
-    const uid=sub.userId;
-    if(!uid)return;
-    if(!byUser.has(uid)){
-      const u=userById.get(uid);
-      byUser.set(uid,{
-        userId:uid,
-        username:u?.username||'User',
-        score:0,
-        solved:0,
-        totalTime:0,
-        lastAt:0,
-        solvedProblems:new Set(),
-      });
-    }
-    const row=byUser.get(uid);
-    row.lastAt=Math.max(row.lastAt,Number(sub.at||0));
-    if(sub.verdict!=='AC')return;
-    if(row.solvedProblems.has(sub.problemId))return;
-    const prob=problemById.get(sub.problemId);
-    row.solvedProblems.add(sub.problemId);
-    row.solved+=1;
-    row.score+=Number(prob?.points||0);
-    row.totalTime+=Math.max(0,Number(sub.timeTaken||0));
-  });
-
-  return [...byUser.values()].sort((a,b)=>{
-    if(b.score!==a.score)return b.score-a.score;
-    if(b.solved!==a.solved)return b.solved-a.solved;
-    if(a.totalTime!==b.totalTime)return a.totalTime-b.totalTime;
-    if(a.lastAt!==b.lastAt)return a.lastAt-b.lastAt;
-    return String(a.username).localeCompare(String(b.username));
-  });
-}
-
-function renderCDScoreboard(c){
-  const lb=buildContestLeaderboard(c);
-  el('cd-scoreboard').innerHTML=`<div class="card"><div class="tw"><table class="tbl">
-    <thead><tr><th>Rank</th><th>User</th><th>Score</th><th>Solved</th><th>Time</th></tr></thead>
-    <tbody>${lb.length?lb.slice(0,20).map((p,i)=>`
-      <tr class="${i===0?'sb-rank-gold':i===1?'sb-rank-silver':i===2?'sb-rank-bronze':''} ${S.user&&p.userId===S.user.userId?'sb-me':''}">
-        <td><div class="rm ${i<3?`rm${i+1}`:'rmn'}">${i+1}</div></td>
-        <td style="font-weight:${S.user&&p.userId===S.user.userId?700:400};color:${S.user&&p.userId===S.user.userId?'var(--ind)':'var(--t0)'}">${esc(p.username)}</td>
-        <td style="color:var(--gold);font-weight:700">${fmtN(p.score)}</td>
-        <td style="color:var(--grn)">${p.solved}</td>
-        <td style="color:var(--t2)">${fmtT(p.totalTime)}</td>
-      </tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--t3);padding:16px">No contest submissions yet</td></tr>'}
-    </tbody></table></div></div>`;
-}
-
-function renderCDSubs(c){
-  const subs=S.submissions.filter(s=>s.contestId===c.id);
-  el('cd-my-subs').innerHTML=`<div class="card">${subs.length?subs.reverse().map(s=>{
-    const p=S.problems.find(x=>x.id===s.problemId);
-    return `<div class="sub-row">
-      <span class="sub-time" style="font-size:10px;color:var(--t3);width:120px;flex-shrink:0">${new Date(s.at).toLocaleTimeString()}</span>
-      <span style="flex:1" class="trunc">${esc(p?.title||s.problemId)}</span>
-      <span class="v-${s.verdict.toLowerCase()}">${s.verdict}</span>
-      ${s.verdict==='AC'?`<span style="font-size:11px;color:var(--t2)">${s.timeTaken}s</span>`:''}
-    </div>`;}).join(''):'<div class="empty"><div class="empty-ico" style="font-size:14px;color:var(--t3)">—</div><div style="font-size:12px">No submissions yet</div></div>'}</div>`;
-}
-
-function renderCDAnnounce(c){
-  el('cd-announces').innerHTML=c.announcement?`
-    <div class="card"><div class="card-body">
-      <div style="font-size:11px;color:var(--t3);letter-spacing:1px;margin-bottom:6px">FROM ADMIN</div>
-      <div style="font-size:13px;color:var(--t1);line-height:1.8">${esc(c.announcement)}</div>
-    </div></div>`:
-    '<div class="empty"><div class="empty-ico" style="font-size:14px;color:var(--t3)">—</div><div style="font-size:12px;color:var(--t3)">No announcements</div></div>';
-}
-
-function cdTab(tab,btn){
-  document.querySelectorAll('#view-contest-detail .tab-btn').forEach(b=>b.classList.remove('on'));
-  document.querySelectorAll('#view-contest-detail .tab-content').forEach(c=>c.classList.add('hidden'));
-  btn.classList.add('on');
-  el(`cd-tab-${tab}`).classList.remove('hidden');
-}
 
 /* ══════════════════════════════════════════════════════════
    JUDGE (Problem Solver)
@@ -3674,418 +2943,6 @@ function renderProfile(){
 }
 
 /* ══════════════════════════════════════════════════════════
-   ADMIN PANEL
-══════════════════════════════════════════════════════════ */
-function renderAdmin(){
-  if(!isMaster()){el('view-admin').innerHTML='<div class="empty" style="padding:80px"><div style="font-size:13px;color:var(--t3);margin-top:8px">Access Denied — insufficient permissions.</div></div>';return;}
-  renderAdminTab(S.adminSubTab);
-}
-function adminTab(tab,btn){
-  S.adminSubTab=tab;
-  document.querySelectorAll('#view-admin .tab-btn').forEach(b=>b.classList.remove('on'));
-  document.querySelectorAll('#view-admin .tab-content').forEach(c=>c.classList.add('hidden'));
-  btn.classList.add('on'); el(`admin-tab-${tab}`).classList.remove('hidden');
-  renderAdminTab(tab);
-}
-function renderAdminTab(tab){
-  if(tab==='problems')renderAdminProblems();
-  if(tab==='contests')renderAdminContests();
-  if(tab==='users')renderAdminUsers();
-  if(tab==='announce')renderAdminAnnounce();
-  if(tab==='analytics')renderAdminAnalytics();
-}
-
-function renderAdminProblems(){
-  const c=el('admin-tab-problems');
-  c.innerHTML=`<div class="fx ic sb mb3"><div style="font-size:14px;font-weight:600;color:var(--t0)">Problem Bank (${S.problems.length})</div><button class="btn btn-blue btn-sm" onclick="openProblemEditor()">+ New Problem</button></div>
-    <div class="card"><div class="tw"><table class="tbl">
-      <thead><tr><th>Title</th><th>Difficulty</th><th>Points</th><th>Tests</th><th>Category</th><th>Daily</th><th>Actions</th></tr></thead>
-      <tbody>${S.problems.map(p=>`
-        <tr>
-          <td style="font-weight:600;color:var(--t0)">${esc(p.title)}</td>
-          <td><span class="${diffCls(p.difficulty)}">${p.difficulty}</span></td>
-          <td style="color:var(--gold)">${p.points}</td>
-          <td style="color:var(--ind)">${p.testCases.length}</td>
-          <td style="color:var(--t2)">${esc(p.category)}</td>
-          <td>${p.dailyDate?`<span style="font-size:10px;color:var(--grn)">${p.dailyDate}</span>`:'<span style="color:var(--t3)">—</span>'}</td>
-          <td><div class="fx gap2">
-            <button class="btn btn-ghost btn-xs" onclick="openProblemEditor('${p.id}')">Edit</button>
-            <button class="btn btn-danger btn-xs" onclick="deleteProblem('${p.id}')">Del</button>
-          </div></td>
-        </tr>`).join('')}
-      </tbody></table></div></div>`;
-}
-
-function renderAdminContests(){
-  const c=el('admin-tab-contests');
-  c.innerHTML=`<div class="fx ic sb mb3"><div style="font-size:14px;font-weight:600;color:var(--t0)">Contests (${S.contests.length})</div><button class="btn btn-blue btn-sm" onclick="openContestCreator()">+ New Contest</button></div>
-    <div class="card"><div class="tw"><table class="tbl">
-      <thead><tr><th>Title</th><th>Status</th><th>Problems</th><th>Duration</th><th>Start</th><th>Actions</th></tr></thead>
-      <tbody>${S.contests.map(c2=>`
-        <tr>
-          <td style="font-weight:600;color:var(--t0)">${esc(c2.title)}</td>
-          <td><span class="v-${c2.status==='live'?'ac':c2.status==='upcoming'?'pending':'pe'}">${c2.status.toUpperCase()}</span></td>
-          <td style="color:var(--ind)">${c2.problemIds.length}</td>
-          <td style="color:var(--t2)">${fmtDur(c2.duration*60000)}</td>
-          <td style="font-size:11px;color:var(--t2)">${fmtDate(c2.startTime)}</td>
-          <td><div class="fx gap2">
-            <button class="btn btn-ghost btn-xs" onclick="openContestCreator('${c2.id}')">Edit</button>
-            ${c2.status==='upcoming'?`<button class="btn btn-success btn-xs" onclick="launchContest('${c2.id}')">Launch</button>`:''}
-            ${c2.status==='live'?`<button class="btn btn-danger btn-xs" onclick="endContest('${c2.id}')">End</button>`:''}
-            <button class="btn btn-danger btn-xs" onclick="deleteOfficialContest('${c2.id}')">Delete</button>
-          </div></td>
-        </tr>`).join('')}
-      </tbody></table></div></div>`;
-}
-
-function renderAdminUsers(){
-  const allUsers=LS.keys('user:').map(k=>LS.get(k)).filter(u=>u?.userId);
-  const c=el('admin-tab-users');
-  c.innerHTML=`<div class="card"><div class="tw"><table class="tbl">
-    <thead><tr><th>Username</th><th>Role</th><th>Score</th><th>Solved</th><th>Joined</th><th>Actions</th></tr></thead>
-    <tbody>${allUsers.map(u=>`
-      <tr>
-        <td style="font-weight:600;color:var(--t0)">${esc(u.username)}</td>
-        <td>${roleBadge(u.role)}</td>
-        <td style="color:var(--gold)">${fmtN(u.score||0)}</td>
-        <td style="color:var(--grn)">${u.solved||0}</td>
-        <td style="font-size:11px;color:var(--t2)">${new Date(u.joinedAt||Date.now()).toLocaleDateString()}</td>
-        <td><div class="fx gap2">
-          <select class="sel" style="width:120px;font-size:11px;padding:3px 8px" onchange="changeUserRole('${u.username}',this.value)">
-            ${['contestant','master','admin'].map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${r}</option>`).join('')}
-          </select>
-        </div></td>
-      </tr>`).join('')}
-    </tbody></table></div></div>`;
-}
-
-function changeUserRole(username,role){
-  const u=LS.get(`user:${username}`);
-  if(!u)return;
-  u.role=role; LS.set(`user:${username}`,u);
-  if(S.user&&S.user.username===username){S.user.role=role;renderTopRight();}
-  toast(`${username} is now ${role}`,'success');
-}
-
-function renderAdminAnnounce(){
-  const c=el('admin-tab-announce');
-  c.innerHTML=`<div class="card"><div class="card-hdr"><div class="card-title">Global Announcement</div></div><div class="card-body">
-    <div class="fg"><label class="lbl">Message</label><textarea class="ta" rows="4" id="ann-msg" placeholder="Announcement visible to all users...">${esc(LS.get('announcement')||'')}</textarea></div>
-    <div class="fx gap3">
-      <button class="btn btn-blue btn-md" onclick="saveAnnouncement()">Publish</button>
-      <button class="btn btn-danger btn-md" onclick="clearAnnouncement()">Clear</button>
-    </div>
-  </div></div>`;
-}
-
-function saveAnnouncement(){
-  const msg=(el('ann-msg')||{}).value?.trim();
-  LS.set('announcement',msg);
-  if(msg){el('announce-text').textContent=msg;show('announce-bar');}
-  else hide('announce-bar');
-  toast('Announcement published','success');
-}
-function clearAnnouncement(){LS.del('announcement');hide('announce-bar');toast('Cleared','info');}
-
-function renderAdminAnalytics(){
-  const allSubs=LS.keys('subs:').map(k=>LS.get(k)||[]).flat();
-  const solved=S.problems.map(p=>{const s=allSubs.filter(s=>s.problemId===p.id&&s.verdict==='AC').length;return{...p,solveCount:s};});
-  const c=el('admin-tab-analytics');
-  c.innerHTML=`<div class="g4 mb4">
-    ${[['Problems',S.problems.length,'var(--ind)'],['Contests',S.contests.length,'var(--sky)'],['Total Users',LS.keys('user:').length,'var(--gold)'],['Live Now',S.contests.filter(c=>c.status==='live').length,'var(--grn)']].map(([l,v,c2])=>`<div class="stat"><div class="stat-v" style="color:${c2}">${v}</div><div class="stat-l">${l}</div></div>`).join('')}
-  </div>
-  <div class="g2">
-    <div class="card"><div class="card-hdr"><div class="card-title">Acceptance Rate</div></div><div class="card-body">
-      ${S.problems.map(p=>{
-        const totalSubs=allSubs.filter(s=>s.problemId===p.id).length;
-        const acSubs=allSubs.filter(s=>s.problemId===p.id&&s.verdict==='AC').length;
-        const rate=totalSubs?Math.round(acSubs/totalSubs*100):0;
-        return `<div style="margin-bottom:10px"><div class="fx ic sb mb1"><span style="font-size:12px;color:var(--t1)">${esc(p.title)}</span><span style="font-size:11px;color:var(--t2)">${rate}%</span></div><div class="pbar"><div class="pfill" style="width:${rate}%;background:var(--grn)"></div></div></div>`;
-      }).join('')}
-    </div></div>
-    <div class="card"><div class="card-hdr"><div class="card-title">Difficulty Distribution</div></div><div class="card-body">
-      ${['Easy','Medium','Hard','Expert'].map(d=>{const count=S.problems.filter(p=>p.difficulty===d).length;const pct=S.problems.length?Math.round(count/S.problems.length*100):0;const color=d==='Easy'?'var(--grn)':d==='Medium'?'var(--gold)':d==='Hard'?'var(--rose)':'var(--violet)';return `<div style="margin-bottom:12px"><div class="fx ic sb mb1"><span class="${diffCls(d)}">${d}</span><span style="font-size:11px;color:var(--t2)">${count}</span></div><div class="pbar"><div class="pfill" style="width:${pct}%;background:${color}"></div></div></div>`;}).join('')}
-    </div></div>
-  </div>`;
-}
-
-/* Problem Editor Modal */
-function openProblemEditor(id){
-  const target=id?S.problems.find(p=>p.id===id):null;
-  if(!canEditProblem(target)){toast('Permission denied','error');return;}
-  S.editingProblem=id
-    ?{...target,_existing:true}
-    :{id:getNextBsqCode(),code:getNextBsqCode(),title:'',difficulty:'Easy',points:100,timeLimit:null,category:'Filtering',tags:[],description:'',solution:'',testCases:[],dailyDate:null,isCustom:!isMaster(),createdBy:S.user?.userId,_existing:false};
-  el('prob-editor-title').textContent=id?'EDIT PROBLEM':'NEW PROBLEM';
-  const p=S.editingProblem;
-  el('prob-editor-body').innerHTML=`
-    <div class="g2">
-      <div class="fg"><label class="lbl">Title *</label><input class="inp" id="pe-title" value="${esc(p.title)}" placeholder="Problem title..."></div>
-      <div class="fg"><label class="lbl">Category</label><input class="inp" id="pe-cat" value="${esc(p.category)}" placeholder="Filtering, Joins..."></div>
-    </div>
-    <div class="g3">
-      <div class="fg"><label class="lbl">Difficulty</label><select class="sel" id="pe-diff">${['Easy','Medium','Hard','Expert'].map(d=>`<option${p.difficulty===d?' selected':''}>${d}</option>`).join('')}</select></div>
-      <div class="fg"><label class="lbl">Points</label><input class="inp" type="number" id="pe-pts" value="${p.points}"></div>
-      <div class="fg"><label class="lbl">Mode</label><input class="inp" value="No time limit" readonly></div>
-    </div>
-    <div class="fg"><label class="lbl">Tags (comma separated)</label><input class="inp" id="pe-tags" value="${esc(Array.isArray(p.tags)?p.tags.join(', '):(p.tags||''))}" placeholder="WHERE, JOIN, GROUP BY"></div>
-    <div class="fg"><label class="lbl">Description *</label><textarea class="ta" rows="5" id="pe-desc" placeholder="Problem statement...">${esc(p.description)}</textarea></div>
-    <div class="fg">
-      <label class="lbl">Reference Solution * (used to auto-generate test cases)</label>
-      <textarea class="ta code-ta" rows="5" id="pe-sol" placeholder="SELECT ...">${esc(p.solution)}</textarea>
-      <div class="fx ic gap3 mt2">
-        <button class="btn btn-ghost btn-sm" onclick="testProblemSol()">▶ Test Solution</button>
-        <span id="pe-sol-res" style="font-size:11px"></span>
-      </div>
-      <div id="pe-sol-table" class="hidden mt2"></div>
-    </div>
-    <div class="fg">
-      <div class="fx ic sb mb2">
-        <label class="lbl" style="margin:0">Test Cases</label>
-        <button class="btn btn-ghost btn-sm" onclick="addTestCase()">+ Add Test</button>
-      </div>
-      <div id="pe-tcs">${renderTCEditor(p.testCases)}</div>
-    </div>
-    <div class="fg">
-      <label class="lbl">Set as Daily Problem</label>
-      <input class="inp" id="pe-daily" type="date" value="${p.dailyDate||''}" style="width:180px">
-    </div>`;
-  openModal('modal-problem');
-}
-
-function renderTCEditor(tcs){
-  if(!tcs||!tcs.length)return'<div style="font-size:12px;color:var(--t3);padding:8px">No test cases. Add some or they will be auto-generated from the solution.</div>';
-  return tcs.map((tc,i)=>`
-    <div style="background:var(--bg2);border:1px solid var(--line);border-radius:5px;padding:10px 12px;margin-bottom:8px">
-      <div class="fx ic sb mb2">
-        <span style="font-size:11px;color:var(--t2);font-weight:600">Test Case ${i+1}</span>
-        <button class="btn btn-danger btn-xs" onclick="removeTC(${i})">×</button>
-      </div>
-      <div class="g2">
-        <div class="fg" style="margin-bottom:6px"><label class="lbl">Name</label><input class="inp" id="tc-name-${i}" value="${esc(tc.name)}" placeholder="e.g. Row Count"></div>
-        <div class="fg" style="margin-bottom:6px"><label class="lbl">Description</label><input class="inp" id="tc-desc-${i}" value="${esc(tc.desc)}" placeholder="What this checks..."></div>
-      </div>
-    </div>`).join('');
-}
-
-function addTestCase(){
-  if(!S.editingProblem)return;
-  S.editingProblem.testCases=[...(S.editingProblem.testCases||[]),{id:genId(),name:'',desc:'',hint:''}];
-  el('pe-tcs').innerHTML=renderTCEditor(S.editingProblem.testCases);
-}
-
-function removeTC(i){
-  if(!S.editingProblem)return;
-  S.editingProblem.testCases.splice(i,1);
-  el('pe-tcs').innerHTML=renderTCEditor(S.editingProblem.testCases);
-}
-
-function testProblemSol(){
-  const sol=(el('pe-sol')||{}).value?.trim();
-  if(!sol)return;
-  const res=runSQL(sol,DB);
-  const tr=el('pe-sol-res'),tt=el('pe-sol-table');
-  if(res.error){tr.style.color='var(--rose)';tr.textContent=res.error;hide(tt);return;}
-  tr.style.color='var(--grn)';tr.textContent=`${res.rowCount} rows`;
-  if(res.rowCount>0){
-    tt.innerHTML=`<div class="tw" style="max-height:140px;overflow-y:auto"><table class="tbl"><thead><tr>${res.columns.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${res.rows.slice(0,5).map(row=>`<tr>${row.map(cell=>`<td>${esc(String(cell??'NULL'))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-    show(tt);
-  }
-}
-
-function saveProblem(){
-  const title=(el('pe-title')||{}).value?.trim();
-  const solution=(el('pe-sol')||{}).value?.trim();
-  if(!title||!solution){toast('Title and solution are required','warn');return;}
-
-  const ref=runSQL(solution,DB);
-  const refRows=ref.rowCount;
-  const tags=((el('pe-tags')||{}).value||'').split(',').map(t=>t.trim()).filter(Boolean);
-
-  // Collect test cases from editor
-  const existingTCs=S.editingProblem.testCases||[];
-  const tcs=existingTCs.length>0?existingTCs.map((tc,i)=>({
-    ...tc,
-    name:(el(`tc-name-${i}`)||{}).value||tc.name||`Test ${i+1}`,
-    desc:(el(`tc-desc-${i}`)||{}).value||tc.desc||'',
-    validate:(r)=>{if(r.error||!r.rows)return false;return r.rowCount===refRows;}
-  })):[
-    // Auto-generate basic test cases
-    {id:genId(),name:'Row Count',desc:`Must return ${refRows} rows`,validate:(r)=>!r.error&&r.rowCount===refRows},
-    {id:genId(),name:'No SQL Error',desc:'Query must execute without errors',validate:(r)=>!r.error},
-  ];
-
-  const existingCode=normalizeBsqCode(S.editingProblem.code||S.editingProblem.id);
-  const ensuredCode=existingCode||getNextBsqCode();
-
-  const updated={
-    ...S.editingProblem,title,solution,
-    code:ensuredCode,
-    difficulty:(el('pe-diff')||{}).value||'Easy',
-    points:parseInt((el('pe-pts')||{}).value)||100,
-    timeLimit:null,
-    category:(el('pe-cat')||{}).value?.trim()||'General',
-    description:(el('pe-desc')||{}).value?.trim(),
-    tags, testCases:tcs,
-    dailyDate:(el('pe-daily')||{}).value||null,
-    isCustom:S.editingProblem.isCustom===true||!isMaster(),
-    createdBy:S.editingProblem.createdBy||S.user?.userId||S.user?.username,
-  };
-  Object.assign(updated,ensureProblemCompleteness(updated));
-  updated.testCases=injectHiddenStrongTestCases([updated])[0].testCases;
-
-  if(S.editingProblem._existing){
-    const idx=S.problems.findIndex(p=>p.id===updated.id);
-    if(idx>=0)S.problems[idx]=updated;
-  } else S.problems.push(updated);
-
-  persistProblems();
-  // Sync problem to Supabase in background - don't wait
-  syncProblemToRelational(updated).catch(err=>console.warn('Background problem sync failed:',err));
-  closeModal('modal-problem');
-  renderAdminProblems();
-  toast('Problem saved','success');
-}
-
-function deleteProblem(id){
-  const p=S.problems.find(x=>x.id===id);
-  if(!canEditProblem(p)){toast('Permission denied','error');return;}
-  if(!confirm('Delete this problem?'))return;
-  S.problems=S.problems.filter(p=>p.id!==id);
-  // Deactivate problem in Supabase in background - don't wait
-  deactivateProblemInRelational(id).catch(err=>console.warn('Background problem deactivate failed:',err));
-  persistProblems(); renderAdminProblems();
-  toast('Deleted','info');
-}
-
-/* Contest Creator */
-function openContestCreator(id){
-  if(!isMaster()){toast('Permission denied','error');return;}
-  const ex=id?S.contests.find(c=>c.id===id):null;
-  S.editingContest=ex?{...ex,_existing:true}:{id:genId(),title:'',description:'',type:'official',status:'upcoming',startTime:Date.now()+86400000,endTime:Date.now()+86400000+7200000,duration:120,problemIds:[],isPublic:true,maxParticipants:500,announcement:'',password:'',createdBy:S.user?.userId,_existing:false};
-  el('contest-editor-title').textContent=id?'EDIT CONTEST':'CREATE CONTEST';
-  const c=S.editingContest;
-  const selectableProblems=getContestSelectableProblems(c.problemIds||[]);
-  const startVal=new Date(c.startTime).toISOString().slice(0,16);
-  el('contest-editor-body').innerHTML=`
-    <div class="fg"><label class="lbl">Title *</label><input class="inp" id="ce-title" value="${esc(c.title)}" placeholder="Contest title..."></div>
-    <div class="fg"><label class="lbl">Description</label><textarea class="ta" rows="3" id="ce-desc">${esc(c.description)}</textarea></div>
-    <div class="g3">
-      <div class="fg"><label class="lbl">Duration (min)</label><input class="inp" type="number" id="ce-dur" value="${c.duration}"></div>
-      <div class="fg"><label class="lbl">Max Participants</label><input class="inp" type="number" id="ce-max" value="${c.maxParticipants}"></div>
-      <div class="fg"><label class="lbl">Type</label><select class="sel" id="ce-type"><option value="official" ${c.type==='official'?'selected':''}>Official</option><option value="custom" ${c.type==='custom'?'selected':''}>Custom</option></select></div>
-    </div>
-    <div class="fg"><label class="lbl">Start Time</label><input class="inp" type="datetime-local" id="ce-start" value="${startVal}"></div>
-    <div class="fg"><label class="lbl">Announcement / Message</label><textarea class="ta" rows="2" id="ce-ann">${esc(c.announcement||'')}</textarea></div>
-    <div class="fg">
-      <label class="lbl">Problems</label>
-      ${isAdmin()?'':'<div style="font-size:10px;color:var(--t3);margin-bottom:8px">Only admins can add custom problems to contests.</div>'}
-      <div style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;padding:8px 0">
-        ${selectableProblems.map(p=>`
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:7px 10px;border-radius:5px;background:var(--bg2);border:1px solid var(--line)">
-            <input type="checkbox" class="ce-prob-check" value="${p.id}" ${c.problemIds.includes(p.id)?'checked':''}>
-            <span style="flex:1;font-size:12px;color:var(--t1)">${esc(p.title)}</span>
-            <span class="${diffCls(p.difficulty)}">${p.difficulty}</span>
-          </label>`).join('')}
-      </div>
-    </div>
-    <div class="fg">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--t1)">
-        <input type="checkbox" id="ce-pub" ${c.isPublic?'checked':''} onchange="updateContestCreatorPrivacyUI()"> Public contest (visible to all)
-      </label>
-    </div>
-    <div class="fg" id="ce-pass-wrap">
-      <label class="lbl">Contest Password</label>
-      <input class="inp" id="ce-pass" type="password" value="${esc(c.password||'')}" placeholder="Required for private contests">
-    </div>`;
-  updateContestCreatorPrivacyUI();
-  openModal('modal-contest');
-}
-
-function updateContestCreatorPrivacyUI(){
-  const isPublic=(el('ce-pub')||{}).checked;
-  const wrap=el('ce-pass-wrap');
-  if(!wrap)return;
-  wrap.style.display=isPublic?'none':'block';
-}
-
-function saveContest(){
-  const title=(el('ce-title')||{}).value?.trim();
-  if(!title){toast('Enter a title','warn');return;}
-  const ids=[...document.querySelectorAll('.ce-prob-check:checked')].map(c=>c.value);
-  if(!ids.length){toast('Select at least one problem','warn');return;}
-  if(!isAdmin()){
-    const existing=S.editingContest;
-    const prevIds=new Set(Array.isArray(existing?.problemIds)?existing.problemIds:[]);
-    const hasUnauthorizedCustom=ids.some(pid=>{
-      const prob=S.problems.find(p=>p.id===pid);
-      return prob?.isCustom===true&&!prevIds.has(pid);
-    });
-    if(hasUnauthorizedCustom){toast('Only admin can add custom problems to contests','error');return;}
-  }
-  const dur=parseInt((el('ce-dur')||{}).value)||120;
-  const startTs=new Date((el('ce-start')||{}).value).getTime()||Date.now()+86400000;
-  const isPublic=(el('ce-pub')||{}).checked;
-  const pass=((el('ce-pass')||{}).value||'').trim();
-  if(!isPublic&&pass.length<4){toast('Private contest password must be at least 4 characters','warn');return;}
-  const updated={
-    ...S.editingContest,title,
-    description:(el('ce-desc')||{}).value?.trim()||'',
-    duration:dur,maxParticipants:parseInt((el('ce-max')||{}).value)||500,
-    type:(el('ce-type')||{}).value||'official',
-    startTime:startTs, endTime:startTs+dur*60000,
-    problemIds:ids, isPublic,
-    password:isPublic?'':pass,
-    announcement:(el('ce-ann')||{}).value?.trim()||'',
-  };
-  if(S.editingContest._existing){const i=S.contests.findIndex(c=>c.id===updated.id);if(i>=0)S.contests[i]=updated;}
-  else S.contests.push(updated);
-  LS.set('contests',S.contests.map(({announce,...r})=>r));
-  syncContestToRelational(updated).catch(err=>console.warn('Background contest sync failed:',err));
-  closeModal('modal-contest'); renderAdminContests(); renderContests();
-  toast('Contest saved','success');
-}
-
-function launchContest(id){
-  const c=S.contests.find(x=>x.id===id);
-  if(!c)return;
-  c.status='live'; c.startTime=Date.now(); c.endTime=Date.now()+c.duration*60000;
-  LS.set('contests',S.contests); renderAdminContests(); renderContests(); renderSidebar();
-  syncContestToRelational(c).catch(err=>console.warn('Background contest launch sync failed:',err));
-  toast(`${c.title} is now LIVE!`,'success');
-}
-function endContest(id){
-  const c=S.contests.find(x=>x.id===id);
-  if(!c)return;
-  c.status='ended'; c.endTime=Date.now();
-  c.isPublic=true; c.password='';
-  LS.set('contests',S.contests); renderAdminContests(); renderContests(); renderSidebar();
-  syncContestToRelational(c).catch(err=>console.warn('Background contest end sync failed:',err));
-  toast(`Contest ended`,'info');
-}
-
-function deleteOfficialContest(id){
-  if(!isMaster()){toast('Permission denied','error');return;}
-  const contest=S.contests.find(c=>c.id===id);
-  if(!contest){toast('Contest not found','error');return;}
-  if(!confirm('Delete this official contest? This cannot be undone.'))return;
-
-  S.contests=S.contests.filter(c=>c.id!==id);
-  if(S.currentContest===id)S.currentContest=null;
-  if(S.pendingContestAccess?.contestId===id)S.pendingContestAccess=null;
-  if(S.unlockedPrivateContests&&S.unlockedPrivateContests[id])delete S.unlockedPrivateContests[id];
-
-  LS.set('contests',S.contests.map(({announce,...r})=>r));
-  deleteContestFromRelational(id).catch(err=>console.warn('Background official contest delete sync failed:',err));
-
-  if(S.currentView==='contest-detail'&&S.currentContest===null)nav('contests');
-  renderAdminContests();
-  renderContests();
-  renderSidebar();
-  toast('Official contest deleted','info');
-}
-
-/* ══════════════════════════════════════════════════════════
    THEME
 ══════════════════════════════════════════════════════════ */
 function applyTheme(mode){
@@ -4173,9 +3030,6 @@ async function init(){
     else{S.contests=[...CONTESTS_DEFAULT];LS.set('contests',S.contests);}
   }
 
-  // Auto-update contest statuses and normalize access for ended contests.
-  S.contests.forEach(normalizeContestLifecycle);
-
   // Seed admin account (admin123 / 123) — always ensure it exists
   if(!LS.get('user:admin123')){
     const seededAdmin={userId:'admin-uid-001',username:'admin123',email:'admin123@besql.local',passwordHash:await hashPassword('123'),role:'admin',score:0,solved:0,joinedAt:Date.now()};
@@ -4239,8 +3093,16 @@ async function init(){
   // Render
   renderTopRight();
   renderSidebar();
-  const restoredRoute=restoreRouteState();
-  if(!restoredRoute)renderHome();
+  const entryView=getEntryViewOverride();
+  if(entryView){
+    const entryContestId=getEntryContestId();
+    if(entryView==='scoreboards'&&entryContestId)nav(entryView,{contestId:entryContestId});
+    else nav(entryView);
+  }
+  else{
+    const restoredRoute=restoreRouteState();
+    if(!restoredRoute)renderHome();
+  }
   el('btn-create-contest') && tog('btn-create-contest',isMaster());
 
   if(STORAGE_MODE!=='supabase'){
@@ -4269,6 +3131,7 @@ function rerenderCurrentViewPreserveState(){
   else if(view==='practice')renderPractice();
   else if(view==='playground')renderPlayground();
   else if(view==='submissions')renderSubmissions();
+  else if(view==='scoreboards')renderContestScoreboards();
   else if(view==='profile')renderProfile();
   else if(view==='custom')renderCustom();
   else if(view==='admin')renderAdmin();
