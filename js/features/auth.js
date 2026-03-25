@@ -240,7 +240,10 @@ function finishLogin(user){
   syncUserToRelational(user).catch(err=>console.warn('Background user sync failed:',err));
   LS.set('session',buildSessionRecord(user));
   hydrateJudgeSessionsForCurrentUser();
-  S.submissions=LS.get(`subs:${user.userId}`)||[];
+  S.submissions=typeof normalizeSubmissionList==='function'
+    ? normalizeSubmissionList(LS.get(`subs:${user.userId}`)||[])
+    : (LS.get(`subs:${user.userId}`)||[]);
+  LS.set(`subs:${user.userId}`,S.submissions);
   if(typeof recomputeCurrentUserStatsFromSubmissions==='function'){
     recomputeCurrentUserStatsFromSubmissions();
   }

@@ -178,6 +178,7 @@ function buildContestLeaderboard(contest){
     .filter(Array.isArray)
     .flat()
     .filter(s=>s&&s.contestId===contest.id)
+    .filter(s=>typeof isCountableSubmission==='function'?isCountableSubmission(s):Boolean(s&&s.isSubmitted===true&&String(s.code||'').trim()))
     .filter(s=>{
       const at=Number(s.at||0);
       if(!Number.isFinite(at)||at<=0)return false;

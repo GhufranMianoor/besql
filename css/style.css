@@ -553,8 +553,8 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
   .stat-v{font-size:18px}
   .stat-l{font-size:9px}
 
-  /* Hide right column on home */
-  .home-right-col{display:none!important}
+  /* Keep home right column visible on mobile so scoreboard/progress remain accessible */
+  .home-right-col{display:flex!important;flex-direction:column;gap:10px}
 
   /* Card headers */
   .card-hdr{padding:10px 12px}

@@ -643,7 +643,32 @@ function getEntryContestId(){
 function canCreate(){return S.user&&(S.user.role==='admin'||S.user.role==='master');}
 function isAdmin(){return S.user?.role==='admin';}
 function isMaster(){return S.user?.role==='admin'||S.user?.role==='master';}
-function getSolvedIds(){return new Set(S.submissions.filter(s=>s.verdict==='AC').map(s=>s.problemId));}
+function isCountableSubmission(sub){
+  return Boolean(sub&&sub.isSubmitted===true&&String(sub.code||'').trim());
+}
+function normalizeSubmissionRecord(sub){
+  if(!sub||typeof sub!=='object')return null;
+  const normalized={...sub};
+  if(normalized.isSubmitted!==true){
+    const verdict=String(normalized.verdict||'').toUpperCase();
+    const hasCode=String(normalized.code||'').trim().length>0;
+    const hasTests=Number(normalized.tcTotal||0)>0;
+    const looksLikeSubmitted=hasCode&&hasTests&&['AC','WA','TLE','CE'].includes(verdict);
+    normalized.isSubmitted=Boolean(looksLikeSubmitted);
+  }
+  return normalized;
+}
+function normalizeSubmissionList(list){
+  if(!Array.isArray(list))return [];
+  return list.map(normalizeSubmissionRecord).filter(Boolean);
+}
+function getSolvedIds(){
+  return new Set(
+    S.submissions
+      .filter(s=>isCountableSubmission(s)&&s.verdict==='AC')
+      .map(s=>s.problemId)
+  );
+}
 function calculateBonusFromTimeTaken(seconds){
   const t=Math.max(0,Number(seconds||0));
   if(t<60)return 50;
@@ -654,6 +679,7 @@ function calculateBonusFromTimeTaken(seconds){
 function recomputeCurrentUserStatsFromSubmissions(){
   if(!S.user?.username)return;
   const subs=(Array.isArray(S.submissions)?S.submissions:[])
+    .filter(isCountableSubmission)
     .filter(s=>String(s.userId||'')===String(S.user.userId||''))
     .sort((a,b)=>Number(a.at||0)-Number(b.at||0));
   const seenProblems=new Set();
@@ -683,13 +709,13 @@ function getContestSelectableProblems(existingProblemIds=[]){
 }
 function isSolvedInContest(problemId,contestId){
   if(!problemId||!contestId)return false;
-  return S.submissions.some(s=>s.problemId===problemId&&s.contestId===contestId&&s.verdict==='AC');
+  return S.submissions.some(s=>isCountableSubmission(s)&&s.problemId===problemId&&s.contestId===contestId&&s.verdict==='AC');
 }
 function getSolvedIdsInContest(contestId){
   if(!contestId)return new Set();
   return new Set(
     S.submissions
-      .filter(s=>s.contestId===contestId&&s.verdict==='AC')
+      .filter(s=>isCountableSubmission(s)&&s.contestId===contestId&&s.verdict==='AC')
       .map(s=>s.problemId)
   );
 }
@@ -946,6 +972,8 @@ async function fetchRelationalSubmissionsForUser(username,localUserId){
       publicPassed:Number(row.tests_passed||0),
       publicTotal:Number(row.total_tests||0),
       dbScore:Number(row.score||0),
+      isSubmitted:true,
+      submittedVia:'submit-button',
     }));
   }catch(err){
     console.warn('Relational submissions fetch exception:',err?.message||err);
@@ -955,13 +983,13 @@ async function fetchRelationalSubmissionsForUser(username,localUserId){
 
 async function hydrateSubmissionsFromRelational(user){
   if(!user?.username||!user?.userId)return;
-  const remote=await fetchRelationalSubmissionsForUser(user.username,user.userId);
+  const remote=normalizeSubmissionList(await fetchRelationalSubmissionsForUser(user.username,user.userId)).filter(isCountableSubmission);
   if(!remote.length){
     recomputeCurrentUserStatsFromSubmissions();
     return;
   }
 
-  const existing=Array.isArray(S.submissions)?S.submissions:[];
+  const existing=normalizeSubmissionList(S.submissions);
   const existingIds=new Set(existing.map(s=>String(s.id||'')));
   const existingPrints=new Set(existing.map(submissionFingerprint));
   const toAdd=remote.filter(s=>!existingIds.has(String(s.id||''))&&!existingPrints.has(submissionFingerprint(s)));
@@ -2801,6 +2829,8 @@ function judgeSubmit(){
       tcTotal:p.testCases.length,
       publicPassed:testSummary.publicPassed,
       publicTotal:testSummary.publicTotal,
+      isSubmitted:true,
+      submittedVia:'submit-button',
     };
     S.submissions.unshift(sub);
     LS.set(`subs:${S.user.userId}`,S.submissions);
@@ -3076,7 +3106,8 @@ function setPracticeFilter(f){S.practiceFilter=f;renderPractice();}
 ══════════════════════════════════════════════════════════ */
 function renderSubmissions(){
   const filter=(el('sub-filter-verdict')||{}).value||'all';
-  const subs=filter==='all'?S.submissions:S.submissions.filter(s=>s.verdict===filter);
+  const scopedSubs=S.submissions.filter(isCountableSubmission);
+  const subs=filter==='all'?scopedSubs:scopedSubs.filter(s=>s.verdict===filter);
   el('sub-list').innerHTML=subs.length?subs.map(s=>{
     const p=S.problems.find(x=>x.id===s.problemId);
     const vcolor=s.verdict==='AC'?'var(--grn)':s.verdict==='WA'?'var(--rose)':s.verdict==='TLE'?'var(--gold)':'var(--violet)';
@@ -3096,6 +3127,7 @@ function renderSubmissions(){
 function renderProfile(){
   if(!S.user){el('profile-content').innerHTML='<div class="empty" style="padding-top:80px"><div style="font-size:15px;color:var(--t2);margin-bottom:14px">Sign in to view your profile</div><button class="btn btn-primary btn-md" onclick="openAuth()">Sign In</button></div>';return;}
   const u=S.user;
+  const scopedSubs=S.submissions.filter(isCountableSubmission);
   const solved=getSolvedIds();
   const rank=buildLeaderboard().findIndex(e=>e.userId===u.userId)+1;
   el('profile-content').innerHTML=`
@@ -3108,7 +3140,7 @@ function renderProfile(){
       ${rank>0?`<div style="text-align:center"><div style="font-size:28px;font-weight:700;color:var(--gold);line-height:1;font-variant-numeric:tabular-nums">#${rank}</div><div style="font-size:10px;color:var(--t3);letter-spacing:1px">GLOBAL RANK</div></div>`:''}
     </div>
     <div class="g4 mb4">
-      ${[['SCORE',fmtN(u.score||0),'var(--gold)'],['SOLVED',u.solved||0,'var(--grn)'],['SUBMISSIONS',S.submissions.length,'var(--ind)']].map(([l,v,c])=>`<div class="stat"><div class="stat-v" style="color:${c}">${v}</div><div class="stat-l">${l}</div></div>`).join('')}
+      ${[['SCORE',fmtN(u.score||0),'var(--gold)'],['SOLVED',u.solved||0,'var(--grn)'],['SUBMISSIONS',scopedSubs.length,'var(--ind)']].map(([l,v,c])=>`<div class="stat"><div class="stat-v" style="color:${c}">${v}</div><div class="stat-l">${l}</div></div>`).join('')}
     </div>
     <div class="g2">
       <div class="card">
@@ -3124,7 +3156,7 @@ function renderProfile(){
       </div>
       <div class="card">
         <div class="card-hdr"><div class="card-title">Recent Submissions</div></div>
-        <div>${S.submissions.slice(0,8).map(s=>{
+        <div>${scopedSubs.slice(0,8).map(s=>{
           const p=S.problems.find(x=>x.id===s.problemId);
           const vc=s.verdict==='AC'?'var(--grn)':s.verdict==='WA'?'var(--rose)':s.verdict==='TLE'?'var(--gold)':'var(--violet)';
           return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)">
@@ -3243,7 +3275,8 @@ async function init(){
   const sessionUser=restoreSessionUser();
   if(sessionUser){
     S.user=sessionUser;
-    S.submissions=LS.get(`subs:${sessionUser.userId}`)||[];
+    S.submissions=normalizeSubmissionList(LS.get(`subs:${sessionUser.userId}`)||[]);
+    LS.set(`subs:${sessionUser.userId}`,S.submissions);
     recomputeCurrentUserStatsFromSubmissions();
     hydrateSubmissionsFromRelational(sessionUser).catch(err=>console.warn('Session relational submissions hydrate failed:',err));
   }
