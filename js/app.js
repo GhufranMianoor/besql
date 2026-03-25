@@ -581,6 +581,40 @@ function attachSqlHighlighting(id){
   });
   syncSqlHighlight(id);
 }
+function toggleSqlEditorComments(editorId){
+  const ta=el(editorId);
+  if(!ta)return;
+  const value=String(ta.value||'');
+  const start=Math.max(0,Number(ta.selectionStart||0));
+  const end=Math.max(start,Number(ta.selectionEnd||start));
+
+  const lineStart=value.lastIndexOf('\n',Math.max(0,start-1))+1;
+  const endAnchor=Math.max(end,start===end?start:end-1);
+  let lineEnd=value.indexOf('\n',endAnchor);
+  if(lineEnd<0)lineEnd=value.length;
+
+  const selectedBlock=value.slice(lineStart,lineEnd);
+  const lines=selectedBlock.split('\n');
+  const nonEmpty=lines.filter(line=>line.trim().length>0);
+  if(!nonEmpty.length)return;
+
+  const allCommented=nonEmpty.every(line=>/^\s*--/.test(line));
+  const updatedBlock=lines.map(line=>{
+    if(!line.trim())return line;
+    if(allCommented)return line.replace(/^(\s*)--\s?/, '$1');
+    return line.replace(/^(\s*)/, '$1-- ');
+  }).join('\n');
+
+  ta.value=`${value.slice(0,lineStart)}${updatedBlock}${value.slice(lineEnd)}`;
+
+  const delta=updatedBlock.length-selectedBlock.length;
+  ta.selectionStart=lineStart;
+  ta.selectionEnd=lineEnd+delta;
+  ta.focus();
+  ta.dispatchEvent(new Event('input',{bubbles:true}));
+}
+function commentJudgeEditor(){toggleSqlEditorComments('judge-editor');}
+function commentPracticeLabEditor(){toggleSqlEditorComments('practice-lab-editor');}
 function fmtCountdownDHMS(totalSeconds){
   const secs=Math.max(0,Math.floor(totalSeconds));
   const days=Math.floor(secs/86400);
@@ -1574,11 +1608,39 @@ function persistPracticeLab(){
   LS.set('practiceLab',S.practiceLab);
 }
 
+function stripSqlLineComments(sql){
+  const src=String(sql||'');
+  let out='';
+  let i=0;
+  let quote='';
+  while(i<src.length){
+    const ch=src[i];
+    if((ch==='\''||ch==='"')&&(!quote||quote===ch)){
+      quote=quote?'':ch;
+      out+=ch;
+      i++;
+      continue;
+    }
+    if(!quote&&ch==='-'&&src[i+1]==='-'){
+      while(i<src.length&&src[i]!=='\n')i++;
+      if(i<src.length&&src[i]==='\n'){
+        out+='\n';
+        i++;
+      }
+      continue;
+    }
+    out+=ch;
+    i++;
+  }
+  return out;
+}
+
 function splitSQLStatements(sql){
+  const source=stripSqlLineComments(sql);
   const out=[];
   let cur='';
   let quote='';
-  for(const ch of sql){
+  for(const ch of source){
     if((ch==='\''||ch==='"')&&(!quote||quote===ch))quote=quote?'' : ch;
     if(ch===';'&&!quote){if(cur.trim())out.push(cur.trim());cur='';continue;}
     cur+=ch;
@@ -1782,7 +1844,6 @@ function renderPracticeLabTasks(){
   if(!wrap)return;
   if(!S.practiceLab||!S.practiceLab.tables){wrap.innerHTML='<div class="empty">Initializing...</div>';return;}
   const done=S.practiceLabTaskDone||{};
-  const isDDL=(taskId)=>taskId.startsWith('ddl-');
   
   // Display all current tables in sandbox on first task
   function getAllTablesHtml(){
@@ -1809,9 +1870,6 @@ function renderPracticeLabTasks(){
         </div>
         ${tableHtml}
         <div style="font-size:12px;color:var(--t1);line-height:1.6;margin-bottom:6px">${esc(t.question)}</div>
-        ${isDDL(t.id)?'':'<div style="font-size:11px;color:var(--t3);margin-bottom:8px">Hint: '+esc(t.hint)+'</div>'}
-        ${isDDL(t.id)?'':`<button class="btn btn-ghost btn-xs" onclick="togglePracticeTaskAnswer('${t.id}')">Show Sample Answer</button>
-        <div class="hidden mt2" id="practice-task-answer-${t.id}" style="background:var(--bg2);border:1px solid var(--line2);border-radius:5px;padding:8px 10px;font-family:var(--mono);font-size:11px;color:var(--t1);white-space:pre-wrap">${esc(t.answer)}</div>`}
       </div>
     </div>`;
   }).join('');
@@ -2333,6 +2391,7 @@ function renderJudge(ctx){
   if(el('judge-editor-hl'))syncSqlHighlight('judge-editor');
   ed.addEventListener('keydown',e=>{
     if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();judgeRun();}
+    if((e.ctrlKey||e.metaKey)&&e.key==='/'){e.preventDefault();commentJudgeEditor();}
     if(e.key==='Tab'){e.preventDefault();const s=e.target.selectionStart;ed.value=ed.value.slice(0,s)+'  '+ed.value.slice(e.target.selectionEnd);ed.selectionStart=ed.selectionEnd=s+2;}
   });
   ed.addEventListener('input',()=>{el('judge-chars').textContent=ed.value.length;syncSqlHighlight('judge-editor');saveJudgeSessionState(S.judgeContext,{draft:ed.value});});
@@ -3089,6 +3148,16 @@ async function init(){
   S.practiceLabTaskDone=LS.get('practiceLabTaskDone')||{};
   hydrateJudgeSessionsForCurrentUser();
   attachSqlHighlighting('practice-lab-editor');
+  const practiceEditor=el('practice-lab-editor');
+  if(practiceEditor&&practiceEditor.dataset.shortcutsBound!=='1'){
+    practiceEditor.dataset.shortcutsBound='1';
+    practiceEditor.addEventListener('keydown',e=>{
+      if((e.ctrlKey||e.metaKey)&&e.key==='/'){
+        e.preventDefault();
+        commentPracticeLabEditor();
+      }
+    });
+  }
 
   // Render
   renderTopRight();
