@@ -55,18 +55,41 @@ async function fetchRelationalAuthUser(username) {
 }
 
 async function syncUserToRelational(user) {
-  if (!SB || STORAGE_MODE !== 'supabase' || !user?.username || !user?.email) {
+  if (!SB || STORAGE_MODE !== 'supabase' || !user?.username) {
     return Promise.resolve({ success: false, reason: 'Supabase not available or user data incomplete' });
   }
   try {
+    const { data: existing, error: existingErr } = await SB
+      .from('users')
+      .select('id,email,password_hash,full_name,is_active')
+      .eq('username', user.username)
+      .maybeSingle();
+    if (existingErr) {
+      console.warn('Supabase users prefetch failed:', existingErr.message || existingErr);
+      return { success: false, error: existingErr.message || existingErr };
+    }
+
     const payload = {
       username: user.username,
-      email: user.email,
-      password_hash: user.passwordHash || '',
-      full_name: user.username,
-      is_active: true,
       updated_at: new Date().toISOString(),
     };
+
+    // Only write fields we actually have, otherwise keep existing values.
+    if (user.email) payload.email = user.email;
+    else if (existing?.email) payload.email = existing.email;
+
+    if (user.passwordHash) payload.password_hash = user.passwordHash;
+    else if (existing?.password_hash) payload.password_hash = existing.password_hash;
+
+    if (user.username) payload.full_name = user.username;
+    else if (existing?.full_name) payload.full_name = existing.full_name;
+
+    payload.is_active = existing?.is_active ?? true;
+
+    if (!payload.email || !payload.password_hash) {
+      return { success: false, reason: 'Missing email or password hash for user sync' };
+    }
+
     const { data, error } = await SB.from('users').upsert(payload, { onConflict: 'username' }).select('id').maybeSingle();
     if (error) {
       console.warn('Supabase users sync failed:', error.message || error);

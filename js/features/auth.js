@@ -241,6 +241,12 @@ function finishLogin(user){
   LS.set('session',buildSessionRecord(user));
   hydrateJudgeSessionsForCurrentUser();
   S.submissions=LS.get(`subs:${user.userId}`)||[];
+  if(typeof recomputeCurrentUserStatsFromSubmissions==='function'){
+    recomputeCurrentUserStatsFromSubmissions();
+  }
+  if(typeof hydrateSubmissionsFromRelational==='function'){
+    hydrateSubmissionsFromRelational(user).catch(err=>console.warn('Background relational submissions hydrate failed:',err));
+  }
   closeModal('modal-auth');
   renderTopRight(); renderSidebar();
   nav('home'); toast(`Signed in as ${user.username}`,'success');

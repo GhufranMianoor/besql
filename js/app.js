@@ -644,6 +644,35 @@ function canCreate(){return S.user&&(S.user.role==='admin'||S.user.role==='maste
 function isAdmin(){return S.user?.role==='admin';}
 function isMaster(){return S.user?.role==='admin'||S.user?.role==='master';}
 function getSolvedIds(){return new Set(S.submissions.filter(s=>s.verdict==='AC').map(s=>s.problemId));}
+function calculateBonusFromTimeTaken(seconds){
+  const t=Math.max(0,Number(seconds||0));
+  if(t<60)return 50;
+  if(t<120)return 30;
+  if(t<300)return 10;
+  return 0;
+}
+function recomputeCurrentUserStatsFromSubmissions(){
+  if(!S.user?.username)return;
+  const subs=(Array.isArray(S.submissions)?S.submissions:[])
+    .filter(s=>String(s.userId||'')===String(S.user.userId||''))
+    .sort((a,b)=>Number(a.at||0)-Number(b.at||0));
+  const seenProblems=new Set();
+  let solved=0;
+  let score=0;
+  for(const sub of subs){
+    if(sub?.verdict!=='AC')continue;
+    const pid=String(sub.problemId||'');
+    if(!pid||seenProblems.has(pid))continue;
+    seenProblems.add(pid);
+    solved+=1;
+    const p=S.problems.find(x=>String(x.id||'')===pid);
+    const base=Number(p?.points||sub.dbScore||0);
+    score+=Math.max(0,base)+calculateBonusFromTimeTaken(sub.timeTaken);
+  }
+  S.user.solved=solved;
+  S.user.score=score;
+  LS.set(`user:${S.user.username}`,S.user);
+}
 function hasContestStarted(contest){
   return Date.now()>=Number(contest?.startTime||0);
 }
@@ -767,18 +796,41 @@ async function fetchRelationalAuthUser(username){
 }
 
 async function syncUserToRelational(user){
-  if(!SB||STORAGE_MODE!=='supabase'||!user?.username||!user?.email){
+  if(!SB||STORAGE_MODE!=='supabase'||!user?.username){
     return Promise.resolve({success:false,reason:'Supabase not available or user data incomplete'});
   }
   try{
+    const {data:existing,error:existingErr}=await SB
+      .from('users')
+      .select('id,email,password_hash,full_name,is_active')
+      .eq('username',user.username)
+      .maybeSingle();
+    if(existingErr){
+      console.warn('Supabase users prefetch failed:',existingErr.message||existingErr);
+      return {success:false,error:existingErr.message||existingErr};
+    }
+
     const payload={
       username:user.username,
-      email:user.email,
-      password_hash:user.passwordHash||'',
-      full_name:user.username,
-      is_active:true,
       updated_at:new Date().toISOString(),
     };
+
+    // Only write fields we actually have, otherwise keep existing values.
+    if(user.email)payload.email=user.email;
+    else if(existing?.email)payload.email=existing.email;
+
+    if(user.passwordHash)payload.password_hash=user.passwordHash;
+    else if(existing?.password_hash)payload.password_hash=existing.password_hash;
+
+    if(user.username)payload.full_name=user.username;
+    else if(existing?.full_name)payload.full_name=existing.full_name;
+
+    payload.is_active=existing?.is_active??true;
+
+    if(!payload.email||!payload.password_hash){
+      return {success:false,reason:'Missing email or password hash for user sync'};
+    }
+
     const {data,error}=await SB.from('users').upsert(payload,{onConflict:'username'}).select('id').maybeSingle();
     if(error){
       console.warn('Supabase users sync failed:',error.message||error);
@@ -839,6 +891,90 @@ async function syncSubmissionToRelational(sub,result,problem){
     console.warn('Supabase relational submission sync exception:',err?.message||err);
     return {success:false,error:err?.message||err};
   }
+}
+
+function mapRelationalVerdictToLocal(verdict){
+  const v=String(verdict||'').trim().toLowerCase();
+  if(v==='accepted')return 'AC';
+  if(v==='wrong_answer')return 'WA';
+  if(v==='time_limit')return 'TLE';
+  if(v==='error')return 'CE';
+  return String(verdict||'WA').toUpperCase();
+}
+
+function mapRelationalProblemIdToLocal(problemId){
+  const raw=String(problemId||'').trim();
+  if(!raw)return raw;
+  const direct=S.problems.find(p=>String(p.id)===raw);
+  if(direct)return direct.id;
+  const byCode=S.problems.find(p=>String(p.code||'').toLowerCase()===raw.toLowerCase());
+  if(byCode)return byCode.id;
+  return raw;
+}
+
+function submissionFingerprint(sub){
+  return [
+    String(sub.problemId||''),
+    String(sub.verdict||''),
+    String(Number(sub.at||0)),
+    String(sub.code||'').slice(0,80),
+  ].join('|');
+}
+
+async function fetchRelationalSubmissionsForUser(username,localUserId){
+  if(!SB||STORAGE_MODE!=='supabase'||!username)return [];
+  try{
+    const uid=await getRelationalUserId(username);
+    if(!uid)return [];
+    const {data,error}=await SB
+      .from('submissions')
+      .select('id,problem_id,contest_id,submitted_code,verdict,runtime_ms,tests_passed,total_tests,score,submitted_at,judged_at')
+      .eq('user_id',uid)
+      .order('submitted_at',{ascending:false});
+    if(error||!Array.isArray(data))return [];
+    return data.map(row=>({
+      id:`db-sub-${row.id}`,
+      userId:localUserId||`db-${uid}`,
+      problemId:mapRelationalProblemIdToLocal(row.problem_id),
+      contestId:row.contest_id==null?null:String(row.contest_id),
+      code:row.submitted_code||'',
+      verdict:mapRelationalVerdictToLocal(row.verdict),
+      timeTaken:Math.max(0,Number(row.runtime_ms||0))/1000,
+      at:new Date(row.submitted_at||row.judged_at||Date.now()).getTime(),
+      tcPassed:Number(row.tests_passed||0),
+      tcTotal:Number(row.total_tests||0),
+      publicPassed:Number(row.tests_passed||0),
+      publicTotal:Number(row.total_tests||0),
+      dbScore:Number(row.score||0),
+    }));
+  }catch(err){
+    console.warn('Relational submissions fetch exception:',err?.message||err);
+    return [];
+  }
+}
+
+async function hydrateSubmissionsFromRelational(user){
+  if(!user?.username||!user?.userId)return;
+  const remote=await fetchRelationalSubmissionsForUser(user.username,user.userId);
+  if(!remote.length){
+    recomputeCurrentUserStatsFromSubmissions();
+    return;
+  }
+
+  const existing=Array.isArray(S.submissions)?S.submissions:[];
+  const existingIds=new Set(existing.map(s=>String(s.id||'')));
+  const existingPrints=new Set(existing.map(submissionFingerprint));
+  const toAdd=remote.filter(s=>!existingIds.has(String(s.id||''))&&!existingPrints.has(submissionFingerprint(s)));
+  if(!toAdd.length){
+    recomputeCurrentUserStatsFromSubmissions();
+    return;
+  }
+
+  const merged=[...existing,...toAdd].sort((a,b)=>Number(b.at||0)-Number(a.at||0));
+  S.submissions=merged;
+  LS.set(`subs:${user.userId}`,merged);
+  recomputeCurrentUserStatsFromSubmissions();
+  rerenderCurrentViewPreserveState();
 }
 
 function serializeProblemTestCases(testCases){
@@ -2251,6 +2387,17 @@ function getUserRank(){
 }
 
 function buildLeaderboard(){
+  const canViewAll=Boolean(S.user&&isMaster&&isMaster());
+  if(!canViewAll){
+    if(!S.user?.userId)return [];
+    return [{
+      userId:S.user.userId,
+      username:S.user.username,
+      score:S.user.score||0,
+      solved:S.user.solved||0,
+      role:S.user.role,
+    }];
+  }
   const userKeys=LS.keys('user:');
   const users=userKeys.map(k=>LS.get(k)).filter(u=>u&&u.userId);
   return users.map(u=>({userId:u.userId,username:u.username,score:u.score||0,solved:u.solved||0,role:u.role})).sort((a,b)=>b.score-a.score);
@@ -3108,6 +3255,8 @@ async function init(){
   if(sessionUser){
     S.user=sessionUser;
     S.submissions=LS.get(`subs:${sessionUser.userId}`)||[];
+    recomputeCurrentUserStatsFromSubmissions();
+    hydrateSubmissionsFromRelational(sessionUser).catch(err=>console.warn('Session relational submissions hydrate failed:',err));
   }
 
   // Load custom contests from local fallback only when relational is unavailable/empty.
