@@ -167,8 +167,6 @@ function openContestProblem(contestId,problemId){
 }
 
 function buildContestLeaderboard(contest){
-  const canViewAll=Boolean(S.user&&typeof isMaster==='function'&&isMaster());
-  const currentUserId=S.user?.userId;
   const userById=new Map();
   LS.keys('user:').forEach(k=>{
     const u=LS.get(k);
@@ -180,7 +178,6 @@ function buildContestLeaderboard(contest){
     .filter(Array.isArray)
     .flat()
     .filter(s=>s&&s.contestId===contest.id)
-    .filter(s=>canViewAll||String(s.userId||'')===String(currentUserId||''))
     .filter(s=>{
       const at=Number(s.at||0);
       if(!Number.isFinite(at)||at<=0)return false;

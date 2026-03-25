@@ -2387,17 +2387,6 @@ function getUserRank(){
 }
 
 function buildLeaderboard(){
-  const canViewAll=Boolean(S.user&&isMaster&&isMaster());
-  if(!canViewAll){
-    if(!S.user?.userId)return [];
-    return [{
-      userId:S.user.userId,
-      username:S.user.username,
-      score:S.user.score||0,
-      solved:S.user.solved||0,
-      role:S.user.role,
-    }];
-  }
   const userKeys=LS.keys('user:');
   const users=userKeys.map(k=>LS.get(k)).filter(u=>u&&u.userId);
   return users.map(u=>({userId:u.userId,username:u.username,score:u.score||0,solved:u.solved||0,role:u.role})).sort((a,b)=>b.score-a.score);
