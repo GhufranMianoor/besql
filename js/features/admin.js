@@ -186,7 +186,7 @@ function openProblemEditor(id){
   if(!canEditProblem(target)){toast('Permission denied','error');return;}
   S.editingProblem=id
     ?{...target,_existing:true}
-    :{id:getNextBsqCode(),code:getNextBsqCode(),title:'',difficulty:'Easy',points:100,timeLimit:null,category:'Filtering',tags:[],description:'',solution:'',sampleOutput:null,schemaHint:null,testCases:[],dailyDate:null,isCustom:!isMaster(),createdBy:S.user?.userId,_existing:false};
+    :{id:getNextBsqCode(),code:getNextBsqCode(),title:'',difficulty:'Easy',points:100,timeLimit:null,category:'Filtering',tags:[],description:'',solution:'',sampleOutput:null,schemaHint:null,testCases:[],dailyDate:null,sourceUrl:'',sourceImportedAt:null,isCustom:!isMaster(),createdBy:S.user?.userId,_existing:false};
   el('prob-editor-title').textContent=id?'EDIT PROBLEM':'NEW PROBLEM';
   const p=S.editingProblem;
   const problemCode=normalizeBsqCode(p.code||p.id)||getNextBsqCode();
@@ -194,6 +194,7 @@ function openProblemEditor(id){
   const involvedTables=peFormatInvolvedTables(p.schemaHint);
   const sampleColumns=peFormatSampleColumns(p.sampleOutput);
   const sampleRows=peFormatSampleRows(p.sampleOutput);
+  const sourceUrl=String(p.sourceUrl||'');
   el('prob-editor-body').innerHTML=`
     <div class="pe-grid">
       <div>
@@ -357,6 +358,7 @@ function peRefreshEditorState(){
   const sol=((el('pe-sol')||{}).value||'').trim();
   const tables=((el('pe-tables')||{}).value||'').split(',').map(t=>t.trim()).filter(Boolean);
   const sample=peParseSampleOutput((el('pe-sample-cols')||{}).value||'',(el('pe-sample-rows')||{}).value||'');
+
   const descWords=desc?desc.split(/\s+/).filter(Boolean).length:0;
   const solLines=sol?sol.split('\n').filter(l=>l.trim()).length:0;
 
@@ -380,7 +382,8 @@ function peRefreshEditorState(){
     {ok:/\bselect\b/i.test(sol)&&/\bfrom\b/i.test(sol),label:'Reference SQL appears valid'},
     {ok:(S.editingProblem?.testCases||[]).length>=2,label:'At least two test cases configured'},
     {ok:tables.length>0,label:'Involved tables listed'},
-    {ok:Boolean(sample&&sample.columns?.length),label:'Sample output provided'}
+    {ok:Boolean(sample&&sample.columns?.length),label:'Sample output provided'},
+    {ok:!sourceUrl||/^https?:\/\//i.test(sourceUrl),label:'Source URL format is valid'}
   ];
   if(el('pe-quality')){
     el('pe-quality').innerHTML=checks.map(c=>`<div style="font-size:11px;line-height:1.6;color:${c.ok?'var(--grn)':'var(--t3)'}">${c.ok?'OK':'TODO'} - ${c.label}</div>`).join('');
@@ -405,6 +408,7 @@ function peRefreshEditorState(){
             <span>${esc(previewCategory)}</span>
             <span>${tcCount} tests</span>
             <span>${tables.length} tables</span>
+            ${sourceUrl?`<span style="color:var(--ind)">Imported</span>`:''}
             ${dailyDate?`<span style="color:var(--grn)">Daily ${esc(dailyDate)}</span>`:''}
           </div>
           <div>${previewSnippet}</div>
@@ -526,6 +530,8 @@ function saveProblem(){
     description:(el('pe-desc')||{}).value?.trim(),
     schemaHint,
     sampleOutput,
+    sourceUrl:sourceUrl||'',
+    sourceImportedAt:S.editingProblem.sourceImportedAt||null,
     tags, testCases:tcs,
     dailyDate:(el('pe-daily')||{}).value||null,
     isCustom:S.editingProblem.isCustom===true||!isMaster(),
