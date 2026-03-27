@@ -1501,6 +1501,7 @@ function ensureProblemDescription(problem){
   const base=makeStoryDescription(problem);
   const sql=String(problem?.solution||'');
   const textScope=`${String(problem?.title||'')} ${base}`.toLowerCase();
+  const baseLower=base.toLowerCase();
   const needsReturn=!/\breturn\b|\bcolumns?\b/i.test(base);
   const needsOrder=/\bORDER\s+BY\b/i.test(sql)&&!/\border\b/i.test(base);
   const needsTable=Boolean(problem?.schemaHint?.table)&&!/(\btable\b|\btables\b|\bfrom\b|\bdataset\b|\bjoin\b)/i.test(base);
@@ -1512,24 +1513,36 @@ function ensureProblemDescription(problem){
 
   const extra=[];
   const cols=Array.isArray(problem?.sampleOutput?.columns)?problem.sampleOutput.columns:[];
+  const hasLine=(text)=>baseLower.includes(String(text).toLowerCase());
   if(needsTaskLine){
-    extra.push('Requirement: write one SELECT query for this task.');
+    const line='Requirement: write one SELECT query for this task.';
+    if(!hasLine(line))extra.push(line);
   }
   if(needsReturn&&cols.length){
-    extra.push(`Return columns: ${cols.join(', ')}.`);
+    const line=`Return columns: ${cols.join(', ')}.`;
+    if(!hasLine(line))extra.push(line);
   }
   if(needsOrder){
     const orderClause=sql.match(/\bORDER\s+BY\s+(.+?)(?:\s+LIMIT|$)/i)?.[1]?.trim();
-    if(orderClause)extra.push(`Order by: ${orderClause}.`);
-    else extra.push('Apply the required ordering in the final output.');
+    if(orderClause){
+      const line=`Order by: ${orderClause}.`;
+      if(!hasLine(line))extra.push(line);
+    }
+    else {
+      const line='Apply the required ordering in the final output.';
+      if(!hasLine(line))extra.push(line);
+    }
   }
   if(needsTable&&problem.schemaHint?.table){
-    extra.push(`Use table(s): ${String(problem.schemaHint.table).replace(/\s*·\s*/g,', ')}.`);
+    const line=`Use table(s): ${String(problem.schemaHint.table).replace(/\s*·\s*/g,', ')}.`;
+    if(!hasLine(line))extra.push(line);
   }
   if(isGapOrSimilarityPrompt){
-    extra.push('Clarification: apply the exact matching/threshold rules in the prompt and return only qualifying records.');
+    const clarification='Clarification: apply the exact matching/threshold rules in the prompt and return only qualifying records.';
+    if(!hasLine(clarification))extra.push(clarification);
     if(cols.length){
-      extra.push(`Output schema: ${cols.join(', ')}.`);
+      const line=`Output schema: ${cols.join(', ')}.`;
+      if(!hasLine(line))extra.push(line);
     }
   }
 

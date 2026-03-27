@@ -530,8 +530,6 @@ function saveProblem(){
     description:(el('pe-desc')||{}).value?.trim(),
     schemaHint,
     sampleOutput,
-    sourceUrl:sourceUrl||'',
-    sourceImportedAt:S.editingProblem.sourceImportedAt||null,
     tags, testCases:tcs,
     dailyDate:(el('pe-daily')||{}).value||null,
     isCustom:S.editingProblem.isCustom===true||!isMaster(),
