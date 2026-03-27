@@ -268,6 +268,12 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
 .mclose{background:none;border:none;cursor:pointer;color:var(--t3);font-size:20px;line-height:1;padding:2px 5px;border-radius:3px;transition:all .1s}
 .mclose:hover{color:var(--t0);background:var(--bg3)}
 
+/* Problem editor enhancements */
+.pe-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(240px,.9fr);gap:14px}
+.pe-block{background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:12px 12px 10px;margin-bottom:12px}
+.pe-block-hdr{display:flex;align-items:center;justify-content:space-between;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t2);font-weight:700;margin-bottom:10px}
+.pe-code{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:3px;background:var(--bg4);color:var(--grn);border:1px solid var(--line2)}
+
 /* ── PROGRESS ── */
 .pbar{height:3px;background:var(--bg4);border-radius:2px;overflow:hidden}
 .pfill{height:100%;border-radius:2px;transition:width .5s ease}
@@ -333,6 +339,10 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
 .judge-topbar{padding:10px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;background:var(--bg1);flex-shrink:0}
 .judge-prob-wrap{padding:20px 20px 28px;overflow-y:auto;flex:1;min-height:0}
 .judge-editor-wrap{flex:1;display:flex;flex-direction:column;padding:14px 18px;gap:10px;overflow-y:auto}
+.judge-editor-wrap .btn{min-height:auto;min-width:auto}
+.judge-editor-wrap .btn-md{padding:5px 16px}
+.judge-editor-wrap .btn-sm{padding:4px 12px}
+#btn-judge-run,#btn-judge-submit{padding-top:7px!important;padding-bottom:7px!important}
 
 /* Problem description sections */
 .prob-section{margin-top:20px;margin-bottom:4px}
@@ -469,6 +479,7 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
   .g4{grid-template-columns:1fr 1fr!important}
   .g3{grid-template-columns:repeat(2,1fr)!important}
   .g2{grid-template-columns:1fr!important}
+  .pe-grid{grid-template-columns:1fr!important}
 
   /* Practice grid: single col */
   .practice-grid{grid-template-columns:1fr!important}
@@ -572,7 +583,7 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
   .judge-editor-wrap{padding:6px 8px!important;gap:6px!important}
   .code-ta{min-height:80px!important;font-size:12px!important;line-height:1.5!important;padding:8px!important}
   #btn-judge-run,#btn-judge-submit,#btn-judge-prev,#btn-judge-next{
-    font-size:11px!important;padding:6px 9px!important;min-height:auto!important;
+    font-size:11px!important;padding:7px 10px!important;min-height:auto!important;
   }
   .judge-editor-hint{display:none!important}
   #judge-feedback,#judge-result{font-size:11px}

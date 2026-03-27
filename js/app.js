@@ -1544,7 +1544,7 @@ function ensureProblemCompleteness(problem){
   const ref=(out.solution&&typeof runSQL==='function')?runSQL(out.solution,DB):null;
   const refOk=Boolean(ref&&!ref.error&&Array.isArray(ref.columns)&&Array.isArray(ref.rows));
 
-  if(refOk){
+  if(refOk&&(!out.sampleOutput||!Array.isArray(out.sampleOutput.columns)||!out.sampleOutput.columns.length)){
     out.sampleOutput={
       columns:[...ref.columns],
       rows:ref.rows.slice(0,Math.min(5,ref.rows.length)).map(row=>row.map(cell=>cell==null?'NULL':String(cell))),
@@ -2551,14 +2551,15 @@ function renderJudge(ctx){
   edOld.parentNode.replaceChild(edNew,edOld);
   const ed=edNew;
   ed.value=(sessionState&&typeof sessionState.draft==='string')?sessionState.draft:(prevSub?.code||'');
-  el('judge-chars').textContent=`${ed.value.length}`;
+  const judgeCharsEl=el('judge-chars');
+  if(judgeCharsEl)judgeCharsEl.textContent=`${ed.value.length}`;
   if(el('judge-editor-hl'))syncSqlHighlight('judge-editor');
   ed.addEventListener('keydown',e=>{
     if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();judgeRun();}
     if((e.ctrlKey||e.metaKey)&&e.key==='/'){e.preventDefault();commentJudgeEditor();}
     if(e.key==='Tab'){e.preventDefault();const s=e.target.selectionStart;ed.value=ed.value.slice(0,s)+'  '+ed.value.slice(e.target.selectionEnd);ed.selectionStart=ed.selectionEnd=s+2;}
   });
-  ed.addEventListener('input',()=>{el('judge-chars').textContent=ed.value.length;syncSqlHighlight('judge-editor');saveJudgeSessionState(S.judgeContext,{draft:ed.value});});
+  ed.addEventListener('input',()=>{if(judgeCharsEl)judgeCharsEl.textContent=ed.value.length;syncSqlHighlight('judge-editor');saveJudgeSessionState(S.judgeContext,{draft:ed.value});});
   ed.addEventListener('scroll',()=>syncSqlHighlight('judge-editor'));
   attachSqlHighlighting('judge-editor');
 
@@ -2570,7 +2571,9 @@ function renderJudge(ctx){
 }
 
 function judgeEditorClear(){
-  el('judge-editor').value='';el('judge-chars').textContent='0';
+  el('judge-editor').value='';
+  const judgeCharsEl=el('judge-chars');
+  if(judgeCharsEl)judgeCharsEl.textContent='0';
   syncSqlHighlight('judge-editor');
   saveJudgeSessionState(S.judgeContext,{draft:''});
   clearJudgeState();
