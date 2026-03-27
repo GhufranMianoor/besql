@@ -288,7 +288,7 @@ const PROBLEMS_DEFAULT = [
   {
     id:'p6',code:'BSQ-006',title:'Revenue by Customer',difficulty:'Medium',points:250,timeLimit:null,
     category:'Aggregation',tags:['GROUP BY','SUM','WHERE'],
-    description:'Calculate the total revenue for each customer, counting only delivered orders.\n\nReturn: customer, total_revenue.\nOrder by total_revenue descending.',
+    description:'Calculate total revenue for each customer (delivered orders only).\nReturn: customer, total_revenue ordered by total_revenue DESC.',
     sampleOutput:{columns:['customer','total_revenue'],rows:[['GlobalCo','46600'],['MegaRetail','19800'],['TechCorp','18200'],['StartupXYZ','9900']]},
     schemaHint:{table:'orders',columns:[['id','INT'],['customer','VARCHAR'],['product_id','INT'],['amount','INT'],['status','VARCHAR'],['month','VARCHAR']]},
     testCases:[
@@ -305,7 +305,7 @@ const PROBLEMS_DEFAULT = [
   {
     id:'p7',code:'BSQ-007',title:'Product Order Report',difficulty:'Hard',points:350,timeLimit:null,
     category:'Joins',tags:['JOIN','GROUP BY','SUM'],
-    description:'Join the orders and products tables.\n\nFor each product, return its name (as product), the number of orders placed (as order_count), and the total revenue generated (as total_revenue).\nOrder by total_revenue descending.',
+    description:'For each product: return name (as product), order count, and total revenue generated.\nOrder by total_revenue DESC.',
     sampleOutput:{columns:['product','order_count','total_revenue'],rows:[['Enterprise Suite','5','65800'],['Analytics Pro','3','38000'],['Consulting Pack','2','6300']]},
     schemaHint:{table:'orders  ·  products',columns:[['orders.id','INT'],['orders.customer','VARCHAR'],['orders.product_id','INT'],['orders.amount','INT'],['orders.status','VARCHAR'],['products.id','INT'],['products.name','VARCHAR'],['products.category','VARCHAR'],['products.price','INT']]},
     testCases:[
@@ -322,7 +322,7 @@ const PROBLEMS_DEFAULT = [
   {
     id:'p8',code:'BSQ-008',title:'Student GPA Report',difficulty:'Hard',points:300,timeLimit:null,
     category:'Joins',tags:['JOIN','AVG','GROUP BY'],
-    description:'Join the students and courses tables.\n\nFor each course, return the course name (as course_name), the number of enrolled students (as enrolled), and the average GPA (as avg_gpa).\nOrder by avg_gpa descending.',
+    description:'For each course: return course name (as course_name), enrolled student count, and average GPA.\nOrder by avg_gpa DESC.',
     sampleOutput:{columns:['course_name','enrolled','avg_gpa'],rows:[['Machine Learning','2','3.75'],['Data Structures','2','3.35'],['Database Systems','2','3.35']]},
     schemaHint:{table:'students  ·  courses',columns:[['students.id','INT'],['students.name','VARCHAR'],['students.grade','INT'],['students.course_id','INT'],['students.year','INT'],['students.gpa','FLOAT'],['courses.id','INT'],['courses.name','VARCHAR'],['courses.credits','INT'],['courses.instructor','VARCHAR']]},
     testCases:[
@@ -337,7 +337,7 @@ const PROBLEMS_DEFAULT = [
   {
     id:'p9',code:'BSQ-009',title:'Danger Zone Citizens',difficulty:'Easy',points:180,timeLimit:null,
     category:'Filtering',tags:['WHERE','ORDER BY'],
-    description:'Find citizens in danger zones with stability rating below 2.0.\n\nReturn: citizen_name, sector, stability_rating. Order by stability_rating ascending.',
+    description:'Find citizens with stability rating below 2.0.\nReturn: citizen_name, sector, stability_rating ordered by stability_rating ASC.',
     sampleOutput:{columns:['citizen_name','sector','stability_rating'],rows:[['Ryn','Delta','0.8'],['Nova','Beta','1.5'],['Marcus','Beta','1.9']]},
     schemaHint:{table:'citizenmentalhealth',columns:[['citizen_id','INT'],['citizen_name','VARCHAR'],['sector','VARCHAR'],['stability_rating','FLOAT'],['last_checkup','DATE']]},
     testCases:[
@@ -351,7 +351,7 @@ const PROBLEMS_DEFAULT = [
   {
     id:'p10',code:'BSQ-010',title:'Double Agents',difficulty:'Medium',points:220,timeLimit:null,
     category:'Filtering',tags:['WHERE','ORDER BY'],
-    description:'List Alpha clearance operatives tied to more than one organization.\n\nReturn: operative_name, organizations_count. Order by organizations_count descending.',
+    description:'List Alpha clearance operatives with multiple organizations (count > 1).\nReturn: operative_name, organizations_count ordered by count DESC.',
     sampleOutput:{columns:['operative_name','organizations_count'],rows:[['Zara','3'],['Ryn','2']]},
     schemaHint:{table:'operativeprofiles',columns:[['operative_id','INT'],['operative_name','VARCHAR'],['clearance_level','VARCHAR'],['organizations_count','INT'],['recruitment_date','DATE']]},
     testCases:[
@@ -365,7 +365,7 @@ const PROBLEMS_DEFAULT = [
   {
     id:'p11',code:'BSQ-011',title:'Duplicate Records',difficulty:'Medium',points:240,timeLimit:null,
     category:'Aggregation',tags:['GROUP BY','HAVING','COUNT'],
-    description:'Find duplicate agent/division entries.\n\nReturn: agent_name, division_name, duplicate_count for groups appearing more than once.',
+    description:'Find duplicate agent/division entries.\nReturn: agent_name, division_name, duplicate_count (count > 1) ordered DESC.',
     sampleOutput:{columns:['agent_name','division_name','duplicate_count'],rows:[['Nova','Field','3'],['Zara','Recon','2']]},
     schemaHint:{table:'agentrecords',columns:[['record_id','INT'],['agent_name','VARCHAR'],['division_name','VARCHAR'],['entry_date','DATE']]},
     testCases:[
@@ -421,7 +421,7 @@ const PROBLEMS_DEFAULT = [
   {
     id:'p15',code:'BSQ-015',title:'Leaderless Divisions',difficulty:'Medium',points:260,timeLimit:null,
     category:'Joins',tags:['LEFT JOIN','NULL','OR'],
-    description:'Find divisions with missing or invalid chiefs.\n\nA division is leaderless if chief_id is NULL or chief_id does not exist in divisionagents.',
+    description:'Find divisions with missing or invalid chiefs (NULL or non-existent in divisionagents).\nReturn: division_name ordered alphabetically.',
     sampleOutput:{columns:['division_name'],rows:[['Intel'],['Tech']]},
     schemaHint:{table:'divisions  ·  divisionagents',columns:[['division_id','INT'],['division_name','VARCHAR'],['chief_id','INT'],['agent_id','INT']]},
     testCases:[
@@ -449,7 +449,7 @@ const PROBLEMS_DEFAULT = [
   {
     id:'p17',code:'BSQ-017',title:'Credit Multiplier',difficulty:'Easy',points:190,timeLimit:null,
     category:'Computed Columns',tags:['SELECT','ORDER BY'],
-    description:'Compute multiplied credit value for each transaction.\n\nReturn: sender_name, receiver_name, effective_credits where effective_credits = base_value * multiplier, ordered descending.',
+    description:'For each transaction, compute effective credits (base_value * multiplier).\nReturn: sender_name, receiver_name, effective_credits ordered DESC.',
     sampleOutput:{columns:['sender_name','receiver_name','effective_credits'],rows:[['Ryn','Zara','900'],['Echo','Ryn','800'],['Vex','Nova','300']]},
     schemaHint:{table:'credittransactions',columns:[['transaction_id','INT'],['sender_name','VARCHAR'],['receiver_name','VARCHAR'],['base_value','INT'],['multiplier','INT']]},
     testCases:[

@@ -2,7 +2,7 @@ const PROBLEMS_DEFAULT = [
   {
     id:'p1',code:'BSQ-001',title:'High Salary Filter',difficulty:'Easy',points:100,timeLimit:300,
     category:'Filtering',tags:['WHERE','ORDER BY'],
-    description:'Find all employees with a salary greater than $85,000.\n\nReturn the columns: name, salary, level.\nOrder results by salary in descending order.',
+    description:'Find employees with salary > $85,000.\nReturn: name, salary, level ordered by salary DESC.',
     sampleOutput:{columns:['name','salary','level'],rows:[['Henry Zhao','115000','Staff'],['Carol White','110000','Staff'],['Frank Kim','105000','Senior']]},
     schemaHint:{table:'employees',columns:[['id','INT'],['name','VARCHAR'],['dept_id','INT'],['salary','INT'],['hire_year','INT'],['age','INT'],['level','VARCHAR']]},
     testCases:[
@@ -23,7 +23,7 @@ const PROBLEMS_DEFAULT = [
   {
     id:'p2',code:'BSQ-002',title:'Department Employee Count',difficulty:'Easy',points:150,timeLimit:300,
     category:'Aggregation',tags:['GROUP BY','COUNT'],
-    description:'Count the number of employees in each department.\n\nReturn the columns: dept_id, total_employees.\nOrder results by total_employees in descending order.',
+    description:'Count employees per department.\nReturn: dept_id, total_employees ordered by total_employees DESC.',
     sampleOutput:{columns:['dept_id','total_employees'],rows:[['1','3'],['2','3'],['3','2'],['4','2']]},
     schemaHint:{table:'employees',columns:[['id','INT'],['name','VARCHAR'],['dept_id','INT'],['salary','INT']]},
     testCases:[
