@@ -67,6 +67,7 @@ function contestCardHTML(c){
 
 function renderContestDetail(contestId){
   const cid=contestId||S.currentContest;
+  if(S.currentContest&&S.currentContest!==cid)S.contestProblemSearch='';
   S.currentContest=cid;
   const c=getContestById(cid);
   if(!c){nav('contests');return;}
@@ -138,7 +139,8 @@ function renderCDProblems(c,probs){
     return;
   }
   const solved=getSolvedIdsInContest(c.id);
-  el('cd-problems').innerHTML=`<div class="card">${probs.length?probs.map((p,i)=>`
+  const filtered=probs.filter(p=>problemMatchesQuery(p,S.contestProblemSearch));
+  el('cd-problems').innerHTML=`<div class="card"><div style="padding:10px;border-bottom:1px solid var(--line)"><input id="contest-problem-search-input" class="inp search-inp" value="${esc(S.contestProblemSearch||'')}" placeholder="Search contest problems by code, title, tag..." oninput="setContestProblemSearch(this.value,'${c.id}')"></div>${filtered.length?filtered.map((p,i)=>`
     <div class="prob-row ${solved.has(p.id)?'solved':''}" onclick="${solved.has(p.id)?"toast('Already solved in this contest. Reattempt is disabled.','info')":`openContestProblem('${c.id}','${p.id}')`}">
       <div class="prob-num">${String.fromCharCode(65+i)}</div>
       <div style="flex:1;min-width:0">
@@ -151,7 +153,15 @@ function renderCDProblems(c,probs){
         ${solved.has(p.id)?'<span style="color:var(--grn);font-weight:700;font-size:12px;margin-left:2px">AC</span>':''}
         ${c.status!=='ended'?(solved.has(p.id)?'<button class="btn btn-ghost btn-xs" disabled>Solved</button>':`<button class="btn btn-blue btn-xs" onclick="event.stopPropagation();openContestProblem('${c.id}','${p.id}')">Solve</button>`):`<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openContestProblem('${c.id}','${p.id}')">Practice</button>`}
       </div>
-    </div>`).join(''):'<div class="empty"><div class="empty-ico" style="font-size:14px;color:var(--t3)">—</div></div>'}</div>`;
+    </div>`).join(''):'<div class="empty"><div class="empty-ico" style="font-size:14px;color:var(--t3)">—</div><div style="font-size:12px;color:var(--t3)">No contest problems match your search</div></div>'}</div>`;
+}
+
+function setContestProblemSearch(query,contestId){
+  const value=String(query||'');
+  const pos=((document.activeElement||{}).selectionStart);
+  S.contestProblemSearch=value;
+  renderContestDetail(contestId||S.currentContest);
+  preserveInputFocusAfterRender('contest-problem-search-input',value,Number.isFinite(pos)?pos:value.length);
 }
 
 function openContestProblem(contestId,problemId){

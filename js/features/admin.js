@@ -23,10 +23,12 @@ function renderAdminTab(tab){
 
 function renderAdminProblems(){
   const c=el('admin-tab-problems');
-  c.innerHTML=`<div class="fx ic sb mb3"><div style="font-size:14px;font-weight:600;color:var(--t0)">Problem Bank (${S.problems.length})</div><button class="btn btn-blue btn-sm" onclick="openProblemEditor()">+ New Problem</button></div>
+  const filteredProblems=S.problems.filter(p=>problemMatchesQuery(p,S.adminProblemSearch));
+  c.innerHTML=`<div class="fx ic sb mb3"><div style="font-size:14px;font-weight:600;color:var(--t0)">Problem Bank (${filteredProblems.length}/${S.problems.length})</div><button class="btn btn-blue btn-sm" onclick="openProblemEditor()">+ New Problem</button></div>
+    <div class="mb3"><input id="admin-problem-search-input" class="inp search-inp" value="${esc(S.adminProblemSearch||'')}" placeholder="Search by code, title, tags, category, difficulty..." oninput="setAdminProblemSearch(this.value)"></div>
     <div class="card"><div class="tw"><table class="tbl">
       <thead><tr><th>Title</th><th>Difficulty</th><th>Points</th><th>Tests</th><th>Category</th><th>Daily</th><th>Actions</th></tr></thead>
-      <tbody>${S.problems.map(p=>`
+      <tbody>${filteredProblems.map(p=>`
         <tr>
           <td style="font-weight:600;color:var(--t0)">${esc(p.title)}</td>
           <td><span class="${diffCls(p.difficulty)}">${p.difficulty}</span></td>
@@ -40,6 +42,14 @@ function renderAdminProblems(){
           </div></td>
         </tr>`).join('')}
       </tbody></table></div></div>`;
+}
+
+function setAdminProblemSearch(q){
+  const value=String(q||'');
+  const pos=((document.activeElement||{}).selectionStart);
+  S.adminProblemSearch=value;
+  renderAdminProblems();
+  preserveInputFocusAfterRender('admin-problem-search-input',value,Number.isFinite(pos)?pos:value.length);
 }
 
 function renderAdminContests(){
@@ -581,9 +591,10 @@ function openContestCreator(id){
     <div class="fg">
       <label class="lbl">Problems</label>
       ${isAdmin()?'':'<div style="font-size:10px;color:var(--t3);margin-bottom:8px">Only admins can add custom problems to contests.</div>'}
+      <input class="inp search-inp" id="ce-prob-search" value="${esc(S.contestCreatorSearch||'')}" placeholder="Search problems by code, title, tag, category..." oninput="filterContestCreatorProblems(this.value)" style="margin-bottom:8px">
       <div style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;padding:8px 0">
         ${selectableProblems.map(p=>`
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:7px 10px;border-radius:5px;background:var(--bg2);border:1px solid var(--line)">
+          <label class="ce-prob-option" data-prob-search="${esc(buildProblemSearchText(p))}" style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:7px 10px;border-radius:5px;background:var(--bg2);border:1px solid var(--line)">
             <input type="checkbox" class="ce-prob-check" value="${p.id}" ${c.problemIds.includes(p.id)?'checked':''}>
             <span style="flex:1;font-size:12px;color:var(--t1)">${esc(p.title)}</span>
             <span class="${diffCls(p.difficulty)}">${p.difficulty}</span>
@@ -601,6 +612,17 @@ function openContestCreator(id){
     </div>`;
   updateContestCreatorPrivacyUI();
   openModal('modal-contest');
+  filterContestCreatorProblems(S.contestCreatorSearch||'');
+}
+
+function filterContestCreatorProblems(query){
+  S.contestCreatorSearch=String(query||'');
+  const q=normalizeSearchQuery(query);
+  document.querySelectorAll('#modal-contest .ce-prob-option').forEach(node=>{
+    const scope=normalizeSearchQuery(node.getAttribute('data-prob-search')||'');
+    const visible=!q||q.split(' ').every(token=>scope.includes(token));
+    node.style.display=visible?'flex':'none';
+  });
 }
 
 function updateContestCreatorPrivacyUI(){

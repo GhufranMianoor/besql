@@ -185,6 +185,7 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
 .inp,.sel,.ta{width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);color:var(--t0);font-family:var(--sans);font-size:13px;padding:8px 11px;outline:none;transition:border-color .14s,box-shadow .14s}
 .inp:focus,.sel:focus,.ta:focus{border-color:var(--grn);box-shadow:0 0 0 3px rgba(46,200,102,.1)}
 .inp::placeholder,.ta::placeholder{color:var(--t3)}
+.search-inp{width:min(100%,360px);font-size:12px;padding:5px 9px}
 .sel{appearance:none;cursor:pointer}
 .ta{resize:vertical;line-height:1.65}
 .code-ta{background:var(--bg)!important;font-family:var(--mono)!important;font-size:13px!important;line-height:1.8!important;min-height:160px;tab-size:2;letter-spacing:.01em}

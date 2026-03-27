@@ -521,6 +521,11 @@ const S = {
   pendingContestAccess:null,
   adminSubTab:'problems',
   practiceFilter:'All',
+  practiceSearch:'',
+  adminProblemSearch:'',
+  contestProblemSearch:'',
+  contestCreatorSearch:'',
+  customContestProblemSearch:'',
   practiceLab:{tables:{}},
   judgeSessions:{},
   unlockedPrivateContests:{},
@@ -531,6 +536,49 @@ const S = {
 ══════════════════════════════════════════════════════════ */
 const el=id=>document.getElementById(id);
 const esc=s=>{const d=document.createElement('div');d.textContent=String(s??'');return d.innerHTML;};
+function normalizeSearchQuery(value){
+  return String(value||'')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function buildProblemSearchText(problem){
+  if(!problem)return '';
+  const code=String(problem.code||problem.id||'');
+  const compactCode=code.toLowerCase().replace(/[^a-z0-9]+/g,'');
+  const parts=[
+    code,
+    compactCode,
+    problem.title||'',
+    problem.difficulty||'',
+    problem.category||'',
+    Array.isArray(problem.tags)?problem.tags.join(' '):'',
+    problem.description||'',
+  ];
+  return normalizeSearchQuery(parts.join(' '));
+}
+function problemMatchesQuery(problem,query){
+  const q=normalizeSearchQuery(query);
+  if(!q)return true;
+  const scope=buildProblemSearchText(problem);
+  if(!scope)return false;
+  const compactQ=q.replace(/\s+/g,'');
+  const compactScope=scope.replace(/\s+/g,'');
+  if(scope.includes(q))return true;
+  if(compactQ&&compactScope.includes(compactQ))return true;
+  return q.split(' ').every(token=>scope.includes(token));
+}
+function preserveInputFocusAfterRender(inputId,value,caretPos){
+  requestAnimationFrame(()=>{
+    const node=el(inputId);
+    if(!node)return;
+    node.focus();
+    if(typeof value==='string'&&node.value!==value)node.value=value;
+    const pos=Math.max(0,Math.min(Number.isFinite(caretPos)?caretPos:value.length,node.value.length));
+    node.setSelectionRange(pos,pos);
+  });
+}
 const SQL_KEYWORDS_RE=/\b(SELECT|FROM|WHERE|GROUP|BY|ORDER|LIMIT|AS|COUNT|SUM|AVG|MIN|MAX|JOIN|LEFT|RIGHT|INNER|OUTER|ON|HAVING|DISTINCT|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|DROP|AND|OR|NOT|IN|IS|NULL|LIKE|DESC|ASC)\b/gi;
 function show(id){const e=typeof id==='string'?el(id):id;if(e)e.classList.remove('hidden');}
 function hide(id){const e=typeof id==='string'?el(id):id;if(e)e.classList.add('hidden');}
@@ -2949,9 +2997,10 @@ function openCustomCreator(id){
       <div id="cc-selected-problems" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px"></div>
       ${isAdmin()?'':'<div style="font-size:10px;color:var(--t3);margin-bottom:8px">Only admins can add custom problems to contests.</div>'}
       <div style="font-size:10px;color:var(--t3);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px">Or pick from list</div>
+      <input class="inp search-inp" id="cc-prob-search" value="${esc(S.customContestProblemSearch||'')}" placeholder="Search problems by code, title, tag, category..." oninput="filterCustomContestProblemOptions(this.value)" style="margin-bottom:8px">
       <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto">
         ${selectableProblems.map(p=>`
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 10px;border-radius:4px;background:var(--bg2);border:1px solid var(--line)" onclick="setTimeout(ccRefreshSelected,10)">
+          <label class="cc-prob-option" data-prob-search="${esc(buildProblemSearchText(p))}" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 10px;border-radius:4px;background:var(--bg2);border:1px solid var(--line)" onclick="setTimeout(ccRefreshSelected,10)">
             <input type="checkbox" class="cc-prob-check" value="${p.id}" id="cc-chk-${p.id}" ${selectedIds.has(p.id)?'checked':''}>
             <span style="font-size:10px;font-family:var(--mono);color:var(--grn);font-weight:700;width:64px;flex-shrink:0">${p.code||p.id.toUpperCase()}</span>
             <span style="flex:1;font-size:12px;color:var(--t1)">${esc(p.title)}</span>
@@ -2962,8 +3011,19 @@ function openCustomCreator(id){
     </div>
     <div class="fg"><label class="lbl">Invite Users (comma separated usernames)</label><input class="inp" id="cc-invite" value="${esc((c.invitees||[]).join(', '))}" placeholder="user1, user2, ..."></div>`;
   ccRefreshSelected();
+  filterCustomContestProblemOptions(S.customContestProblemSearch||'');
   updateContestPrivacyUI();
   openModal('modal-custom');
+}
+
+function filterCustomContestProblemOptions(query){
+  S.customContestProblemSearch=String(query||'');
+  const q=normalizeSearchQuery(query);
+  document.querySelectorAll('#modal-custom .cc-prob-option').forEach(node=>{
+    const scope=normalizeSearchQuery(node.getAttribute('data-prob-search')||'');
+    const visible=!q||q.split(' ').every(token=>scope.includes(token));
+    node.style.display=visible?'flex':'none';
+  });
 }
 
 function updateContestPrivacyUI(){
@@ -3082,8 +3142,9 @@ function renderPractice(){
   el('practice-filters').innerHTML=diffs.map(d=>`
     <button class="btn btn-sm ${S.practiceFilter===d?'btn-blue':'btn-ghost'}" onclick="setPracticeFilter('${d}')">${d}</button>`).join('');
 
-  const filtered=S.practiceFilter==='All'?publicProblems:publicProblems.filter(p=>p.difficulty===S.practiceFilter);
-  el('practice-problem-list').innerHTML=`<div class="card">${filtered.map((p,i)=>`
+  const byDifficulty=S.practiceFilter==='All'?publicProblems:publicProblems.filter(p=>p.difficulty===S.practiceFilter);
+  const filtered=byDifficulty.filter(p=>problemMatchesQuery(p,S.practiceSearch));
+  el('practice-problem-list').innerHTML=`<div class="card" style="margin-bottom:10px"><div class="card-body" style="padding:10px"><input id="practice-search-input" class="inp search-inp" value="${esc(S.practiceSearch||'')}" placeholder="Search problems by code, title, tags, category..." oninput="setPracticeSearch(this.value)"></div></div><div class="card">${filtered.map((p,i)=>`
     <div class="prob-row ${solved.has(p.id)?'solved':''}" onclick="nav('judge',{problemId:'${p.id}',backView:'practice'})">
       <div class="prob-num" style="width:28px">${i+1}</div>
       <div style="flex:1;min-width:0">
@@ -3099,7 +3160,7 @@ function renderPractice(){
         <span style="font-size:12px;color:var(--t3)">${p.testCases.filter(tc=>!tc.hidden).length} tests</span>
         ${solved.has(p.id)?'<span style="color:var(--grn);font-weight:700;font-size:11px">AC</span>':''}
       </div>
-    </div>`).join('')||'<div class="empty"><div class="empty-ico" style="font-size:14px;color:var(--t3)">—</div></div>'}</div>`;
+    </div>`).join('')||'<div class="empty"><div class="empty-ico" style="font-size:14px;color:var(--t3)">—</div><div style="font-size:12px;color:var(--t3)">No problems match your search</div></div>'}</div>`;
 
   // Diff stats
   el('practice-diff-stats').innerHTML=['Easy','Medium','Hard','Expert'].map(d=>{
@@ -3116,6 +3177,13 @@ function renderPlayground(){
   renderPracticeLabTasks();
 }
 function setPracticeFilter(f){S.practiceFilter=f;renderPractice();}
+function setPracticeSearch(q){
+  const value=String(q||'');
+  const pos=((document.activeElement||{}).selectionStart);
+  S.practiceSearch=value;
+  renderPractice();
+  preserveInputFocusAfterRender('practice-search-input',value,Number.isFinite(pos)?pos:value.length);
+}
 
 /* ══════════════════════════════════════════════════════════
    SUBMISSIONS
