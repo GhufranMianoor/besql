@@ -19,7 +19,9 @@ These page files are stable URL entry points for each navigation area and route 
 
 ## JavaScript
 - `js/app.js`: Main runtime and feature logic.
+- `js/besql-sql-editor.js`: CodeMirror 6 SQL editor wrapper (multi-dialect support).
 - `js/core/route-entry.js`: Entry-view parser used by page-based routing.
+- `js/core/sql-engine.js`: In-browser SQL parser and executor.
 - `js/features/auth.js`: Authentication, sessions, and route-state restore.
 - `js/features/contests.js`: Contest list/detail, tabs, and contest leaderboard logic.
 - `js/features/admin.js`: Admin panel, problem editor, and contest creator tools.
@@ -28,7 +30,6 @@ These page files are stable URL entry points for each navigation area and route 
 
 ## Data
 - `data/db.js`: In-memory SQL dataset.
-- `data/problems.js`: Problem defaults.
 
 ## SQL
 - `sql/db-tables.sql`

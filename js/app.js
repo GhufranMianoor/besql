@@ -361,90 +361,14 @@ function preserveInputFocusAfterRender(inputId,value,caretPos){
     node.setSelectionRange(pos,pos);
   });
 }
-const SQL_KEYWORDS_RE=/\b(SELECT|FROM|WHERE|GROUP|BY|ORDER|LIMIT|AS|COUNT|SUM|AVG|MIN|MAX|JOIN|LEFT|RIGHT|INNER|OUTER|ON|HAVING|DISTINCT|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|DROP|AND|OR|NOT|IN|IS|NULL|LIKE|DESC|ASC)\b/gi;
 function show(id){const e=typeof id==='string'?el(id):id;if(e)e.classList.remove('hidden');}
 function hide(id){const e=typeof id==='string'?el(id):id;if(e)e.classList.add('hidden');}
 function tog(id,c){c?show(id):hide(id);}
-function openModal(id){show(id);}
-function closeModal(id){hide(id);}
 function genId(){return Math.random().toString(36).slice(2,10);}
 function fmtN(n){return Number(n).toLocaleString();}
 function fmtT(s){return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 function fmtDate(ts){return new Date(ts).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
-function sqlHighlightHtml(sql){
-  const raw=String(sql||'');
-  if(!raw)return '&nbsp;';
-  let html=esc(raw);
-  html=html.replace(/(--.*)$/gm,'<span class="sql-com">$1</span>');
-  html=html.replace(/'(?:[^'\\]|\\.)*'/g,'<span class="sql-str">$&</span>');
-  html=html.replace(/\b\d+(?:\.\d+)?\b/g,'<span class="sql-num">$&</span>');
-  html=html.replace(SQL_KEYWORDS_RE,'<span class="sql-kw">$1</span>');
-  return html;
-}
-function syncSqlHighlight(id){
-  const ta=el(id);
-  const hl=el(`${id}-hl`);
-  if(!ta||!hl)return;
-  const shell=ta.closest('.sql-editor-shell');
-  if(shell)shell.classList.add('overlay-off');
-  hl.style.display='none';
-}
-function attachSqlHighlighting(id){
-  const ta=el(id);
-  const hl=el(`${id}-hl`);
-  if(!ta||!hl)return;
-  // Mobile keyboard compatibility
-  ta.setAttribute('autocapitalize','off');
-  ta.setAttribute('autocorrect','off');
-  ta.setAttribute('autocomplete','off');
-  ta.setAttribute('inputmode','text');
-  ta.setAttribute('enterkeyhint','done');
-  if(ta.dataset.sqlHlAttached==='1'){
-    syncSqlHighlight(id);
-    return;
-  }
-  ta.dataset.sqlHlAttached='1';
-  ta.addEventListener('input',()=>syncSqlHighlight(id));
-  ta.addEventListener('scroll',()=>{
-    hl.scrollTop=ta.scrollTop;
-    hl.scrollLeft=ta.scrollLeft;
-  });
-  syncSqlHighlight(id);
-}
-function toggleSqlEditorComments(editorId){
-  const ta=el(editorId);
-  if(!ta)return;
-  const value=String(ta.value||'');
-  const start=Math.max(0,Number(ta.selectionStart||0));
-  const end=Math.max(start,Number(ta.selectionEnd||start));
-
-  const lineStart=value.lastIndexOf('\n',Math.max(0,start-1))+1;
-  const endAnchor=Math.max(end,start===end?start:end-1);
-  let lineEnd=value.indexOf('\n',endAnchor);
-  if(lineEnd<0)lineEnd=value.length;
-
-  const selectedBlock=value.slice(lineStart,lineEnd);
-  const lines=selectedBlock.split('\n');
-  const nonEmpty=lines.filter(line=>line.trim().length>0);
-  if(!nonEmpty.length)return;
-
-  const allCommented=nonEmpty.every(line=>/^\s*--/.test(line));
-  const updatedBlock=lines.map(line=>{
-    if(!line.trim())return line;
-    if(allCommented)return line.replace(/^(\s*)--\s?/, '$1');
-    return line.replace(/^(\s*)/, '$1-- ');
-  }).join('\n');
-
-  ta.value=`${value.slice(0,lineStart)}${updatedBlock}${value.slice(lineEnd)}`;
-
-  const delta=updatedBlock.length-selectedBlock.length;
-  ta.selectionStart=lineStart;
-  ta.selectionEnd=lineEnd+delta;
-  ta.focus();
-  ta.dispatchEvent(new Event('input',{bubbles:true}));
-}
-function commentJudgeEditor(){toggleSqlEditorComments('judge-editor');}
-function commentPracticeLabEditor(){toggleSqlEditorComments('practice-lab-editor');}
+// Syntax highlighting handled by CodeMirror - removed legacy functions
 function fmtCountdownDHMS(totalSeconds){
   const secs=Math.max(0,Math.floor(totalSeconds));
   const days=Math.floor(secs/86400);
@@ -470,7 +394,6 @@ function getEntryContestId(){
   const cid=new URLSearchParams(window.location.search).get('contestId');
   return cid?String(cid).trim():'';
 }
-function canCreate(){return S.user&&(S.user.role==='admin'||S.user.role==='master');}
 function isAdmin(){return S.user?.role==='admin';}
 function isMaster(){return S.user?.role==='admin'||S.user?.role==='master';}
 function isCountableSubmission(sub){
@@ -1108,7 +1031,6 @@ function toast(msg,type='info'){
   setTimeout(()=>t.remove(),4000);
 }
 function persistProblems(){LS.set('problems',S.problems.map(p=>{const{testCases,...r}=p;return{...r,testCases:testCases.map(tc=>{const{validate,...t}=tc;return t;})};}))}
-function rebuildValidators(problems){return problems.map(p=>({...p,testCases:p.testCases.map(tc=>({...tc,validate:buildValidator(tc,p)}))}))}
 function normalizeResultCell(v){
   if(v==null)return null;
   const n=Number(v);
@@ -1458,11 +1380,6 @@ function ensureProblemCompleteness(problem){
   return out;
 }
 
-function ensureProblemBankCompleteness(problems){
-  if(!Array.isArray(problems))return [];
-  return problems.map(ensureProblemCompleteness);
-}
-
 function hasValidSampleOutput(problem){
   return Boolean(
     problem
@@ -1694,9 +1611,9 @@ function labSchemaToData(){
 }
 
 function runPracticeLab(){
-  const ta=el('practice-lab-editor');
-  if(!ta)return;
-  const sql=(ta.value||'').trim();
+  const sql=window.practiceLabEditor?window.practiceLabEditor.getValue():''.trim();
+  if(!sql.trim()){toast('Write some DDL/DML first','warn');return;}
+  sql=sql.trim();
   if(!sql){toast('Write some DDL/DML first','warn');return;}
 
   const statements=splitSQLStatements(sql);
@@ -1840,12 +1757,6 @@ function markPracticeTaskDone(taskId){
   renderPracticeLabTasks();
 }
 
-function togglePracticeTaskAnswer(taskId){
-  const box=el(`practice-task-answer-${taskId}`);
-  if(!box)return;
-  box.classList.toggle('hidden');
-}
-
 function renderPracticeLabTasks(){
   const wrap=el('practice-lab-tasks');
   if(!wrap)return;
@@ -1883,10 +1794,8 @@ function renderPracticeLabTasks(){
 }
 
 function loadPracticeLabExample(){
-  const ta=el('practice-lab-editor');
-  if(!ta)return;
-  ta.value=`CREATE TABLE practice_orders (id INT, customer TEXT, amount INT);\nINSERT INTO practice_orders (id, customer, amount) VALUES (1, 'Nora', 1500);\nINSERT INTO practice_orders (id, customer, amount) VALUES (2, 'Omar', 2200);\nUPDATE practice_orders SET amount = 2400 WHERE id = 2;\nSELECT * FROM practice_orders ORDER BY amount DESC;`;
-  syncSqlHighlight('practice-lab-editor');
+  const code=`CREATE TABLE practice_orders (id INT, customer TEXT, amount INT);\nINSERT INTO practice_orders (id, customer, amount) VALUES (1, 'Nora', 1500);\nINSERT INTO practice_orders (id, customer, amount) VALUES (2, 'Omar', 2200);\nUPDATE practice_orders SET amount = 2400 WHERE id = 2;\nSELECT * FROM practice_orders ORDER BY amount DESC;`;
+  if(window.practiceLabEditor)window.practiceLabEditor.setValue(code);
 }
 
 function resetPracticeLab(){
@@ -2372,39 +2281,28 @@ function renderJudge(ctx){
   const sessionState=getJudgeSessionState(ctx);
   clearJudgeState();
 
-  // Timer
-  if(S.judgeTimer) clearInterval(S.judgeTimer);
-  S.judgeElapsed=Math.max(0,Number(sessionState?.elapsed||0));
-  const timerNode=el('judge-timer-small');
-  if(timerNode){
-    timerNode.innerHTML=`<span style="font-size:11px;font-weight:600;font-family:var(--mono);color:var(--t2)">${fmtT(S.judgeElapsed)}</span>`;
-  }
-  S.judgeTimer=setInterval(()=>{
-    S.judgeElapsed++;
-    const te=el('judge-timer-small');
-    if(te){
-      te.innerHTML=`<span style="font-size:11px;font-weight:600;font-family:var(--mono);color:var(--t2)">${fmtT(S.judgeElapsed)}</span>`;
-    }
-    if(S.judgeElapsed%5===0)saveJudgeSessionState(S.judgeContext,{elapsed:S.judgeElapsed});
-  },1000);
+  // Timer removed for SQL editor (no per-problem timing in editor view)
 
-  // Bind editor — replace node to clear any stacked listeners from previous problem
-  const edOld=el('judge-editor');
-  const edNew=edOld.cloneNode(true);
-  edOld.parentNode.replaceChild(edNew,edOld);
-  const ed=edNew;
-  ed.value=(sessionState&&typeof sessionState.draft==='string')?sessionState.draft:(prevSub?.code||'');
-  const judgeCharsEl=el('judge-chars');
-  if(judgeCharsEl)judgeCharsEl.textContent=`${ed.value.length}`;
-  if(el('judge-editor-hl'))syncSqlHighlight('judge-editor');
-  ed.addEventListener('keydown',e=>{
-    if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();judgeRun();}
-    if((e.ctrlKey||e.metaKey)&&e.key==='/'){e.preventDefault();commentJudgeEditor();}
-    if(e.key==='Tab'){e.preventDefault();const s=e.target.selectionStart;ed.value=ed.value.slice(0,s)+'  '+ed.value.slice(e.target.selectionEnd);ed.selectionStart=ed.selectionEnd=s+2;}
+  // Initialize CodeMirror editor with schema from problem
+  const initialCode=(sessionState&&typeof sessionState.draft==='string')?sessionState.draft:(prevSub?.code||'');
+  const schema={};
+  if(p.schemaHint?.table){
+    schema[p.schemaHint.table]=p.schemaHint.columns.map(c=>c[0]);
+  }
+  if(!window.judgeEditor){
+    window.judgeEditor=Object.create(window.BeSQLEditor);
+  }
+  window.judgeEditor.init({
+    container:el('judge-editor'),
+    dialect:'sqlite',
+    schema,
+    initialValue:initialCode,
+    readOnly:false,
+    onRun:(sql)=>judgeRun(),
+    minHeight:200,
   });
-  ed.addEventListener('input',()=>{if(judgeCharsEl)judgeCharsEl.textContent=ed.value.length;syncSqlHighlight('judge-editor');saveJudgeSessionState(S.judgeContext,{draft:ed.value});});
-  ed.addEventListener('scroll',()=>syncSqlHighlight('judge-editor'));
-  attachSqlHighlighting('judge-editor');
+  const judgeCharsEl=el('judge-chars');
+  if(judgeCharsEl)judgeCharsEl.textContent=`${initialCode.length}`;
 
   // Solved state
   const isSolved=isSolvedForJudgeContext(p.id,S.judgeContext);
@@ -2414,10 +2312,9 @@ function renderJudge(ctx){
 }
 
 function judgeEditorClear(){
-  el('judge-editor').value='';
+  if(window.judgeEditor)window.judgeEditor.setValue('');
   const judgeCharsEl=el('judge-chars');
   if(judgeCharsEl)judgeCharsEl.textContent='0';
-  syncSqlHighlight('judge-editor');
   saveJudgeSessionState(S.judgeContext,{draft:''});
   clearJudgeState();
   const p=S.problems.find(x=>x.id===S.judgeContext?.problemId);
@@ -2437,13 +2334,11 @@ function clearJudgeState(){
   const result=el('judge-result');
   const rowCount=el('judge-row-count');
   const tcSummary=el('tc-summary');
-  const timerSmall=el('judge-timer-small');
   if(verdict)verdict.innerHTML='';
   if(feedback){feedback.innerHTML='';feedback.classList.add('hidden');}
   if(result){result.innerHTML='';result.classList.add('hidden');}
   if(rowCount)rowCount.textContent='';
   if(tcSummary)tcSummary.textContent='— test cases';
-  if(timerSmall)timerSmall.innerHTML='';
 }
 
 function getJudgeProblemSequence(ctx){
@@ -2545,7 +2440,7 @@ function resetJudgeExecutionState(problem){
 function judgeRun(){
   const p=S.problems.find(x=>x.id===S.judgeContext?.problemId);
   if(!p)return;
-  const sql=el('judge-editor').value;
+  const sql=window.judgeEditor?window.judgeEditor.getValue():'';
   if(!sql.trim()){toast('Write a query first','warn');return;}
   resetJudgeExecutionState(p);
   el('btn-judge-run').textContent='Running...'; el('btn-judge-run').disabled=true;
@@ -2641,7 +2536,7 @@ function judgeSubmit(){
     toast('Already solved in this contest. Reattempt is disabled.','info');
     return;
   }
-  const sql=el('judge-editor').value;
+  const sql=window.judgeEditor?window.judgeEditor.getValue():'';
   if(!sql.trim()){toast('Write a query first','warn');return;}
   resetJudgeExecutionState(p);
   el('btn-judge-submit').disabled=true; el('btn-judge-submit').textContent='Judging...';
@@ -2680,8 +2575,8 @@ function judgeSubmit(){
     };
     S.submissions.unshift(sub);
     LS.set(`subs:${S.user.userId}`,S.submissions);
-    // Sync submission to Supabase in background - don't wait
-    syncSubmissionToRelational(sub,result,p).catch(err=>console.warn('Background submission sync failed:',err));
+    // Save editor state with submission
+    saveJudgeSessionState(S.judgeContext,{draft:sql});
 
     // Update user score — only if this is the FIRST acceptance
     if(verdict==='AC'&&!alreadySolved){
@@ -2955,6 +2850,19 @@ function renderPractice(){
 
 }
 function renderPlayground(){
+  // Initialize practice lab editor on first load
+  if(!window.practiceLabEditor){
+    window.practiceLabEditor=Object.create(window.BeSQLEditor);
+    window.practiceLabEditor.init({
+      container:el('practice-lab-editor'),
+      dialect:'sqlite',
+      schema:{},
+      initialValue:'',
+      readOnly:false,
+      onRun:()=>runPracticeLab(),
+      minHeight:200,
+    });
+  }
   renderPracticeLabTables();
   renderPracticeLabTasks();
 }

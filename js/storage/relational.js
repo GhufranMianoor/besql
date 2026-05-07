@@ -2,72 +2,40 @@
  * Relational Sync Module
  * Handles synchronization with Supabase relational database tables
  */
-
-async function getRelationalUserId(username) {
-  if (!SB || STORAGE_MODE !== 'supabase' || !username) {
-    return null;
-  }
-  const { data, error } = await SB.from('users').select('id').eq('username', username).maybeSingle();
-  if (error) {
-    console.warn('Failed to get relational user ID:', error.message || error);
-    return null;
-  }
-  return data?.id ?? null;
+function isSupabaseReady(){return typeof SB!=='undefined'&&SB!==null&&STORAGE_MODE==='supabase';}
+async function getRelationalUserId(username){
+  if(!isSupabaseReady()||!username)return null;
+  const {data,error}=await SB.from('users').select('id').eq('username',username).maybeSingle();
+  if(error){console.warn('Failed to get relational user ID:',error.message||error);return null;}
+  return data?.id??null;
 }
 
-async function getRoleFromRelationalUserId(userId) {
-  if (!SB || STORAGE_MODE !== 'supabase' || !userId) {
-    return 'contestant';
-  }
-  const { data, error } = await SB.from('user_roles').select('role_id').eq('user_id', userId);
-  if (error || !data?.length) {
-    return 'contestant';
-  }
-  const roleIds = data.map(r => Number(r.role_id));
-  if (roleIds.includes(1)) return 'admin';
-  if (roleIds.includes(3)) return 'master';
+async function getRoleFromRelationalUserId(userId){
+  if(!isSupabaseReady()||!userId)return 'contestant';
+  const {data,error}=await SB.from('user_roles').select('role_id').eq('user_id',userId);
+  if(error||!data?.length)return 'contestant';
+  const roleIds=data.map(r=>Number(r.role_id));
+  if(roleIds.includes(1))return 'admin';
+  if(roleIds.includes(3))return 'master';
   return 'contestant';
 }
 
-async function fetchRelationalAuthUser(username) {
-  if (!SB || STORAGE_MODE !== 'supabase' || !username) {
-    return null;
-  }
-  const { data, error } = await SB
+async function fetchRelationalAuthUser(username){
+  if(!isSupabaseReady()||!username)return null;
+  const {data,error}=await SB
     .from('users')
     .select('id,username,email,password_hash,is_active,created_at')
-    .eq('username', username)
+    .eq('username',username)
     .maybeSingle();
-  if (error || !data || data.is_active === false) {
-    return null;
-  }
-  const role = await getRoleFromRelationalUserId(data.id);
-  return {
-    userId: `db-${data.id}`,
-    username: data.username,
-    email: data.email || `${data.username}@besql.local`,
-    passwordHash: data.password_hash || '',
-    role,
-    score: 0,
-    solved: 0,
-    joinedAt: data.created_at ? new Date(data.created_at).getTime() : Date.now(),
-  };
+  if(error||!data||data.is_active===false)return null;
+  const role=await getRoleFromRelationalUserId(data.id);
+  return {userId:`db-${data.id}`,username:data.username,email:data.email||`${data.username}@besql.local`,passwordHash:data.password_hash||'',role,score:0,solved:0,joinedAt:data.created_at?new Date(data.created_at).getTime():Date.now()};
 }
 
-async function syncUserToRelational(user) {
-  if (!SB || STORAGE_MODE !== 'supabase' || !user?.username) {
-    return Promise.resolve({ success: false, reason: 'Supabase not available or user data incomplete' });
-  }
-  try {
-    const { data: existing, error: existingErr } = await SB
-      .from('users')
-      .select('id,email,password_hash,full_name,is_active')
-      .eq('username', user.username)
-      .maybeSingle();
-    if (existingErr) {
-      console.warn('Supabase users prefetch failed:', existingErr.message || existingErr);
-      return { success: false, error: existingErr.message || existingErr };
-    }
+async function syncUserToRelational(user){
+  if(!isSupabaseReady()||!user?.username)return Promise.resolve({success:false,reason:'Supabase not available or user data incomplete'});
+  try{const {data:existing,error:existingErr}=await SB.from('users').select('id,email,password_hash,full_name,is_active').eq('username',user.username).maybeSingle();
+  if(existingErr){console.warn('Supabase users prefetch failed:',existingErr.message||existingErr);return {success:false,error:existingErr.message||existingErr};}
 
     const payload = {
       username: user.username,
@@ -113,12 +81,9 @@ async function syncUserToRelational(user) {
   }
 }
 
-async function syncSubmissionToRelational(sub, result, problem) {
-  if (!SB || STORAGE_MODE !== 'supabase' || !S.user?.username || !sub) {
-    return Promise.resolve({ success: false, reason: 'Supabase not available or submission data incomplete' });
-  }
-  try {
-    const uid = await getRelationalUserId(S.user.username);
+async function syncSubmissionToRelational(sub,result,problem){
+  if(!isSupabaseReady()||!S.user?.username||!sub)return Promise.resolve({success:false,reason:'Supabase not available or submission data incomplete'});
+  try{const uid=await getRelationalUserId(S.user.username);
     if (!uid) {
       console.warn('Failed to get user ID for submission sync');
       return { success: false, reason: 'User ID not found' };
@@ -283,10 +248,8 @@ function hydrateProblemFromRelationalRow(row) {
   };
 }
 
-async function loadProblemsFromRelational() {
-  if (!SB || STORAGE_MODE !== 'supabase') {
-    return Promise.resolve({ success: false, problems: null, reason: 'Supabase not configured' });
-  }
+async function loadProblemsFromRelational(){
+  if(!isSupabaseReady())return Promise.resolve({success:false,problems:null,reason:'Supabase not configured'});
   try {
     const { data, error } = await SB
       .from('problems')
@@ -305,9 +268,8 @@ async function loadProblemsFromRelational() {
   }
 }
 
-async function syncProblemToRelational(problem) {
-  if (!SB || STORAGE_MODE !== 'supabase' || !problem?.id) {
-    return Promise.resolve({ success: false, reason: 'Supabase not available or problem data incomplete' });
+async function syncProblemToRelational(problem){
+  if(!isSupabaseReady()||!problem?.id)return Promise.resolve({success:false,reason:'Supabase not available or problem data incomplete'});
   }
   try {
     const payload = {
@@ -341,9 +303,8 @@ async function syncProblemToRelational(problem) {
   }
 }
 
-async function deactivateProblemInRelational(problemId) {
-  if (!SB || STORAGE_MODE !== 'supabase' || !problemId) {
-    return Promise.resolve({ success: false, reason: 'Supabase not available or problem ID missing' });
+async function deactivateProblemInRelational(problemId){
+  if(!isSupabaseReady()||!problemId)return Promise.resolve({success:false,reason:'Supabase not available or problem ID missing'});
   }
   try {
     const { error } = await SB

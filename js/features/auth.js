@@ -29,16 +29,16 @@ function openAuth(mode='login'){
 
 async function doLogin(){
   const u=(el('au')||{}).value?.trim(), p=(el('ap')||{}).value;
-  if(!u||!p){showAErr('Enter username and password.');return;}
+  if(!u||!p){showAuthErr('a-err','Enter username and password.');return;}
   const userErr=validateUsername(u);
-  if(userErr){showAErr(userErr);return;}
+  if(userErr){showAuthErr('a-err',userErr);return;}
   const hp=await hashPassword(p);
   let stored=LS.get(`user:${u}`);
 
   if(!stored){
     const dbUser=await fetchRelationalAuthUser(u);
     if(!dbUser||!dbUser.passwordHash||dbUser.passwordHash!==hp){
-      showAErr('Invalid credentials.');
+      showAuthErr('a-err','Invalid credentials.');
       return;
     }
     LS.set(`user:${u}`,dbUser);
@@ -50,7 +50,7 @@ async function doLogin(){
   if(!ok){
     const dbUser=await fetchRelationalAuthUser(u);
     if(!dbUser||!dbUser.passwordHash||dbUser.passwordHash!==hp){
-      showAErr('Invalid credentials.');
+      showAuthErr('a-err','Invalid credentials.');
       return;
     }
     const merged={...stored,...dbUser,passwordHash:dbUser.passwordHash};
@@ -69,22 +69,22 @@ async function doLogin(){
 
 async function doRegister(){
   const u=(el('ru')||{}).value?.trim(), p=(el('rp')||{}).value;
-  const e=(el('re')||{}).value?.trim();
+  const email=(el('re')||{}).value?.trim();
   const pc=(el('rpc')||{}).value;
 
   const userErr=validateUsername(u);
-  if(userErr){showRErr(userErr);return;}
-  const emailErr=validateEmail(e);
-  if(emailErr){showRErr(emailErr);return;}
+  if(userErr){showAuthErr('r-err',userErr);return;}
+  const emailErr=validateEmail(email);
+  if(emailErr){showAuthErr('r-err',emailErr);return;}
   const passErr=validatePassword(p);
-  if(passErr){showRErr(passErr);return;}
-  if(p!==pc){showRErr('Passwords do not match.');return;}
-  if(LS.get(`user:${u}`)){showRErr('Username already taken.');return;}
+  if(passErr){showAuthErr('r-err',passErr);return;}
+  if(p!==pc){showAuthErr('r-err','Passwords do not match.');return;}
+  if(LS.get(`user:${u}`)){showAuthErr('r-err','Username already taken.');return;}
 
   const nu={
     userId:genId(),
     username:u,
-    email:e,
+    email:email,
     passwordHash:await hashPassword(p),
     role:'contestant',
     score:0,
@@ -117,8 +117,10 @@ async function quickLogin(uname,role){
   finishLogin(u); closeModal('modal-auth');
 }
 
-function showAErr(m){const e=el('a-err');if(e){e.textContent=m;show(e);}}
-function showRErr(m){const e=el('r-err');if(e){e.textContent=m;show(e);}}
+function showAuthErr(elementId,msg){
+  const e=el(elementId);
+  if(e){e.textContent=msg;show(e);}
+}
 
 function buildSessionRecord(user){
   if(!user?.username)return null;

@@ -363,6 +363,7 @@ function peRefreshEditorState(){
   const difficulty=((el('pe-diff')||{}).value||'Easy').trim()||'Easy';
   const points=parseInt((el('pe-pts')||{}).value,10)||0;
   const dailyDate=((el('pe-daily')||{}).value||'').trim();
+  const sourceUrl=String((S.editingProblem&&S.editingProblem.sourceUrl)||'').trim();
   const desc=((el('pe-desc')||{}).value||'').trim();
   const tags=((el('pe-tags')||{}).value||'').split(',').map(t=>t.trim()).filter(Boolean);
   const sol=((el('pe-sol')||{}).value||'').trim();

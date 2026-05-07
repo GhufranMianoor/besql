@@ -54,9 +54,9 @@ function contestCardHTML(c){
         <span style="font-size:11px;color:var(--t2)">${revealProblems?`${probs.length} problems`:'Problems hidden'} · ${fmtDur(c.duration*60000)}</span>
       </div>
       <div style="font-size:16px;font-weight:700;margin-bottom:8px;line-height:1.3">${esc(c.title)}</div>
-      <div style="font-size:12px;color:var(--t2);margin-bottom:12px;line-height:1.6">${esc(c.description)}</div>
+      <div style="font-size:14px;color:var(--t2);margin-bottom:12px;line-height:1.6">${esc(c.description)}</div>
       <div class="fx ic gap3 flex-wrap">
-        ${revealProblems?probs.map(p=>`<span class="tag">${esc(p.title)}</span>`).join(''):`<span class="tag">${esc(lockReason||'Problems are currently locked')}</span>`}
+        ${revealProblems?'' : `<span class="tag">${esc(lockReason||'Problems are currently locked')}</span>`}
         <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="event.stopPropagation();nav('scoreboards',{contestId:'${c.id}'})">Scoreboard</button>
         <div style="margin-left:auto;font-size:11px;color:var(--t2)">
           ${timeText}
@@ -83,31 +83,34 @@ function renderContestDetail(contestId){
     ${c.isPublic?'<span class="tag">Public</span>':'<span class="tag">Private</span>'}`;
   const timerWrap=el('cd-timer-wrap');
   stopContestCountdown();
-  if(c.status==='live'){
-    const left=Math.max(0,Math.floor((c.endTime-Date.now())/1000));
-    timerWrap.innerHTML=`<div style="text-align:right"><div style="font-size:10px;color:var(--t3);letter-spacing:1px">TIME LEFT</div><div class="countdown" id="cd-countdown">${fmtCountdownDHMS(left)}</div></div>`;
-    startContestCountdown(c.endTime,()=>{
-      normalizeContestLifecycle(c);
-      renderContestDetail(c.id);
-      renderContests();
-      renderSidebar();
-    });
-  } else if(c.status==='upcoming'&&hasContestStarted(c)===false){
-    const untilStart=Math.max(0,Math.floor((c.startTime-Date.now())/1000));
-    timerWrap.innerHTML=`<div style="text-align:right"><div style="font-size:10px;color:var(--t3);letter-spacing:1px">STARTS IN</div><div class="countdown" id="cd-countdown">${fmtCountdownDHMS(untilStart)}</div></div>`;
-    startContestCountdown(c.startTime,()=>{
-      normalizeContestLifecycle(c);
-      renderContestDetail(c.id);
-      renderContests();
-      renderSidebar();
-    });
-  } else {
-    timerWrap.innerHTML='';
-  }
+  renderContestDetailTimer(c,timerWrap);
   renderCDProblems(c,probs);
   renderCDScoreboard(c);
   renderCDSubs(c);
   renderCDAnnounce(c);
+}
+
+function renderContestDetailTimer(c,timerWrap){
+  if(!timerWrap)return;
+  const rerender=()=>{
+    normalizeContestLifecycle(c);
+    renderContestDetail(c.id);
+    renderContests();
+    renderSidebar();
+  };
+  if(c.status==='live'){
+    const left=Math.max(0,Math.floor((c.endTime-Date.now())/1000));
+    timerWrap.innerHTML=`<div style="text-align:right"><div style="font-size:10px;color:var(--t3);letter-spacing:1px">TIME LEFT</div><div class="countdown" id="cd-countdown">${fmtCountdownDHMS(left)}</div></div>`;
+    startContestCountdown(c.endTime,rerender);
+    return;
+  }
+  if(c.status==='upcoming'&&hasContestStarted(c)===false){
+    const untilStart=Math.max(0,Math.floor((c.startTime-Date.now())/1000));
+    timerWrap.innerHTML=`<div style="text-align:right"><div style="font-size:10px;color:var(--t3);letter-spacing:1px">STARTS IN</div><div class="countdown" id="cd-countdown">${fmtCountdownDHMS(untilStart)}</div></div>`;
+    startContestCountdown(c.startTime,rerender);
+    return;
+  }
+  timerWrap.innerHTML='';
 }
 
 function stopContestCountdown(){

@@ -95,7 +95,8 @@ function delClientOnlyValue(k) {
     if (canUseLocalStorage()) window.localStorage.removeItem(`besql:${k}`);
   } catch { }
 }
-
+function isSupabaseReady(){return typeof SB!=='undefined'&&SB!==null&&STORAGE_MODE==='supabase';}
+function isSupabaseConfigured(){return Boolean(STORAGE_SUPABASE_CONFIG.url&&STORAGE_SUPABASE_CONFIG.anonKey);}
 function isFatalSupabaseError(error) {
   const msg = String(error?.message || error || '').toLowerCase();
   return (
@@ -136,20 +137,10 @@ function scheduleCloudFlush(delay = 0) {
   }, delay);
 }
 
-async function flushAndWait(timeout = 5000) {
-  if (STORAGE_MODE !== 'supabase' || !SB || !flushTimer) return true;
-  return new Promise((resolve) => {
-    const checkTimer = setInterval(() => {
-      if (!flushInFlight && !pendingUpserts.size && !pendingDeletes.size) {
-        clearInterval(checkTimer);
-        resolve(true);
-      }
-    }, 100);
-    setTimeout(() => {
-      clearInterval(checkTimer);
-      resolve(!flushInFlight && !pendingUpserts.size && !pendingDeletes.size);
-    }, timeout);
-  });
+async function flushAndWait(timeout=5000){
+  if(!isSupabaseReady()||!flushTimer)return true;
+  return new Promise((resolve)=>{const checkTimer=setInterval(()=>{if(!flushInFlight&&!pendingUpserts.size&&!pendingDeletes.size){clearInterval(checkTimer);resolve(true);}},100);
+  setTimeout(()=>{clearInterval(checkTimer);resolve(!flushInFlight&&!pendingUpserts.size&&!pendingDeletes.size);},timeout);});
 }
 
 async function flushCloudWrites() {
@@ -328,16 +319,16 @@ async function initStorage() {
   }
 }
 
-async function cloudUpsert(k, v) {
-  if (!SB || STORAGE_MODE !== 'supabase') return Promise.resolve();
+async function cloudUpsert(k,v){
+  if(!isSupabaseReady())return Promise.resolve();
   pendingDeletes.delete(k);
-  pendingUpserts.set(k, cloneVal(v));
+  pendingUpserts.set(k,cloneVal(v));
   scheduleCloudFlush(50);
   return flushAndWait();
 }
 
-async function cloudDelete(k) {
-  if (!SB || STORAGE_MODE !== 'supabase') return Promise.resolve();
+async function cloudDelete(k){
+  if(!isSupabaseReady())return Promise.resolve();
   pendingUpserts.delete(k);
   pendingDeletes.add(k);
   scheduleCloudFlush(50);
