@@ -5,6 +5,6 @@
   "description": "Minimal Node.js backend for BeSQL environment config",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node --env-file=.env server.js"
   }
 }

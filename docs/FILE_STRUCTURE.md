@@ -38,6 +38,5 @@ These page files are stable URL entry points for each navigation area and route 
 
 ## Backend
 - `backend/server.js`: Node.js HTTP server with `/health` and `/env` endpoints.
-- `backend/.env`: Environment values consumed by the backend.
-- `backend/.env.example`: Template env file for local setup.
+- `backend/.env.example`: Template env file for local setup (`backend/.env` is local and gitignored).
 - `backend/package.json`: Backend package metadata and start script.
