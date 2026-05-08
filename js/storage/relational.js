@@ -2,7 +2,6 @@
  * Relational Sync Module
  * Handles synchronization with Supabase relational database tables
  */
-function isSupabaseReady(){return typeof SB!=='undefined'&&SB!==null&&STORAGE_MODE==='supabase';}
 async function getRelationalUserId(username){
   if(!isSupabaseReady()||!username)return null;
   const {data,error}=await SB.from('users').select('id').eq('username',username).maybeSingle();
@@ -117,14 +116,14 @@ async function syncSubmissionToRelational(sub,result,problem){
   }
 }
 
-function serializeProblemTestCases(testCases) {
+function relationalSerializeProblemTestCases(testCases) {
   return (testCases || []).map(tc => {
     const { validate, ...rest } = tc;
     return rest;
   });
 }
 
-function parseRelationalJson(value) {
+function relationalParseRelationalJson(value) {
   if (value == null) return null;
   if (typeof value === 'string') {
     const t = value.trim();
@@ -138,8 +137,8 @@ function parseRelationalJson(value) {
   return value;
 }
 
-function normalizeSampleOutput(sampleOutput, solution) {
-  const parsed = parseRelationalJson(sampleOutput);
+function relationalNormalizeSampleOutput(sampleOutput, solution) {
+  const parsed = relationalParseRelationalJson(sampleOutput);
   if (parsed && Array.isArray(parsed.columns)) {
     const cols = parsed.columns.map(c => String(c));
     const rows = Array.isArray(parsed.rows)
@@ -162,60 +161,60 @@ function normalizeSampleOutput(sampleOutput, solution) {
   return null;
 }
 
-function normalizeSchemaHint(schemaHint) {
-  const parsed = parseRelationalJson(schemaHint);
+function relationalNormalizeSchemaHint(schemaHint) {
+  const parsed = relationalParseRelationalJson(schemaHint);
   if (parsed && parsed.table) return parsed;
   return null;
 }
 
-function normalizeResultCell(v) {
+function relationalNormalizeResultCell(v) {
   if (v == null) return null;
   const n = Number(v);
   if (Number.isFinite(n) && String(v).trim() !== '') return n;
   return String(v).trim().toLowerCase();
 }
 
-function normalizeResultColumns(cols) {
+function relationalNormalizeResultColumns(cols) {
   return (cols || []).map(c => String(c).trim().toLowerCase());
 }
 
-function normalizeResultRow(row) {
-  return (row || []).map(normalizeResultCell);
+function relationalNormalizeResultRow(row) {
+  return (row || []).map(relationalNormalizeResultCell);
 }
 
-function rowsMatch(actualRows, expectedRows, ignoreOrder = false) {
+function relationalRowsMatch(actualRows, expectedRows, ignoreOrder = false) {
   const a = actualRows || [];
   const b = expectedRows || [];
   if (a.length !== b.length) return false;
   if (!ignoreOrder) {
     for (let i = 0; i < b.length; i++) {
-      const ar = normalizeResultRow(a[i]);
-      const br = normalizeResultRow(b[i]);
+      const ar = relationalNormalizeResultRow(a[i]);
+      const br = relationalNormalizeResultRow(b[i]);
       if (ar.length !== br.length) return false;
       for (let j = 0; j < br.length; j++) if (ar[j] !== br[j]) return false;
     }
     return true;
   }
-  const toKey = row => JSON.stringify(normalizeResultRow(row));
+  const toKey = row => JSON.stringify(relationalNormalizeResultRow(row));
   const ak = a.map(toKey).sort();
   const bk = b.map(toKey).sort();
   for (let i = 0; i < bk.length; i++) if (ak[i] !== bk[i]) return false;
   return true;
 }
 
-function resultsExactlyMatch(actual, expected) {
+function relationalResultsExactlyMatch(actual, expected) {
   if (!actual || !expected) return false;
-  const actualCols = normalizeResultColumns(actual.columns);
-  const expectedCols = normalizeResultColumns(expected.columns);
+  const actualCols = relationalNormalizeResultColumns(actual.columns);
+  const expectedCols = relationalNormalizeResultColumns(expected.columns);
   if (actualCols.length !== expectedCols.length) return false;
-  return rowsMatch(actual.rows || [], expected.rows || [], true);
+  return relationalRowsMatch(actual.rows || [], expected.rows || [], true);
 }
 
-function hydrateProblemFromRelationalRow(row) {
+function hydrateRelationalProblemFromRow(row) {
   const solution = row.solution || 'SELECT 1';
   const expectedFromSolution = runSQL(solution, DB);
   const hasReferenceResult = Boolean(expectedFromSolution && !expectedFromSolution.error && Array.isArray(expectedFromSolution.rows));
-  const parsedCases = parseRelationalJson(row.test_cases);
+  const parsedCases = relationalParseRelationalJson(row.test_cases);
   const rawCases = Array.isArray(parsedCases) ? parsedCases : [];
   const testCases = rawCases.map((tc, idx) => ({
     id: tc.id || `${row.id}-tc-${idx + 1}`,
@@ -226,7 +225,7 @@ function hydrateProblemFromRelationalRow(row) {
     validate: (r) => {
       if (r.error || !r.rows) return false;
       if (!hasReferenceResult) return false;
-      return resultsExactlyMatch(r, expectedFromSolution);
+      return relationalResultsExactlyMatch(r, expectedFromSolution);
     },
   }));
 
@@ -241,8 +240,8 @@ function hydrateProblemFromRelationalRow(row) {
     tags: Array.isArray(row.tags) ? row.tags : [],
     description: row.description || '',
     solution,
-    sampleOutput: normalizeSampleOutput(row.sample_output, solution),
-    schemaHint: normalizeSchemaHint(row.schema_hint),
+    sampleOutput: relationalNormalizeSampleOutput(row.sample_output, solution),
+    schemaHint: relationalNormalizeSchemaHint(row.schema_hint),
     testCases,
     dailyDate: row.daily_date || null,
   };
@@ -260,7 +259,7 @@ async function loadProblemsFromRelational(){
       console.warn('Supabase problems load failed:', error.message || error);
       return { success: false, problems: null, error: error.message || error };
     }
-    const problems = (data || []).map(hydrateProblemFromRelationalRow);
+    const problems = (data || []).map(hydrateRelationalProblemFromRow);
     return { success: true, problems, count: problems.length };
   } catch (err) {
     console.warn('Supabase problems load exception:', err?.message || err);
@@ -270,7 +269,6 @@ async function loadProblemsFromRelational(){
 
 async function syncProblemToRelational(problem){
   if(!isSupabaseReady()||!problem?.id)return Promise.resolve({success:false,reason:'Supabase not available or problem data incomplete'});
-  }
   try {
     const payload = {
       id: problem.id,
@@ -283,9 +281,9 @@ async function syncProblemToRelational(problem){
       tags: Array.isArray(problem.tags) ? problem.tags : [],
       description: problem.description || '',
       solution: problem.solution || 'SELECT 1',
-      sample_output: parseRelationalJson(problem.sampleOutput) || problem.sampleOutput || null,
-      schema_hint: parseRelationalJson(problem.schemaHint) || problem.schemaHint || null,
-      test_cases: serializeProblemTestCases(problem.testCases),
+      sample_output: relationalParseRelationalJson(problem.sampleOutput) || problem.sampleOutput || null,
+      schema_hint: relationalParseRelationalJson(problem.schemaHint) || problem.schemaHint || null,
+      test_cases: relationalSerializeProblemTestCases(problem.testCases),
       daily_date: problem.dailyDate || null,
       is_active: true,
       created_by: S.user?.username || 'system',
@@ -305,7 +303,6 @@ async function syncProblemToRelational(problem){
 
 async function deactivateProblemInRelational(problemId){
   if(!isSupabaseReady()||!problemId)return Promise.resolve({success:false,reason:'Supabase not available or problem ID missing'});
-  }
   try {
     const { error } = await SB
       .from('problems')
@@ -333,7 +330,7 @@ if (typeof module !== 'undefined' && module.exports) {
     loadProblemsFromRelational,
     syncProblemToRelational,
     deactivateProblemInRelational,
-    serializeProblemTestCases,
-    hydrateProblemFromRelationalRow,
+    relationalSerializeProblemTestCases,
+    hydrateRelationalProblemFromRow,
   };
 }

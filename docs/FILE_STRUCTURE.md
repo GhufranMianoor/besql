@@ -35,3 +35,9 @@ These page files are stable URL entry points for each navigation area and route 
 - `sql/db-tables.sql`
 - `sql/sample-database.sql`
 - `sql/supabase-schema.sql`
+
+## Backend
+- `backend/server.js`: Node.js HTTP server with `/health` and `/env` endpoints.
+- `backend/.env`: Environment values consumed by the backend.
+- `backend/.env.example`: Template env file for local setup.
+- `backend/package.json`: Backend package metadata and start script.
