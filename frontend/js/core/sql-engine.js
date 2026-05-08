@@ -685,6 +685,19 @@ function parseTopLevelComparison(input){
   return null;
 }
 
+function getWhereValues(rhs,schema,correlatedScope){
+  let vals=[];
+  if(/^SELECT\b/i.test(String(rhs||'').trim())){
+    const sub=runSQL(rhs,schema||{},correlatedScope);
+    if(sub&&Array.isArray(sub.rows)&&sub.rows.length){
+      vals=sub.rows.map(r=>Array.isArray(r)?r[0]:undefined);
+    }
+  } else {
+    vals=splitCommaAware(String(rhs||'')).map(parseWhereLiteral);
+  }
+  return vals;
+}
+
 function evaluateAtom(atom,row,schema,outerRow){
   atom=trimOuterParens(String(atom||'').trim());
   const correlatedScope=row?{...(outerRow||{}),...row}:(outerRow||{});
@@ -721,15 +734,7 @@ function evaluateAtom(atom,row,schema,outerRow){
   if(m){
     const lv=resolveExprValue(row,m[1],schema,outerRow);
     const rhs=String(m[2]||'').trim();
-    let vals=[];
-    if(/^SELECT\b/i.test(rhs)){
-      const sub=runSQL(rhs,schema||{},correlatedScope);
-      if(sub&&Array.isArray(sub.rows)&&sub.rows.length){
-        vals=sub.rows.map(r=>Array.isArray(r)?r[0]:undefined);
-      }
-    } else {
-      vals=splitCommaAware(rhs).map(parseWhereLiteral);
-    }
+    const vals=getWhereValues(rhs,schema,correlatedScope);
     return !vals.some(v=>String(v)===String(lv));
   }
 
@@ -743,15 +748,7 @@ function evaluateAtom(atom,row,schema,outerRow){
   if(m){
     const lv=resolveExprValue(row,m[1],schema,outerRow);
     const rhs=String(m[2]||'').trim();
-    let vals=[];
-    if(/^SELECT\b/i.test(rhs)){
-      const sub=runSQL(rhs,schema||{},correlatedScope);
-      if(sub&&Array.isArray(sub.rows)&&sub.rows.length){
-        vals=sub.rows.map(r=>Array.isArray(r)?r[0]:undefined);
-      }
-    } else {
-      vals=splitCommaAware(rhs).map(parseWhereLiteral);
-    }
+    const vals=getWhereValues(rhs,schema,correlatedScope);
     return vals.some(v=>String(v)===String(lv));
   }
 

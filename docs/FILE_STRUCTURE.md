@@ -1,10 +1,12 @@
 # BeSQL File Structure
 
-## Core
+## Frontend
 - `index.html`: Main app shell and shared UI layout.
 - `css/style.css`: Global styling.
+- `data/db.js`: In-memory SQL dataset.
+- `data/problems.js`: Default problem bank.
 
-## Pages (Nav Entry URLs)
+## Pages (Entry URLs)
 - `pages/home.html`
 - `pages/contests.html`
 - `pages/custom.html`
@@ -15,7 +17,7 @@
 - `pages/profile.html`
 - `pages/admin.html`
 
-These page files are stable URL entry points for each navigation area and route into the main app using the `view` query parameter.
+These page files are standalone HTML entry points for each navigation area.
 
 ## JavaScript
 - `js/app.js`: Main runtime and feature logic.
@@ -30,6 +32,7 @@ These page files are stable URL entry points for each navigation area and route 
 
 ## Data
 - `data/db.js`: In-memory SQL dataset.
+- `data/problems.js`: Default problem bank.
 
 ## SQL
 - `sql/db-tables.sql`

@@ -6,27 +6,24 @@ A comprehensive SQL learning and competitive programming platform with multi-dia
 
 ```
 besql/
-├── frontend/              # Frontend SPA (Single Page Application)
-│   ├── index.html         # Main entry point
+├── frontend/              # Frontend multipage app
+│   ├── index.html         # Main shell / dashboard entry
 │   ├── css/               # Stylesheets
 │   ├── js/                # Application logic
 │   │   ├── app.js         # Main app state & routing
-│   │   ├── besql-sql-editor.js  # CodeMirror 6 wrapper
 │   │   ├── core/          # SQL engine & routing
 │   │   ├── features/      # Auth, contests, admin, scoreboards
 │   │   └── storage/       # Supabase sync & rate limiting
-│   ├── data/              # Problem & contest definitions
-│   ├── pages/             # HTML templates
+│   ├── data/              # Sample data and problem definitions
+│   ├── pages/             # Standalone page entry files
 │   └── README.md          # Frontend guide
 │
 ├── backend/               # Backend structure & API configs
 │   ├── sql/               # Database schemas & migrations
-│   ├── README.md          # Backend guide
-│   └── (API code goes here)
+│   └── README.md          # Backend guide
 │
 ├── docs/                  # Documentation
 │   ├── FILE_STRUCTURE.md  # Detailed file breakdown
-│   ├── EDITOR_INTEGRATION.md  # CodeMirror guide
 │   └── SECURITY.md        # Security best practices
 │
 ├── .env                   # Environment variables (gitignored)
@@ -40,38 +37,37 @@ besql/
 ### 1. Setup Environment Variables
 ```bash
 cp .env.example .env
-# Edit .env and add your API keys:
-# - SUPABASE_URL & SUPABASE_KEY (optional, for cloud sync)
-# - Other configuration as needed
+# Edit .env and add your API keys as needed
 ```
 
 ### 2. Open Frontend
 ```bash
-# Open the SPA in a browser:
-open frontend/index.html
-# Or navigate to: file:///path/to/besql/frontend/index.html
+# Open the dashboard page in a browser:
+open frontend/pages/home.html
+# Or navigate to: file:///path/to/besql/frontend/pages/home.html
 ```
 
-No build step required - the project uses native ES modules and runs directly in the browser.
+No build step required - the project runs directly in the browser.
 
 ## ✨ Features
 
-- **Multi-Dialect SQL Editor** - MySQL, PostgreSQL, SQLite, MSSQL, MariaDB, PL/SQL, Cassandra
+- **SQL Editor** - Lightweight editor with syntax highlighting helpers
 - **Real-Time SQL Judge** - Execute and test SQL queries instantly
 - **Contest System** - Create, join, and compete in timed contests
-- **Problem Bank** - 100+ curated SQL challenges
+- **Problem Bank** - Curated SQL challenges
 - **Leaderboards** - Track progress and rank against peers
 - **Dark/Light Theme** - Responsive UI with 16 breakpoints
 - **Offline Support** - Local storage caching
 - **Supabase Integration** - Optional cloud sync
 
-## 📚 Frontend (SPA)
+## 📚 Frontend (Multipage)
 
 Located in `frontend/`:
 - **No build step required**
 - Pure ES6+ modules
 - Responsive design (320px to 1920px+)
 - Dark theme with light mode toggle
+- Separate page entry points under `frontend/pages/`
 
 ### Development
 
@@ -79,7 +75,7 @@ Edit files in `frontend/`:
 - `js/app.js` - Main application logic
 - `css/style.css` - Global styles (edit CSS variables for theming)
 - `js/features/*.js` - Feature modules
-- `js/data/*.js` - Problem definitions
+- `data/problems.js` - Default problem bank
 
 See `frontend/README.md` for detailed guides.
 

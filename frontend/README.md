@@ -22,18 +22,18 @@ This folder contains all frontend assets and application code for BeSQL.
     - `rate-limiter.js` - Rate limiting
     - `index.js` - Storage entry point
 - **data/** - Local data and problem definitions
-- **pages/** - HTML page templates
+- **pages/** - Standalone HTML entry pages
 - **docs/** - Documentation
 
 ## Files
 
-- **index.html** - Main SPA entry point
+- **index.html** - Main shell entry point
 - **style.css** - Global styles with responsive breakpoints
 
 ## Key Features
 
 - **Responsive Design** - 16 breakpoints from 320px to 1920px+
-- **CodeMirror 6 Integration** - Multi-dialect SQL editor
+- **SQL Editor** - Lightweight editor with syntax highlighting helpers
 - **Dark/Light Theme** - Toggle theme support
 - **Offline Support** - Local storage caching
 - **Real-time Judge** - Test SQL submissions in-browser
@@ -41,13 +41,13 @@ This folder contains all frontend assets and application code for BeSQL.
 
 ## Getting Started
 
-1. Open `index.html` in a modern browser
+1. Open `pages/home.html` in a modern browser
 2. No build step required - uses ES modules
 3. Check `.env.example` for optional Supabase configuration
 
 ## Customization
 
 - Edit `css/style.css` for theming (CSS variables in `:root`)
-- Modify `js/data/*.js` to add problems or adjust scoring
-- Update `js/besql-sql-editor.js` for SQL dialect customization
+- Modify `js/*.js` to adjust runtime behavior and features
+- Update `data/db.js` and `data/problems.js` for data changes
 

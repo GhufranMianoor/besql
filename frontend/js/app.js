@@ -4,245 +4,7 @@
 /* ══════════════════════════════════════════════════════════
    PROBLEMS DATA
 ══════════════════════════════════════════════════════════ */
-const PROBLEMS_DEFAULT = [
-  {
-    id:'p1',code:'BSQ-001',title:'High Salary Filter',difficulty:'Easy',points:100,timeLimit:300,
-    category:'Filtering',tags:['WHERE','ORDER BY'],
-    description:'Find all employees with a salary greater than $85,000.\n\nReturn the columns: name, salary, level.\nOrder results by salary in descending order.',
-    sampleOutput:{columns:['name','salary','level'],rows:[['Henry Zhao','115000','Staff'],['Carol White','110000','Staff'],['Frank Kim','105000','Senior']]},
-    schemaHint:{table:'employees',columns:[['id','INT'],['name','VARCHAR'],['dept_id','INT'],['salary','INT'],['hire_year','INT'],['age','INT'],['level','VARCHAR']]},
-    testCases:[
-      {id:'tc1',name:'Row Count',desc:'Must return exactly 6 rows',validate:r=>r.rowCount===6,hint:'WHERE salary > 85000',hidden:true},
-      {id:'tc2',name:'Salary Filter',desc:'All returned salaries must be > 85000',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase()==='salary');return r.rows.every(row=>Number(row[i])>85000);},hint:'Check your WHERE condition',hidden:true},
-      {id:'tc3',name:'Ordered Descending',desc:'Must be ordered by salary DESC',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase()==='salary');for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])>Number(r.rows[x-1][i]))return false;return true;},hint:'Add ORDER BY salary DESC',hidden:true},
-      {id:'tc4',name:'Correct Columns',desc:'Must return name, salary, and level columns',validate:r=>r.columns.length===3&&r.columns.includes('name')&&r.columns.includes('salary')&&r.columns.includes('level'),hint:'Check your SELECT statement',hidden:true},
-      {id:'tc5',name:'Top Earner',desc:'The first row should be Henry Zhao',validate:r=>r.rows[0][r.columns.indexOf('name')]==='Henry Zhao',hint:'Is your data ordered correctly?',hidden:true},
-    ],
-    solution:'SELECT name, salary, level FROM employees WHERE salary > 85000 ORDER BY salary DESC',
-    dailyDate:getTodayStr(),
-  },
-  {
-    id:'p2',code:'BSQ-002',title:'Department Employee Count',difficulty:'Easy',points:150,timeLimit:300,
-    category:'Aggregation',tags:['GROUP BY','COUNT'],
-    description:'Count the number of employees in each department.\n\nReturn the columns: dept_id, total_employees.\nOrder results by total_employees in descending order.',
-    sampleOutput:{columns:['dept_id','total_employees'],rows:[['1','3'],['2','3'],['3','2'],['4','2']]},
-    schemaHint:{table:'employees',columns:[['id','INT'],['name','VARCHAR'],['dept_id','INT'],['salary','INT']]},
-    testCases:[
-      {id:'tc1',name:'Row Count',desc:'Must return a row for each department',validate:r=>r.rowCount===4,hint:'Ensure you are grouping by department',hidden:true},
-      {id:'tc2',name:'Correct Columns',desc:'Must return dept_id and total_employees',validate:r=>r.columns.length===2&&r.columns.includes('dept_id')&&r.columns.includes('total_employees'),hint:'Check your SELECT statement and aliases',hidden:true},
-      {id:'tc3',name:'Engineering Count',desc:'Engineering department (ID 1) should have 3 employees',validate:r=>{const iDept=r.columns.indexOf('dept_id');const iCount=r.columns.indexOf('total_employees');return r.rows.some(row=>row[iDept]==1&&row[iCount]==3);},hint:'Check your COUNT aggregation',hidden:true},
-      {id:'tc4',name:'Marketing Count',desc:'Marketing department (ID 2) should have 3 employees',validate:r=>{const iDept=r.columns.indexOf('dept_id');const iCount=r.columns.indexOf('total_employees');return r.rows.some(row=>row[iDept]==2&&row[iCount]==3);},hint:'Check your COUNT aggregation',hidden:true},
-      {id:'tc5',name:'Order Descending',desc:'Results must be ordered by total_employees DESC',validate:r=>{const i=r.columns.indexOf('total_employees');for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])>Number(r.rows[x-1][i]))return false;return true;},hint:'Add ORDER BY total_employees DESC',hidden:true},
-    ],
-    solution:'SELECT dept_id, COUNT(*) as total_employees FROM employees GROUP BY dept_id ORDER BY total_employees DESC',
-    dailyDate:null,
-  },
-  {
-    id:'p4',code:'BSQ-004',title:'Average Salary by Department',difficulty:'Medium',points:200,timeLimit:null,
-    category:'Aggregation',tags:['GROUP BY','AVG','HAVING'],
-    description:'Show dept_id and average salary (as avg_salary).\nOnly departments with avg salary > $80,000.\nOrder by avg_salary DESC.',
-    sampleOutput:{columns:['dept_id','avg_salary'],rows:[['1','101333.33'],['3','96500'],['4','96500']]},
-    schemaHint:{table:'employees',columns:[['id','INT'],['name','VARCHAR'],['dept_id','INT'],['salary','INT'],['hire_year','INT'],['age','INT'],['level','VARCHAR']]},
-    testCases:[
-      {id:'tc1',name:'HAVING filter',desc:'Only depts with avg > 80000',
-       validate:r=>{const ai=r.columns.findIndex(c=>c.toLowerCase().includes('avg'));if(ai<0)return false;if(r.rowCount!==3)return false;return r.rows.every(row=>Number(row[ai])>80000);},hint:'HAVING AVG(salary) > 80000'},
-      {id:'tc2',name:'Ordered DESC',desc:'Highest average first',
-       validate:r=>{const ai=r.columns.findIndex(c=>c.toLowerCase().includes('avg'));if(ai<0)return false;if(r.rowCount<1)return false;for(let i=1;i<r.rows.length;i++)if(Number(r.rows[i][ai])>Number(r.rows[i-1][ai]))return false;return true;},hint:'ORDER BY avg_salary DESC'},
-    ],
-    solution:'SELECT dept_id, AVG(salary) AS avg_salary FROM employees GROUP BY dept_id HAVING AVG(salary) > 80000 ORDER BY avg_salary DESC',
-    dailyDate: null,
-  },
-  {
-    id:'p5',code:'BSQ-005',title:'Top 3 Earners',difficulty:'Easy',points:100,timeLimit:null,
-    category:'Filtering',tags:['ORDER BY','LIMIT'],
-    description:'Find the top 3 highest paid employees.\nReturn: name, salary only.',
-    sampleOutput:{columns:['name','salary'],rows:[['Henry Zhao','115000'],['Carol White','110000'],['Frank Kim','105000']]},
-    schemaHint:{table:'employees',columns:[['id','INT'],['name','VARCHAR'],['dept_id','INT'],['salary','INT'],['hire_year','INT'],['age','INT'],['level','VARCHAR']]},
-    testCases:[
-      {id:'tc1',name:'Exactly 3 rows',desc:'Must return exactly 3 rows',
-       validate:r=>r.rowCount===3,hint:'Use LIMIT 3'},
-      {id:'tc2',name:'Descending salary',desc:'Highest salary first',
-       validate:r=>{const si=r.columns.findIndex(c=>c.toLowerCase().includes('salary'));if(si<0)return false;return Number(r.rows[0][si])>=Number(r.rows[1][si])&&Number(r.rows[1][si])>=Number(r.rows[2][si]);},hint:'ORDER BY salary DESC'},
-    ],
-    solution:'SELECT name, salary FROM employees ORDER BY salary DESC LIMIT 3',
-    dailyDate: null,
-  },
-  {
-    id:'p6',code:'BSQ-006',title:'Revenue by Customer',difficulty:'Medium',points:250,timeLimit:null,
-    category:'Aggregation',tags:['GROUP BY','SUM','WHERE'],
-    description:'Calculate total revenue for each customer (delivered orders only).\nReturn: customer, total_revenue ordered by total_revenue DESC.',
-    sampleOutput:{columns:['customer','total_revenue'],rows:[['GlobalCo','46600'],['MegaRetail','19800'],['TechCorp','18200'],['StartupXYZ','9900']]},
-    schemaHint:{table:'orders',columns:[['id','INT'],['customer','VARCHAR'],['product_id','INT'],['amount','INT'],['status','VARCHAR'],['month','VARCHAR']]},
-    testCases:[
-      {id:'tc1',name:'Delivered only',desc:'Only count delivered orders',
-       validate:r=>r.rowCount===4,hint:"WHERE status = 'delivered'"},
-      {id:'tc2',name:'SUM column',desc:'Revenue column must exist',
-       validate:r=>r.columns.some(c=>c.toLowerCase().includes('rev')||c.toLowerCase().includes('total')||c.toLowerCase().includes('amount')),hint:'SUM(amount) AS total_revenue'},
-      {id:'tc3',name:'Descending order',desc:'Highest revenue first',
-       validate:r=>{const ri=r.columns.findIndex(c=>c.toLowerCase().includes('rev')||c.toLowerCase().includes('total'));if(ri<0)return false;for(let i=1;i<r.rows.length;i++)if(Number(r.rows[i][ri])>Number(r.rows[i-1][ri]))return false;return true;},hint:'ORDER BY total_revenue DESC'},
-    ],
-    solution:"SELECT customer, SUM(amount) AS total_revenue FROM orders WHERE status = 'delivered' GROUP BY customer ORDER BY total_revenue DESC",
-    dailyDate: null,
-  },
-  {
-    id:'p7',code:'BSQ-007',title:'Product Order Report',difficulty:'Hard',points:350,timeLimit:null,
-    category:'Joins',tags:['JOIN','GROUP BY','SUM'],
-    description:'For each product: return name (as product), order count, and total revenue generated.\nOrder by total_revenue DESC.',
-    sampleOutput:{columns:['product','order_count','total_revenue'],rows:[['Enterprise Suite','5','65800'],['Analytics Pro','3','38000'],['Consulting Pack','2','6300']]},
-    schemaHint:{table:'orders  ·  products',columns:[['orders.id','INT'],['orders.customer','VARCHAR'],['orders.product_id','INT'],['orders.amount','INT'],['orders.status','VARCHAR'],['products.id','INT'],['products.name','VARCHAR'],['products.category','VARCHAR'],['products.price','INT']]},
-    testCases:[
-      {id:'tc1',name:'Three products',desc:'Must return 3 rows',
-       validate:r=>r.rowCount===3,hint:'JOIN products ON product_id = products.id'},
-      {id:'tc2',name:'order_count column',desc:'Must have order count',
-       validate:r=>r.columns.some(c=>c.toLowerCase().includes('count')||c.toLowerCase().includes('order')),hint:'COUNT(*) AS order_count'},
-      {id:'tc3',name:'Descending by revenue',desc:'Highest revenue first',
-       validate:r=>{const ri=r.columns.findIndex(c=>c.toLowerCase().includes('rev')||c.toLowerCase().includes('total'));if(ri<0)return false;for(let i=1;i<r.rows.length;i++)if(Number(r.rows[i][ri])>Number(r.rows[i-1][ri]))return false;return true;},hint:'ORDER BY total_revenue DESC'},
-    ],
-    solution:'SELECT p.name AS product, COUNT(*) AS order_count, SUM(o.amount) AS total_revenue FROM orders o JOIN products p ON o.product_id = p.id GROUP BY p.name ORDER BY total_revenue DESC',
-    dailyDate: null,
-  },
-  {
-    id:'p8',code:'BSQ-008',title:'Student GPA Report',difficulty:'Hard',points:300,timeLimit:null,
-    category:'Joins',tags:['JOIN','AVG','GROUP BY'],
-    description:'For each course: return course name (as course_name), enrolled student count, and average GPA.\nOrder by avg_gpa DESC.',
-    sampleOutput:{columns:['course_name','enrolled','avg_gpa'],rows:[['Machine Learning','2','3.75'],['Data Structures','2','3.35'],['Database Systems','2','3.35']]},
-    schemaHint:{table:'students  ·  courses',columns:[['students.id','INT'],['students.name','VARCHAR'],['students.grade','INT'],['students.course_id','INT'],['students.year','INT'],['students.gpa','FLOAT'],['courses.id','INT'],['courses.name','VARCHAR'],['courses.credits','INT'],['courses.instructor','VARCHAR']]},
-    testCases:[
-      {id:'tc1',name:'Three courses',desc:'Must return 3 rows',
-       validate:r=>r.rowCount===3,hint:'JOIN courses ON course_id = courses.id'},
-      {id:'tc2',name:'avg_gpa column',desc:'Must compute average GPA',
-       validate:r=>r.columns.some(c=>c.toLowerCase().includes('gpa')||c.toLowerCase().includes('avg')),hint:'AVG(gpa) AS avg_gpa'},
-    ],
-    solution:'SELECT c.name AS course_name, COUNT(*) AS enrolled, AVG(s.gpa) AS avg_gpa FROM students s JOIN courses c ON s.course_id = c.id GROUP BY c.name ORDER BY avg_gpa DESC',
-    dailyDate: null,
-  },
-  {
-    id:'p9',code:'BSQ-009',title:'Danger Zone Citizens',difficulty:'Easy',points:180,timeLimit:null,
-    category:'Filtering',tags:['WHERE','ORDER BY'],
-    description:'Find citizens with stability rating below 2.0.\nReturn: citizen_name, sector, stability_rating ordered by stability_rating ASC.',
-    sampleOutput:{columns:['citizen_name','sector','stability_rating'],rows:[['Ryn','Delta','0.8'],['Nova','Beta','1.5'],['Marcus','Beta','1.9']]},
-    schemaHint:{table:'citizenmentalhealth',columns:[['citizen_id','INT'],['citizen_name','VARCHAR'],['sector','VARCHAR'],['stability_rating','FLOAT'],['last_checkup','DATE']]},
-    testCases:[
-      {id:'tc1',name:'Low stability only',desc:'All rows must be below 2.0',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('stability'));return i>=0&&r.rows.every(row=>Number(row[i])<2);},hint:'WHERE stability_rating < 2.0'},
-      {id:'tc2',name:'Three citizens',desc:'Must return exactly 3 rows',validate:r=>r.rowCount===3,hint:'Ryn, Nova, and Marcus'},
-      {id:'tc3',name:'Ascending order',desc:'Lowest stability first',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('stability'));if(i<0)return false;for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])<Number(r.rows[x-1][i]))return false;return true;},hint:'ORDER BY stability_rating ASC'},
-    ],
-    solution:'SELECT citizen_name, sector, stability_rating FROM citizenmentalhealth WHERE stability_rating < 2.0 ORDER BY stability_rating ASC',
-    dailyDate: null,
-  },
-  {
-    id:'p10',code:'BSQ-010',title:'Double Agents',difficulty:'Medium',points:220,timeLimit:null,
-    category:'Filtering',tags:['WHERE','ORDER BY'],
-    description:'List Alpha clearance operatives with multiple organizations (count > 1).\nReturn: operative_name, organizations_count ordered by count DESC.',
-    sampleOutput:{columns:['operative_name','organizations_count'],rows:[['Zara','3'],['Ryn','2']]},
-    schemaHint:{table:'operativeprofiles',columns:[['operative_id','INT'],['operative_name','VARCHAR'],['clearance_level','VARCHAR'],['organizations_count','INT'],['recruitment_date','DATE']]},
-    testCases:[
-      {id:'tc1',name:'Alpha multiorg only',desc:'Only Alpha with organizations_count > 1',validate:r=>r.rowCount===2,hint:'WHERE clearance_level = \'Alpha\' AND organizations_count > 1'},
-      {id:'tc2',name:'Zara and Ryn only',desc:'Must include both Zara and Ryn',validate:r=>{const n=r.rows.map(row=>String(row[0]).toLowerCase());return n.includes('zara')&&n.includes('ryn');},hint:'These are the only Alpha operatives with multiple orgs'},
-      {id:'tc3',name:'Descending count',desc:'Highest org count first',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('count'));if(i<0)return false;for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])>Number(r.rows[x-1][i]))return false;return true;},hint:'ORDER BY organizations_count DESC'},
-    ],
-    solution:"SELECT operative_name, organizations_count FROM operativeprofiles WHERE clearance_level = 'Alpha' AND organizations_count > 1 ORDER BY organizations_count DESC",
-    dailyDate: null,
-  },
-  {
-    id:'p11',code:'BSQ-011',title:'Duplicate Records',difficulty:'Medium',points:240,timeLimit:null,
-    category:'Aggregation',tags:['GROUP BY','HAVING','COUNT'],
-    description:'Find duplicate agent/division entries.\nReturn: agent_name, division_name, duplicate_count (count > 1) ordered DESC.',
-    sampleOutput:{columns:['agent_name','division_name','duplicate_count'],rows:[['Nova','Field','3'],['Zara','Recon','2']]},
-    schemaHint:{table:'agentrecords',columns:[['record_id','INT'],['agent_name','VARCHAR'],['division_name','VARCHAR'],['entry_date','DATE']]},
-    testCases:[
-      {id:'tc1',name:'Duplicates only',desc:'Must return exactly duplicated groups',validate:r=>r.rowCount===2,hint:'GROUP BY agent_name, division_name HAVING COUNT(*) > 1'},
-      {id:'tc2',name:'Has count column',desc:'Must include a count column',validate:r=>r.columns.some(c=>c.toLowerCase().includes('count')||c.toLowerCase().includes('dup')),hint:'Use COUNT(*) in SELECT'},
-      {id:'tc3',name:'Descending order',desc:'Highest duplicates first',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('count'));if(i<0)return false;for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])>Number(r.rows[x-1][i]))return false;return true;},hint:'ORDER BY duplicate_count DESC'},
-    ],
-    solution:'SELECT agent_name, division_name, COUNT(*) AS duplicate_count FROM agentrecords GROUP BY agent_name, division_name HAVING COUNT(*) > 1 ORDER BY duplicate_count DESC, agent_name ASC',
-    dailyDate: null,
-  },
-  {
-    id:'p12',code:'BSQ-012',title:'Echo Transactions',difficulty:'Medium',points:250,timeLimit:null,
-    category:'Aggregation',tags:['SUM','GROUP BY','HAVING'],
-    description:'Show accounts whose total credits exceed 400.\n\nReturn: account_id, total_credits ordered by total_credits descending.',
-    sampleOutput:{columns:['account_id','total_credits'],rows:[['101','700'],['102','450'],['103','500']]},
-    schemaHint:{table:'creditledger',columns:[['txn_id','INT'],['account_id','INT'],['credits','INT'],['txn_date','DATE']]},
-    testCases:[
-      {id:'tc1',name:'High value accounts',desc:'Only accounts with SUM(credits) > 400',validate:r=>r.rowCount===3,hint:'HAVING SUM(credits) > 400'},
-      {id:'tc2',name:'All above threshold',desc:'All totals must exceed 400',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('total'));return i>=0&&r.rows.every(row=>Number(row[i])>400);},hint:'Check your HAVING condition'},
-      {id:'tc3',name:'Descending sort',desc:'Highest total first',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('total'));if(i<0)return false;for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])<Number(r.rows[x-1][i]))return false;return true;},hint:'ORDER BY total_credits DESC'},
-    ],
-    solution:'SELECT account_id, SUM(credits) AS total_credits FROM creditledger GROUP BY account_id HAVING SUM(credits) > 400 ORDER BY total_credits DESC',
-    dailyDate: null,
-  },
-  {
-    id:'p13',code:'BSQ-013',title:'Exchange Paradox',difficulty:'Hard',points:320,timeLimit:null,
-    category:'Joins',tags:['JOIN','IN'],
-    description:'Find agents who have appeared as both giver and receiver in exchanges.\n\nReturn: agent_name ordered alphabetically.',
-    sampleOutput:{columns:['agent_name'],rows:[['Marcus'],['Nova'],['Zara']]},
-    schemaHint:{table:'agents  ·  exchanges',columns:[['agent_id','INT'],['agent_name','VARCHAR'],['giver_id','INT'],['receiver_id','INT'],['year','INT']]},
-    testCases:[
-      {id:'tc1',name:'Bidirectional participants',desc:'Must include agents appearing in both roles',validate:r=>r.rowCount===3,hint:'agent_id IN (SELECT giver_id ...) AND agent_id IN (SELECT receiver_id ...)'},
-      {id:'tc2',name:'Three agents',desc:'Marcus, Nova, Zara',validate:r=>{const names=r.rows.map(row=>String(row[0]).toLowerCase());return names.length===3;},hint:'Use IN with two subqueries'},
-      {id:'tc3',name:'Alphabetical order',desc:'Names A-Z',validate:r=>{for(let x=1;x<r.rows.length;x++)if(String(r.rows[x][0]).toLowerCase()<String(r.rows[x-1][0]).toLowerCase())return false;return true;},hint:'ORDER BY agent_name ASC'},
-    ],
-    solution:'SELECT a.agent_name FROM agents a WHERE a.agent_id IN (SELECT giver_id FROM exchanges) AND a.agent_id IN (SELECT receiver_id FROM exchanges) ORDER BY a.agent_name ASC',
-    dailyDate: null,
-  },
-  {
-    id:'p14',code:'BSQ-014',title:'Ghost Followers',difficulty:'Hard',points:330,timeLimit:null,
-    category:'Joins',tags:['LEFT JOIN','NULL'],
-    description:'Find citizens who follow someone but have never posted.\n\nReturn distinct citizen_id ordered ascending.',
-    sampleOutput:{columns:['citizen_id'],rows:[['1'],['4'],['5']]},
-    schemaHint:{table:'follows  ·  posts',columns:[['citizen_id','INT'],['followed_citizen_id','INT'],['post_id','INT'],['content','VARCHAR']]},
-    testCases:[
-      {id:'tc1',name:'No-post followers',desc:'Only followers with no posts',validate:r=>r.rowCount===3,hint:'LEFT JOIN posts ON follows.citizen_id = posts.citizen_id WHERE posts.citizen_id IS NULL'},
-      {id:'tc2',name:'Three citizens',desc:'Citizens 1, 4, and 5',validate:r=>{const ids=r.rows.map(row=>String(row[0]));return ids.includes('1')&&ids.includes('4')&&ids.includes('5');},hint:'These follow but never posted'},
-      {id:'tc3',name:'Ascending order',desc:'IDs ordered low to high',validate:r=>{for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][0])<Number(r.rows[x-1][0]))return false;return true;},hint:'ORDER BY citizen_id ASC'},
-    ],
-    solution:'SELECT DISTINCT f.citizen_id FROM follows f LEFT JOIN posts p ON f.citizen_id = p.citizen_id WHERE p.citizen_id IS NULL ORDER BY f.citizen_id ASC',
-    dailyDate: null,
-  },
-  {
-    id:'p15',code:'BSQ-015',title:'Leaderless Divisions',difficulty:'Medium',points:260,timeLimit:null,
-    category:'Joins',tags:['LEFT JOIN','NULL','OR'],
-    description:'Find divisions with missing or invalid chiefs (NULL or non-existent in divisionagents).\nReturn: division_name ordered alphabetically.',
-    sampleOutput:{columns:['division_name'],rows:[['Intel'],['Tech']]},
-    schemaHint:{table:'divisions  ·  divisionagents',columns:[['division_id','INT'],['division_name','VARCHAR'],['chief_id','INT'],['agent_id','INT']]},
-    testCases:[
-      {id:'tc1',name:'Leaderless only',desc:'Must return Intel and Tech',validate:r=>r.rowCount===2,hint:'LEFT JOIN divisionagents ON chief_id = agent_id'},
-      {id:'tc2',name:'Intel and Tech only',desc:'Must include both divisions',validate:r=>{const names=r.rows.map(row=>String(row[0]).toLowerCase());return names.some(n=>n.includes('intel'))&&names.some(n=>n.includes('tech'));},hint:'These divisions have no valid leaders'},
-      {id:'tc3',name:'Alphabetical order',desc:'Intel before Tech',validate:r=>{const n0=String(r.rows[0][0]).toLowerCase();return n0.includes('intel');},hint:'ORDER BY division_name ASC'},
-    ],
-    solution:'SELECT d.division_name FROM divisions d LEFT JOIN divisionagents a ON d.chief_id = a.agent_id WHERE d.chief_id IS NULL OR a.agent_id IS NULL ORDER BY d.division_name ASC',
-    dailyDate: null,
-  },
-  {
-    id:'p16',code:'BSQ-016',title:'Low-Energy Operatives',difficulty:'Easy',points:170,timeLimit:null,
-    category:'Filtering',tags:['WHERE','ORDER BY'],
-    description:'List operatives with energy level below 40.\n\nReturn: operative_name, division, energy_level ordered by energy_level ascending.',
-    sampleOutput:{columns:['operative_name','division','energy_level'],rows:[['Ryn','Tech','15'],['Marcus','Intel','32']]},
-    schemaHint:{table:'operativestatus',columns:[['operative_id','INT'],['operative_name','VARCHAR'],['division','VARCHAR'],['energy_level','INT'],['last_mission_date','DATE']]},
-    testCases:[
-      {id:'tc1',name:'Energy threshold',desc:'All rows must be < 40',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('energy'));return i>=0&&r.rows.every(row=>Number(row[i])<40);},hint:'WHERE energy_level < 40'},
-      {id:'tc2',name:'Two operatives',desc:'Ryn and Marcus only',validate:r=>r.rowCount===2,hint:'The only low-energy operatives'},
-      {id:'tc3',name:'Ascending order',desc:'Lowest energy first',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('energy'));if(i<0)return false;for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])<Number(r.rows[x-1][i]))return false;return true;},hint:'ORDER BY energy_level ASC'},
-    ],
-    solution:'SELECT operative_name, division, energy_level FROM operativestatus WHERE energy_level < 40 ORDER BY energy_level ASC',
-    dailyDate: null,
-  },
-  {
-    id:'p17',code:'BSQ-017',title:'Credit Multiplier',difficulty:'Easy',points:190,timeLimit:null,
-    category:'Computed Columns',tags:['SELECT','ORDER BY'],
-    description:'For each transaction, compute effective credits (base_value * multiplier).\nReturn: sender_name, receiver_name, effective_credits ordered DESC.',
-    sampleOutput:{columns:['sender_name','receiver_name','effective_credits'],rows:[['Ryn','Zara','900'],['Echo','Ryn','800'],['Vex','Nova','300']]},
-    schemaHint:{table:'credittransactions',columns:[['transaction_id','INT'],['sender_name','VARCHAR'],['receiver_name','VARCHAR'],['base_value','INT'],['multiplier','INT']]},
-    testCases:[
-      {id:'tc1',name:'Computed field',desc:'Must compute base_value * multiplier',validate:r=>r.rowCount===5,hint:'SELECT base_value * multiplier AS effective_credits'},
-      {id:'tc2',name:'Five transactions',desc:'All 5 rows included',validate:r=>r.rowCount===5,hint:'Ryn-Zara, Echo-Ryn, Vex-Nova, and 2 more'},
-      {id:'tc3',name:'Descending order',desc:'Highest effective_credits first',validate:r=>{const i=r.columns.findIndex(c=>c.toLowerCase().includes('effective'));if(i<0)return false;for(let x=1;x<r.rows.length;x++)if(Number(r.rows[x][i])>Number(r.rows[x-1][i]))return false;return true;},hint:'ORDER BY effective_credits DESC'},
-    ],
-    solution:'SELECT sender_name, receiver_name, base_value * multiplier AS effective_credits FROM credittransactions ORDER BY effective_credits DESC',
-    dailyDate: null,
-  },
-];
+const PROBLEMS_DEFAULT = window.PROBLEMS_DEFAULT || [];
 
 /* ══════════════════════════════════════════════════════════
    CONTESTS DATA
@@ -318,6 +80,35 @@ const S = {
 ══════════════════════════════════════════════════════════ */
 const el=id=>document.getElementById(id);
 const esc=s=>{const d=document.createElement('div');d.textContent=String(s??'');return d.innerHTML;};
+
+// Dynamically load the CodeMirror-based editor module when needed.
+let _besqlEditorLoadPromise = null;
+function loadEditorModuleOnce(){
+  if(typeof window !== 'undefined' && window.BeSQLEditor) return Promise.resolve();
+  if(_besqlEditorLoadPromise) return _besqlEditorLoadPromise;
+  _besqlEditorLoadPromise = new Promise((resolve,reject)=>{
+    try{
+      const script = document.createElement('script');
+      script.type = 'module';
+      // Resolve editor path relative to this script's location (app.js)
+      let editorUrl = 'js/besql-sql-editor.js';
+      if(document.currentScript && document.currentScript.src){
+        editorUrl = new URL('besql-sql-editor.js', document.currentScript.src).href;
+      }
+      script.src = editorUrl;
+      script.onload = ()=>{
+        resolve();
+      };
+      script.onerror = (e)=>{
+        reject(new Error('Failed to load editor module: '+editorUrl));
+      };
+      document.head.appendChild(script);
+    }catch(err){
+      reject(err);
+    }
+  });
+  return _besqlEditorLoadPromise;
+}
 function normalizeSearchQuery(value){
   return String(value||'')
     .toLowerCase()
@@ -2289,20 +2080,25 @@ function renderJudge(ctx){
   if(p.schemaHint?.table){
     schema[p.schemaHint.table]=p.schemaHint.columns.map(c=>c[0]);
   }
-  if(!window.judgeEditor){
-    window.judgeEditor=Object.create(window.BeSQLEditor);
-  }
-  window.judgeEditor.init({
-    container:el('judge-editor'),
-    dialect:'sqlite',
-    schema,
-    initialValue:initialCode,
-    readOnly:false,
-    onRun:(sql)=>judgeRun(),
-    minHeight:200,
+  // Load editor module on-demand and initialize editor instance
+  loadEditorModuleOnce().then(()=>{
+    if(!window.judgeEditor){
+      window.judgeEditor=Object.create(window.BeSQLEditor);
+    }
+    window.judgeEditor.init({
+      container:el('judge-editor'),
+      dialect:'sqlite',
+      schema,
+      initialValue:initialCode,
+      readOnly:false,
+      onRun:(sql)=>judgeRun(),
+      minHeight:200,
+    });
+    const judgeCharsEl=el('judge-chars');
+    if(judgeCharsEl)judgeCharsEl.textContent=`${initialCode.length}`;
+  }).catch(err=>{
+    console.warn('Editor module failed to load for judge view:',err);
   });
-  const judgeCharsEl=el('judge-chars');
-  if(judgeCharsEl)judgeCharsEl.textContent=`${initialCode.length}`;
 
   // Solved state
   const isSolved=isSolvedForJudgeContext(p.id,S.judgeContext);
@@ -2852,15 +2648,19 @@ function renderPractice(){
 function renderPlayground(){
   // Initialize practice lab editor on first load
   if(!window.practiceLabEditor){
-    window.practiceLabEditor=Object.create(window.BeSQLEditor);
-    window.practiceLabEditor.init({
-      container:el('practice-lab-editor'),
-      dialect:'sqlite',
-      schema:{},
-      initialValue:'',
-      readOnly:false,
-      onRun:()=>runPracticeLab(),
-      minHeight:200,
+    loadEditorModuleOnce().then(()=>{
+      window.practiceLabEditor=Object.create(window.BeSQLEditor);
+      window.practiceLabEditor.init({
+        container:el('practice-lab-editor'),
+        dialect:'sqlite',
+        schema:{},
+        initialValue:'',
+        readOnly:false,
+        onRun:()=>runPracticeLab(),
+        minHeight:200,
+      });
+    }).catch(err=>{
+      console.warn('Editor module failed to load for playground:',err);
     });
   }
   renderPracticeLabTables();

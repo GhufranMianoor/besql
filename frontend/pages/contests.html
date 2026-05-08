@@ -4,11 +4,423 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BeSQL - Contests</title>
-<script>
-window.location.replace('../index.html?view=contests');
-</script>
+<script>window.__BESQL_ENTRY_VIEW='contests';</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-Redirecting to Contests...
+
+<div id="init">
+  <div class="init-logo"><span style="color:var(--grn)">BeSQL</span></div>
+  <div class="spinner"></div>
+  <div class="init-sub">Loading...</div>
+</div>
+
+<div id="app">
+
+  <!-- TOPBAR -->
+  <header id="topbar">
+    <button id="ham-btn" onclick="toggleSidebar()" aria-label="Menu"><span></span><span></span><span></span></button>
+    <div class="logo" onclick="nav('home')" style="cursor:pointer"><span>BeSQL</span></div>
+    <nav class="topnav" id="topnav">
+      <button class="tnav on" data-view="home">Dashboard</button>
+      <button class="tnav" data-view="contests">Contests</button>
+      <button class="tnav" data-view="custom">Custom</button>
+      <button class="tnav" data-view="practice">Practice</button>
+      <button class="tnav" data-view="playground">Playground</button>
+      <button class="tnav" data-view="submissions">Submissions</button>
+      <button class="tnav" data-view="admin" id="nav-admin" style="display:none">Admin</button>
+    </nav>
+    <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode" style="display:none">◑</button>
+    <div class="topright" id="topright"></div>
+  </header>
+
+  <!-- ANNOUNCE BAR -->
+  <div class="announce hidden" id="announce-bar">
+    <span id="announce-text"></span>
+  </div>
+
+  <div id="body">
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar">
+      <div class="sidebar-section">Navigation</div>
+      <div class="slink on" data-view="home"><span class="slink-ico">&#9632;</span>Dashboard</div>
+      <div class="slink" data-view="contests"><span class="slink-ico">&#9679;</span>Contests<span class="badge" id="sb-live-count">0</span></div>
+      <div class="slink" data-view="custom"><span class="slink-ico">&#9670;</span>Custom Contest</div>
+      <div class="slink" data-view="practice"><span class="slink-ico">&#8801;</span>Daily Practice</div>
+      <div class="slink" data-view="playground"><span class="slink-ico">&#9723;</span>SQL Playground</div>
+      <div class="slink" data-view="submissions"><span class="slink-ico">&#8984;</span>Submissions</div>
+
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-section">Account</div>
+      <div class="slink" data-view="profile"><span class="slink-ico">&#9711;</span>Profile</div>
+      <div class="slink" data-view="admin" id="sb-admin" style="display:none"><span class="slink-ico">&#9671;</span>Admin Panel</div>
+
+      <div style="flex:1"></div>
+    </aside>
+    <div id="sb-backdrop" onclick="toggleSidebar()"></div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main-content">
+
+      <!-- ══ HOME VIEW ══════════════════════════════════ -->
+      <div class="view" id="view-home">
+        <div class="fx ic sb mb4">
+          <div>
+            <div style="font-size:26px;font-weight:700;letter-spacing:-.4px" id="home-greeting">Welcome back</div>
+            <div style="font-size:12px;color:var(--t2);margin-top:2px" id="home-sub">SQL Contest Platform</div>
+          </div>
+        </div>
+        <div class="g4 mb4" id="home-stats"></div>
+        <div class="home-grid" style="display:grid;grid-template-columns:1fr 320px;gap:16px">
+          <div>
+            <div class="card mb4">
+              <div class="card-hdr"><div class="card-title">Active &amp; Upcoming Contests</div><button class="btn btn-ghost btn-sm" onclick="nav('contests')">View all →</button></div>
+              <div id="home-contests"></div>
+            </div>
+            <div class="card">
+              <div class="card-hdr"><div class="card-title">Today's Practice Problem</div><span id="daily-badge" class="diff-med">Medium</span></div>
+              <div class="card-body" id="home-daily"></div>
+            </div>
+          </div>
+          <div class="home-right-col" style="display:flex;flex-direction:column;gap:14px">
+            <div class="card">
+              <div class="card-hdr"><div class="card-title">Scoreboard</div></div>
+              <div id="home-scoreboard"></div>
+            </div>
+            <div class="card">
+              <div class="card-hdr"><div class="card-title">My Progress</div></div>
+              <div class="card-body" id="home-progress"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ CONTESTS VIEW ══════════════════════════════ -->
+      <div class="view hidden" id="view-contests">
+        <div class="fx ic sb mb4">
+          <div style="font-size:24px;font-weight:700;letter-spacing:-.3px">Contests</div>
+          <div class="fx gap3">
+            <button class="btn btn-ghost btn-sm" onclick="nav('scoreboards')">Scoreboards</button>
+            <select class="sel" id="contest-filter" style="width:130px" onchange="filterContests()">
+              <option value="all">All Status</option>
+              <option value="live">Live</option>
+              <option value="upcoming">Upcoming</option>
+              <option value="ended">Ended</option>
+            </select>
+            <button class="btn btn-blue btn-sm hidden" id="btn-create-contest" onclick="openContestCreator()">+ Create Contest</button>
+          </div>
+        </div>
+        <div id="contest-list"></div>
+      </div>
+
+      <!-- ══ CONTEST SCOREBOARDS VIEW ════════════════════ -->
+      <div class="view hidden" id="view-scoreboards">
+        <div class="fx ic sb mb4">
+          <div class="fx ic gap2">
+            <button class="btn btn-ghost btn-sm hidden" id="scoreboard-back-btn" onclick="goBackFromScoreboard()" title="Back to contest">← Back</button>
+            <div>
+              <div style="font-size:24px;font-weight:700;letter-spacing:-.3px">Contest Scoreboards</div>
+              <div style="font-size:12px;color:var(--t2);margin-top:2px">Rankings across active and archived contests</div>
+            </div>
+          </div>
+          <div class="fx ic gap3">
+            <select class="sel" id="contest-scoreboard-filter" style="width:260px" onchange="filterContestScoreboards()">
+              <option value="all">All Contests</option>
+            </select>
+          </div>
+        </div>
+        <div id="contest-scoreboard-list"></div>
+      </div>
+
+      <!-- ══ CONTEST DETAIL VIEW ════════════════════════ -->
+      <div class="view hidden" id="view-contest-detail">
+        <div class="fx ic gap3 mb4">
+          <button class="btn btn-ghost btn-sm" onclick="nav('contests')">← Back</button>
+          <div style="flex:1">
+            <div style="font-size:22px;font-weight:700;letter-spacing:-.3px" id="cd-title">—</div>
+            <div class="fx ic gap3 mt1" id="cd-meta"></div>
+          </div>
+          <div id="cd-timer-wrap"></div>
+        </div>
+        <div class="tabs">
+          <button class="tab-btn on" onclick="cdTab('problems',this)">Problems</button>
+          <button class="tab-btn" onclick="cdTab('scoreboard',this)">Scoreboard</button>
+          <button class="tab-btn" onclick="cdTab('submissions',this)">My Submissions</button>
+          <button class="tab-btn" onclick="cdTab('announce',this)">Announcements</button>
+        </div>
+        <div id="cd-tab-problems" class="tab-content"><div id="cd-problems"></div></div>
+        <div id="cd-tab-scoreboard" class="tab-content hidden"><div id="cd-scoreboard"></div></div>
+        <div id="cd-tab-submissions" class="tab-content hidden"><div id="cd-my-subs"></div></div>
+        <div id="cd-tab-announce" class="tab-content hidden"><div id="cd-announces"></div></div>
+      </div>
+
+      <!-- ══ JUDGE VIEW (problem solver) ════════════════ -->
+      <div class="view hidden" id="view-judge" style="padding:0">
+        <div class="judge-layout">
+          <!-- Left: problem -->
+          <div class="judge-left">
+            <div class="judge-topbar">
+              <button class="btn btn-ghost btn-sm" id="judge-back-btn">← Back</button>
+              <div class="fx ic gap2">
+                <span id="judge-diff" class="diff-easy">Easy</span>
+                <span style="font-size:11px;color:var(--gold);font-weight:700" id="judge-pts">100</span>
+              </div>
+            </div>
+            <div class="judge-prob-wrap">
+              <div class="fx ic gap2 mb2">
+                <span style="font-size:10px;font-family:var(--mono);font-weight:700;padding:2px 8px;border-radius:3px;background:var(--bg3);border:1px solid var(--line2);color:var(--t3);letter-spacing:.5px" id="judge-code">—</span>
+              </div>
+              <div style="font-size:18px;font-weight:700;letter-spacing:-.2px;margin-bottom:10px;line-height:1.3;color:var(--t0)" id="judge-title">—</div>
+              <div id="judge-desc" style="margin-bottom:16px"></div>
+              <div class="fx gap2 flex-wrap mt2" id="judge-tags" style="margin-bottom:12px"></div>
+            </div>
+            <!-- Test cases panel -->
+            <div style="border-bottom:1px solid var(--line);padding:10px 14px;background:var(--bg2)">
+              <div class="fx ic sb">
+                <span style="font-size:10px;letter-spacing:2px;color:var(--t2);text-transform:uppercase">Test Cases</span>
+                <span style="font-size:10px;color:var(--t3)" id="tc-summary">—</span>
+              </div>
+            </div>
+            <div style="overflow-y:auto;flex:1;padding:10px" id="tc-list"></div>
+          </div>
+
+          <!-- Right: editor -->
+          <div class="judge-right">
+            <div class="judge-topbar">
+              <span style="font-size:10px;letter-spacing:2px;color:var(--t2)">SQL EDITOR</span>
+              <div class="fx ic gap2">
+                <span style="font-size:11px;color:var(--t3)" id="judge-row-count"></span>
+                <!-- Removed judge timer small span -->
+              </div>
+            </div>
+            <div class="judge-editor-wrap">
+              <div class="sql-editor-shell" id="judge-editor"></div>
+              <div class="fx ic gap3" style="flex-wrap:wrap">
+                <button class="btn btn-teal btn-md" id="btn-judge-run" onclick="judgeRun()">Run &amp; Test</button>
+                <button class="btn btn-blue btn-md" id="btn-judge-submit" onclick="judgeSubmit()">Submit</button>
+                <button class="btn btn-ghost btn-sm" onclick="judgeEditorClear()">Clear</button>
+                <button class="btn btn-ghost btn-md" id="btn-judge-prev" style="display:none;margin-left:4px">← Previous</button>
+                <button class="btn btn-success btn-md" id="btn-judge-next" style="display:none;margin-left:4px">Next →</button>
+                <div style="margin-left:auto" id="judge-verdict"></div>
+              </div>
+              <div id="judge-feedback" class="hidden"></div>
+              <div id="judge-result" class="hidden"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ CUSTOM CONTEST VIEW ════════════════════════ -->
+      <div class="view hidden" id="view-custom">
+        <div class="fx ic sb mb4">
+          <div>
+            <div style="font-size:24px;font-weight:700;letter-spacing:-.3px">Custom Contests</div>
+            <div style="font-size:12px;color:var(--t2);margin-top:2px">Create private contests using any problems</div>
+          </div>
+          <button class="btn btn-blue btn-md" onclick="openCustomCreator()">+ Create Custom Contest</button>
+        </div>
+        <div class="tabs">
+          <button class="tab-btn on" onclick="customTab('my',this)">My Contests</button>
+          <button class="tab-btn" onclick="customTab('invited',this)">Invited</button>
+        </div>
+        <div id="custom-tab-my" class="tab-content"><div id="custom-my-list"></div></div>
+        <div id="custom-tab-invited" class="tab-content hidden"><div id="custom-inv-list"></div></div>
+      </div>
+
+      <!-- ══ PRACTICE VIEW ══════════════════════════════ -->
+      <div class="view hidden" id="view-practice">
+        <div class="fx ic sb mb4">
+          <div>
+            <div style="font-size:24px;font-weight:700;letter-spacing:-.3px">Daily Practice</div>
+            <div style="font-size:12px;color:var(--t2);margin-top:2px">One problem per day. Build consistency.</div>
+          </div>
+        </div>
+        <div class="practice-grid" style="display:grid;grid-template-columns:1fr;gap:16px">
+          <div>
+            <div id="practice-pane-problems">
+              <div class="fx gap2 mb3 flex-wrap" id="practice-filters"></div>
+              <div id="practice-problem-list"></div>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="card-hdr"><div class="card-title">Solved by Difficulty</div></div>
+              <div class="card-body" id="practice-diff-stats"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ PLAYGROUND VIEW ═══════════════════════════ -->
+      <div class="view hidden" id="view-playground">
+        <div class="fx ic sb mb4">
+          <div>
+            <div style="font-size:24px;font-weight:700;letter-spacing:-.3px">SQL Playground</div>
+            <div style="font-size:12px;color:var(--t2);margin-top:2px">Practice DDL, DML, and SELECT in a safe sandbox.</div>
+          </div>
+        </div>
+        <div class="card mb3">
+          <div class="card-hdr">
+            <div class="card-title">DDL / DML Playground</div>
+            <div class="fx gap2">
+              <button class="btn btn-ghost btn-xs" onclick="loadPracticeLabExample()">Load Example</button>
+              <button class="btn btn-danger btn-xs" onclick="resetPracticeLab()">Reset Lab</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="font-size:12px;color:var(--t2);margin-bottom:8px;line-height:1.6">Practice CREATE, INSERT, UPDATE, DELETE, DROP, and SELECT safely in a sandbox database.</div>
+            <div class="sql-editor-shell" id="practice-lab-editor"></div>
+            <div class="fx ic gap3 mt2" style="flex-wrap:wrap">
+              <button class="btn btn-teal btn-md" onclick="runPracticeLab()">Run Lab SQL</button>
+              <span style="font-size:11px;color:var(--t3);font-family:var(--mono)">Ctrl+Enter to run · Ctrl+/ to comment</span>
+            </div>
+            <div id="practice-lab-output" class="mt3"></div>
+            <div class="divider"></div>
+            <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:8px">Sandbox Tables</div>
+            <div id="practice-lab-tables"></div>
+            <div class="divider"></div>
+            <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:8px">Learning Tasks & Questions</div>
+            <div id="practice-lab-tasks"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SUBMISSIONS VIEW ═══════════════════════════ -->
+      <div class="view hidden" id="view-submissions">
+        <div class="fx ic sb mb4">
+          <div style="font-size:24px;font-weight:700;letter-spacing:-.3px">Submissions</div>
+          <div class="fx gap2">
+            <select class="sel" style="width:130px" id="sub-filter-verdict" onchange="renderSubmissions()">
+              <option value="all">All Verdicts</option>
+              <option value="AC">Accepted</option>
+              <option value="WA">Wrong Answer</option>
+              <option value="TLE">Time Limit</option>
+              <option value="CE">Error</option>
+            </select>
+          </div>
+        </div>
+        <div class="card"><div id="sub-list"></div></div>
+      </div>
+
+      <!-- ══ PROFILE VIEW ═══════════════════════════════ -->
+      <div class="view hidden" id="view-profile">
+        <div id="profile-content"></div>
+      </div>
+
+      <!-- ══ ADMIN VIEW ═════════════════════════════════ -->
+      <div class="view hidden" id="view-admin">
+        <div class="fx ic sb mb4">
+          <div style="font-size:24px;font-weight:700;letter-spacing:-.3px">Admin Panel</div>
+          <span class="rb-admin">ADMIN</span>
+        </div>
+        <div class="tabs">
+          <button class="tab-btn on" onclick="adminTab('problems',this)">Problem Bank</button>
+          <button class="tab-btn" onclick="adminTab('contests',this)">Contests</button>
+          <button class="tab-btn" onclick="adminTab('users',this)">Users</button>
+          <button class="tab-btn" onclick="adminTab('announce',this)">Announcements</button>
+          <button class="tab-btn" onclick="adminTab('analytics',this)">Analytics</button>
+        </div>
+        <div id="admin-tab-problems" class="tab-content"></div>
+        <div id="admin-tab-contests" class="tab-content hidden"></div>
+        <div id="admin-tab-users" class="tab-content hidden"></div>
+        <div id="admin-tab-announce" class="tab-content hidden"></div>
+        <div id="admin-tab-analytics" class="tab-content hidden"></div>
+      </div>
+
+    </div><!-- /main-content -->
+  </div><!-- /body -->
+  <!-- BOTTOM NAV (mobile) -->
+  <nav id="bottom-nav" style="display:none">
+    <button class="bnav on" onclick="nav('home')" data-bnav="home"><span class="bnav-ico">⊞</span>Home</button>
+    <button class="bnav" onclick="nav('contests')" data-bnav="contests"><span class="bnav-ico">◉</span>Contests</button>
+    <button class="bnav" onclick="nav('practice')" data-bnav="practice"><span class="bnav-ico">≡</span>Practice</button>
+    <button class="bnav" onclick="nav('playground')" data-bnav="playground"><span class="bnav-ico">▣</span>Lab</button>
+    <button class="bnav" onclick="nav('submissions')" data-bnav="submissions"><span class="bnav-ico">⌘</span>History</button>
+    <button class="bnav" onclick="nav('profile')" data-bnav="profile"><span class="bnav-ico">○</span>Profile</button>
+  </nav>
+</div><!-- /app -->
+
+<!-- ══ MODALS ══════════════════════════════════════════════ -->
+<div class="overlay hidden" id="modal-auth">
+  <div class="modal">
+    <div class="mhdr"><div class="mtitle" id="auth-title">SIGN IN</div><button class="mclose" onclick="closeModal('modal-auth')">×</button></div>
+    <div class="mbody" id="auth-body"></div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="modal-problem">
+  <div class="modal modal-wide">
+    <div class="mhdr"><div class="mtitle" id="prob-editor-title">NEW PROBLEM</div><button class="mclose" onclick="closeModal('modal-problem')">×</button></div>
+    <div class="mbody" id="prob-editor-body"></div>
+    <div class="mfooter">
+      <button class="btn btn-ghost btn-md" onclick="closeModal('modal-problem')">Cancel</button>
+      <button class="btn btn-blue btn-md" onclick="saveProblem()">Save Problem</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="modal-contest">
+  <div class="modal modal-wide">
+    <div class="mhdr"><div class="mtitle" id="contest-editor-title">CREATE CONTEST</div><button class="mclose" onclick="closeModal('modal-contest')">×</button></div>
+    <div class="mbody" id="contest-editor-body"></div>
+    <div class="mfooter">
+      <button class="btn btn-ghost btn-md" onclick="closeModal('modal-contest')">Cancel</button>
+      <button class="btn btn-blue btn-md" onclick="saveContest()">Save Contest</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="modal-custom">
+  <div class="modal modal-wide">
+    <div class="mhdr"><div class="mtitle" id="custom-editor-title">CREATE CUSTOM CONTEST</div><button class="mclose" onclick="closeModal('modal-custom')">×</button></div>
+    <div class="mbody" id="custom-creator-body"></div>
+    <div class="mfooter">
+      <button class="btn btn-ghost btn-md" onclick="closeModal('modal-custom')">Cancel</button>
+      <button class="btn btn-blue btn-md" id="custom-editor-save-btn" onclick="saveCustomContest()">Create Contest</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="modal-contest-password">
+  <div class="modal">
+    <div class="mhdr"><div class="mtitle">ENTER CONTEST PASSWORD</div><button class="mclose" onclick="closeContestPasswordModal()">×</button></div>
+    <div class="mbody">
+      <div style="font-size:12px;color:var(--t2);margin-bottom:10px" id="contest-pass-msg">This contest is private.</div>
+      <div class="fg"><label class="lbl">Password</label><input class="inp" id="contest-pass-input" type="password" placeholder="Enter contest password" onkeydown="if(event.key==='Enter')submitContestPassword()"></div>
+    </div>
+    <div class="mfooter">
+      <button class="btn btn-ghost btn-md" onclick="closeContestPasswordModal()">Cancel</button>
+      <button class="btn btn-blue btn-md" onclick="submitContestPassword()">Continue</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+window.SUPABASE_URL = window.SUPABASE_URL || 'https://yaqukpmixbhiyxdkgmwl.supabase.co';
+window.SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhcXVrcG1peGJoaXl4ZGtnbXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MzI1NDksImV4cCI6MjA4OTUwODU0OX0.8mckbWLNNjVMNjxH4BCRnXh1-GaAN1xgWlbEPopG_Co';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Rate limiting and health checks -->
+<script src="../js/storage/rate-limiter.js"></script>
+<!-- Storage modules (async data transfer) -->
+<script src="../js/storage/storage.js"></script>
+<script src="../js/storage/relational.js"></script>
+<script src="../js/storage/index.js"></script>
+<script src="../data/db.js"></script>
+<script src="../data/problems.js"></script>
+<script src="../js/core/sql-engine.js"></script>
+<script src="../js/core/route-entry.js"></script>
+<script src="../js/features/auth.js"></script>
+<script src="../js/features/contests.js"></script>
+<script src="../js/features/admin.js"></script>
+<script src="../js/features/scoreboards.js"></script>
+<!-- Main application -->
+<script src="../js/app.js?v=20260320k"></script>
 </body>
 </html>
+
