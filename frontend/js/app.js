@@ -1420,7 +1420,7 @@ function labSchemaToData(){
 }
 
 function runPracticeLab(){
-  const sql=window.practiceLabEditor?window.practiceLabEditor.getValue():''.trim();
+  let sql=window.practiceLabEditor?window.practiceLabEditor.getValue():'';
   if(!sql.trim()){toast('Write some DDL/DML first','warn');return;}
   sql=sql.trim();
   if(!sql){toast('Write some DDL/DML first','warn');return;}
