@@ -83,6 +83,55 @@ const esc=s=>{const d=document.createElement('div');d.textContent=String(s??'');
 
 // Dynamically load the CodeMirror-based editor module when needed.
 let _besqlEditorLoadPromise = null;
+const _besqlFeatureLoadPromises = new Map();
+
+function loadScriptOnce(src, options = {}){
+  if(typeof document === 'undefined') return Promise.resolve();
+  window.__BESQL_LOADED_SCRIPTS = window.__BESQL_LOADED_SCRIPTS || new Set();
+  if(window.__BESQL_LOADED_SCRIPTS.has(src)) return Promise.resolve();
+  if(_besqlFeatureLoadPromises.has(src)) return _besqlFeatureLoadPromises.get(src);
+  const promise = new Promise((resolve, reject) => {
+    try {
+      const script = document.createElement('script');
+      if(options.module) script.type = 'module';
+      if(options.defer) script.defer = true;
+      if(options.fetchPriority) script.setAttribute('fetchpriority', options.fetchPriority);
+      script.src = src;
+      script.onload = () => {
+        window.__BESQL_LOADED_SCRIPTS.add(src);
+        resolve();
+      };
+      script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+      document.head.appendChild(script);
+    } catch (err) {
+      reject(err);
+    }
+  });
+  _besqlFeatureLoadPromises.set(src, promise);
+  return promise;
+}
+
+function ensureFeatureLoaded(feature){
+  const map = {
+    admin: 'js/features/admin.js',
+    scoreboards: 'js/features/scoreboards.js',
+  };
+  const src = map[feature];
+  return src ? loadScriptOnce(src) : Promise.resolve();
+}
+
+function primeOptionalFeatureLoads(){
+  const queue = () => {
+    ensureFeatureLoaded('scoreboards').catch(() => {});
+    ensureFeatureLoaded('admin').catch(() => {});
+  };
+  if(typeof window.requestIdleCallback === 'function'){
+    window.requestIdleCallback(queue, { timeout: 2500 });
+  } else {
+    setTimeout(queue, 1200);
+  }
+}
+
 function loadEditorModuleOnce(){
   if(typeof window !== 'undefined' && window.BeSQLEditor) return Promise.resolve();
   if(_besqlEditorLoadPromise) return _besqlEditorLoadPromise;
@@ -159,7 +208,7 @@ function genId(){return Math.random().toString(36).slice(2,10);}
 function fmtN(n){return Number(n).toLocaleString();}
 function fmtT(s){return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 function fmtDate(ts){return new Date(ts).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
-// Syntax highlighting handled by CodeMirror - removed legacy functions
+// Syntax highlighting handled by CodeMirror.
 function fmtCountdownDHMS(totalSeconds){
   const secs=Math.max(0,Math.floor(totalSeconds));
   const days=Math.floor(secs/86400);
@@ -822,37 +871,6 @@ function toast(msg,type='info'){
   setTimeout(()=>t.remove(),4000);
 }
 function persistProblems(){LS.set('problems',S.problems.map(p=>{const{testCases,...r}=p;return{...r,testCases:testCases.map(tc=>{const{validate,...t}=tc;return t;})};}))}
-function normalizeResultCell(v){
-  if(v==null)return null;
-  const n=Number(v);
-  if(Number.isFinite(n)&&String(v).trim()!=='')return n;
-  return String(v).trim().toLowerCase();
-}
-function normalizeResultColumns(cols){
-  return (cols||[]).map(c=>String(c).trim().toLowerCase());
-}
-function normalizeResultRow(row){
-  return (row||[]).map(normalizeResultCell);
-}
-function rowsMatch(actualRows,expectedRows,ignoreOrder=false){
-  const a=(actualRows||[]);
-  const b=(expectedRows||[]);
-  if(a.length!==b.length)return false;
-  if(!ignoreOrder){
-    for(let i=0;i<b.length;i++){
-      const ar=normalizeResultRow(a[i]);
-      const br=normalizeResultRow(b[i]);
-      if(ar.length!==br.length)return false;
-      for(let j=0;j<br.length;j++)if(ar[j]!==br[j])return false;
-    }
-    return true;
-  }
-  const toKey=row=>JSON.stringify(normalizeResultRow(row));
-  const ak=a.map(toKey).sort();
-  const bk=b.map(toKey).sort();
-  for(let i=0;i<bk.length;i++)if(ak[i]!==bk[i])return false;
-  return true;
-}
 function resultsMatch(actual,expected,{requireColumnNames=true,ignoreRowOrder=false}={}){
   if(!actual||!expected)return false;
   const actualCols=normalizeResultColumns(actual.columns);
@@ -1609,7 +1627,7 @@ function toggleSidebar(){
 /* ══════════════════════════════════════════════════════════
    NAVIGATION
 ══════════════════════════════════════════════════════════ */
-function nav(view, extra){
+async function nav(view, extra){
   if(S.currentView==='judge'&&view!=='judge'){
     saveJudgeSessionState(S.judgeContext);
   }
@@ -1627,6 +1645,8 @@ function nav(view, extra){
   const v=el(`view-${view}`);
   if(v)v.classList.remove('hidden');
   document.querySelectorAll(`[data-view="${view}"]`).forEach(b=>b.classList.add('on'));
+  if(view==='scoreboards') await ensureFeatureLoaded('scoreboards');
+  if(view==='admin') await ensureFeatureLoaded('admin');
   S.currentView=view;
   if(view==='home')renderHome();
   if(view==='contests')renderContests();
@@ -2071,8 +2091,6 @@ function renderJudge(ctx){
     .sort((a,b)=>b.at-a.at)[0];
   const sessionState=getJudgeSessionState(ctx);
   clearJudgeState();
-
-  // Timer removed for SQL editor (no per-problem timing in editor view)
 
   // Initialize CodeMirror editor with schema from problem
   const initialCode=(sessionState&&typeof sessionState.draft==='string')?sessionState.draft:(prevSub?.code||'');
@@ -2910,8 +2928,8 @@ async function init(){
   const entryView=getEntryViewOverride();
   if(entryView){
     const entryContestId=getEntryContestId();
-    if(entryView==='scoreboards'&&entryContestId)nav(entryView,{contestId:entryContestId});
-    else nav(entryView);
+    if(entryView==='scoreboards'&&entryContestId)await nav(entryView,{contestId:entryContestId});
+    else await nav(entryView);
   }
   else{
     const restoredRoute=restoreRouteState();
@@ -2923,6 +2941,7 @@ async function init(){
     toast(STORAGE_DIAGNOSTIC||'Supabase unavailable. Running in local browser storage mode.','warn');
   }
 
+  primeOptionalFeatureLoads();
   hide('init');
 }
 

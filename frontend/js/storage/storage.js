@@ -19,8 +19,8 @@ let flushRetryDelay = 500;
 const CLIENT_ONLY_KEYS = new Set(['session', 'theme', 'practiceLab', 'practiceLabTaskDone', 'routeState']);
 
 const STORAGE_SUPABASE_CONFIG = {
-  url: window.SUPABASE_URL || 'https://yaqukpmixbhiyxdkgmwl.supabase.co',
-  anonKey: window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhcXVrcG1peGJoaXl4ZGtnbXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MzI1NDksImV4cCI6MjA4OTUwODU0OX0.8mckbWLNNjVMNjxH4BCRnXh1-GaAN1xgWlbEPopG_Co',
+  url: window.SUPABASE_URL || '',
+  anonKey: window.SUPABASE_ANON_KEY || '',
   kvTable: 'besql_kv',
 };
 

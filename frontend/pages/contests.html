@@ -13,8 +13,28 @@
 
 <div id="init">
   <div class="init-logo"><span style="color:var(--grn)">BeSQL</span></div>
-  <div class="spinner"></div>
-  <div class="init-sub">Loading...</div>
+  <div class="init-skeleton init-skeleton-home" aria-hidden="true">
+    <div class="skeleton skeleton-line skeleton-line-lg"></div>
+    <div class="skeleton skeleton-line skeleton-line-md"></div>
+    <div class="init-skeleton-stats">
+      <div class="skeleton skeleton-stat"></div>
+      <div class="skeleton skeleton-stat"></div>
+      <div class="skeleton skeleton-stat"></div>
+      <div class="skeleton skeleton-stat"></div>
+    </div>
+    <div class="init-skeleton-main">
+      <div class="init-skeleton-panel init-skeleton-panel-wide">
+        <div class="skeleton skeleton-line skeleton-line-md"></div>
+        <div class="skeleton skeleton-row"></div>
+        <div class="skeleton skeleton-row"></div>
+        <div class="skeleton skeleton-row"></div>
+      </div>
+      <div class="init-skeleton-side">
+        <div class="skeleton skeleton-card"></div>
+        <div class="skeleton skeleton-card"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="app">
@@ -193,7 +213,6 @@
               <span style="font-size:10px;letter-spacing:2px;color:var(--t2)">SQL EDITOR</span>
               <div class="fx ic gap2">
                 <span style="font-size:11px;color:var(--t3)" id="judge-row-count"></span>
-                <!-- Removed judge timer small span -->
               </div>
             </div>
             <div class="judge-editor-wrap">
@@ -400,27 +419,23 @@
 
 <div id="toasts"></div>
 
-<script>
-window.SUPABASE_URL = window.SUPABASE_URL || 'https://yaqukpmixbhiyxdkgmwl.supabase.co';
-window.SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhcXVrcG1peGJoaXl4ZGtnbXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MzI1NDksImV4cCI6MjA4OTUwODU0OX0.8mckbWLNNjVMNjxH4BCRnXh1-GaAN1xgWlbEPopG_Co';
-</script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <!-- Rate limiting and health checks -->
-<script src="../js/storage/rate-limiter.js"></script>
+<script src="../js/storage/rate-limiter.js" defer></script>
 <!-- Storage modules (async data transfer) -->
-<script src="../js/storage/storage.js"></script>
-<script src="../js/storage/relational.js"></script>
-<script src="../js/storage/index.js"></script>
-<script src="../data/db.js"></script>
-<script src="../data/problems.js"></script>
-<script src="../js/core/sql-engine.js"></script>
-<script src="../js/core/route-entry.js"></script>
-<script src="../js/features/auth.js"></script>
-<script src="../js/features/contests.js"></script>
-<script src="../js/features/admin.js"></script>
-<script src="../js/features/scoreboards.js"></script>
+<script src="../js/storage/storage.js" defer></script>
+<script src="../js/core/relational-helpers.js" defer></script>
+<script src="../js/storage/relational.js" defer></script>
+<script src="../js/storage/index.js" defer></script>
+<script src="../data/db.js" defer></script>
+<script src="../data/problems.js" defer></script>
+<script src="../js/core/sql-engine.js" defer></script>
+<script src="../js/core/route-entry.js" defer></script>
+<script src="../js/features/auth.js" defer></script>
+<script src="../js/features/contests.js" defer></script>
 <!-- Main application -->
-<script src="../js/app.js?v=20260320k"></script>
+<script src="../js/app.js?v=20260320k" defer></script>
 </body>
 </html>
 
