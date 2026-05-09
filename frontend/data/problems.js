@@ -1,5 +1,10 @@
 'use strict';
 
+function besqlTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
 window.PROBLEMS_DEFAULT = [
   {
     id:'p1',code:'BSQ-001',title:'High Salary Filter',difficulty:'Easy',points:100,timeLimit:300,
@@ -15,7 +20,7 @@ window.PROBLEMS_DEFAULT = [
       {id:'tc5',name:'Top Earner',desc:'The first row should be Henry Zhao',validate:r=>r.rows[0][r.columns.indexOf('name')]==='Henry Zhao',hint:'Is your data ordered correctly?',hidden:true},
     ],
     solution:'SELECT name, salary, level FROM employees WHERE salary > 85000 ORDER BY salary DESC',
-    dailyDate:getTodayStr(),
+    dailyDate:besqlTodayStr(),
   },
   {
     id:'p2',code:'BSQ-002',title:'Department Employee Count',difficulty:'Easy',points:150,timeLimit:300,

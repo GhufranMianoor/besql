@@ -3061,7 +3061,7 @@ async function bootstrap(){
         toast('Database connection timeout. Running in offline mode.','warn');
       }
     }
-    await withTimeout(init(),6000,'init');
+    await withTimeout(init(),25000,'init');
   }catch(err){
     console.error('[Bootstrap] Initialization failed:',err?.message||err);
     toast('Startup took too long. Loaded in safe mode.','warn');
