@@ -1,180 +1,86 @@
-# BeSQL - SQL Contest Platform
+# BeSQL
 
-A comprehensive SQL learning and competitive programming platform with multi-dialect support, real-time judge, and contest management.
+BeSQL is a browser-based SQL learning and contest platform with a lightweight in-browser SQL engine, a practice lab, contest workflows, and optional Supabase-backed sync.
 
-## 📁 Project Structure
+## Quick Start
 
-```
-besql/
-├── frontend/              # Frontend multipage app
-│   ├── index.html         # Main shell / dashboard entry
-│   ├── css/               # Stylesheets
-│   ├── js/                # Application logic
-│   │   ├── app.js         # Main app state & routing
-│   │   ├── core/          # SQL engine & routing
-│   │   ├── features/      # Auth, contests, admin, scoreboards
-│   │   └── storage/       # Supabase sync & rate limiting
-│   ├── data/              # Sample data and problem definitions
-│   ├── pages/             # Standalone page entry files
-│   └── README.md          # Frontend guide
-│
-├── backend/               # Backend structure & API configs
-│   ├── sql/               # Database schemas & migrations
-│   └── README.md          # Backend guide
-│
-├── docs/                  # Documentation
-│   ├── FILE_STRUCTURE.md  # Detailed file breakdown
-│   └── SECURITY.md        # Security best practices
-│
-├── .env                   # Environment variables (gitignored)
-├── .env.example           # Template for .env
-├── .gitignore             # Git ignore rules
-└── README.md              # This file
-```
+1. Create your local environment file:
 
-## 🚀 Quick Start
-
-### 1. Setup Environment Variables
 ```bash
 cp .env.example .env
-# Edit .env and add your API keys as needed
 ```
 
-### 2. Open Frontend
+2. Generate the browser config from `.env`:
+
 ```bash
-# Open the dashboard page in a browser:
+node frontend/scripts/generate-config.js
+```
+
+3. Open the app in a browser:
+
+```bash
 open frontend/pages/home.html
-# Or navigate to: file:///path/to/besql/frontend/pages/home.html
 ```
 
-No build step required - the project runs directly in the browser.
+No build step is required.
 
-## ✨ Features
+## Repository Layout
 
-- **SQL Editor** - Lightweight editor with syntax highlighting helpers
-- **Real-Time SQL Judge** - Execute and test SQL queries instantly
-- **Contest System** - Create, join, and compete in timed contests
-- **Problem Bank** - Curated SQL challenges
-- **Leaderboards** - Track progress and rank against peers
-- **Dark/Light Theme** - Responsive UI with 16 breakpoints
-- **Offline Support** - Local storage caching
-- **Supabase Integration** - Optional cloud sync
-
-## 📚 Frontend (Multipage)
-
-Located in `frontend/`:
-- **No build step required**
-- Pure ES6+ modules
-- Responsive design (320px to 1920px+)
-- Dark theme with light mode toggle
-- Separate page entry points under `frontend/pages/`
-
-### Development
-
-Edit files in `frontend/`:
-- `js/app.js` - Main application logic
-- `css/style.css` - Global styles (edit CSS variables for theming)
-- `js/features/*.js` - Feature modules
-- `data/problems.js` - Default problem bank
-
-See `frontend/README.md` for detailed guides.
-
-## 🔧 Backend (Optional)
-
-Located in `backend/`:
-- SQL schemas and migrations in `sql/`
-- Placeholder for API routes and server code
-- Environment configuration in `.env`
-
-To build backend services (Node.js, Python, etc.):
-1. Create API folder in `backend/`
-2. Add server code and routes
-3. Update `.env` with API endpoints
-4. Update frontend API calls in `js/storage/storage.js`
-
-See `backend/README.md` for structure guidelines.
-
-## 🔐 Security & Configuration
-
-### Environment Variables
-Create `.env` with:
-```env
-SUPABASE_URL=your_url
-SUPABASE_KEY=your_key
-SUPABASE_SECRET=your_secret
-JWT_SECRET=your_secret
-API_SECRET=your_secret
-# See .env.example for all options
+```text
+besql/
+├── frontend/              # Multipage browser app
+│   ├── css/               # Global styles and responsive layout
+│   ├── data/              # Default problems and seed data
+│   ├── js/                # App logic, SQL engine, storage, features
+│   └── pages/             # Standalone entry pages
+├── backend/               # SQL schemas and backend stubs
+├── docs/                  # Supporting documentation
+├── .env                    # Local secrets and runtime config
+├── .env.example           # Environment template
+└── README.md              # Main project guide
 ```
 
-**Important:** Never commit `.env` — it's in `.gitignore`. Share `.env.example` with your team.
+## Frontend
 
-### Security Best Practices
-See `docs/SECURITY.md` for:
-- API security
-- User data protection
-- Local storage safety
-- Secure defaults
+The frontend is a pure HTML and ES module application. The main shell is `frontend/index.html`, while `frontend/pages/*.html` provide direct entry points for the dashboard, playground, contests, submissions, profile, and admin screens.
 
-## 📖 Documentation
+Key files:
 
-- `docs/FILE_STRUCTURE.md` - Detailed file breakdown
-- `docs/EDITOR_INTEGRATION.md` - CodeMirror 6 integration guide
-- `docs/SECURITY.md` - Security guidelines
-- `frontend/README.md` - Frontend development guide
-- `backend/README.md` - Backend structure guide
+- `frontend/js/app.js` - app state, routing, rendering, and practice lab logic
+- `frontend/js/core/sql-engine.js` - in-browser SQL execution engine
+- `frontend/js/storage/` - local persistence, rate limiting, and optional Supabase sync
+- `frontend/css/style.css` - global responsive styling and layout
+- `frontend/js/config.js` - generated browser config loaded from `.env`
 
-## 🛠️ Technologies
+## Backend
 
-### Frontend
-- **HTML5 / CSS3** - Semantic markup & responsive design
-- **JavaScript ES6+** - Pure ES modules
-- **CodeMirror 6** - SQL editor with syntax highlighting
-- **Supabase** - Optional PostgreSQL backend
+The backend folder currently stores SQL schemas and future service structure. The app is frontend-first, but the folder is ready for backend APIs, auth, and database integrations if those are added later.
 
-### Backend (Optional)
-- Node.js / Express (recommended)
-- PostgreSQL / Supabase
-- JWT authentication
-- Rate limiting
+## Environment
 
-## 📱 Responsive Design
+The app expects local configuration through `.env`. Keep secrets out of version control and regenerate `frontend/js/config.js` whenever `.env` changes.
 
-16 breakpoints optimized for all screen sizes:
-- Desktop: 1920px+ (600px judge panel)
-- Laptop: 1024px (480px judge panel)
-- Tablet: 900px (drawer sidebar)
-- Phone: ≤640px (full-width stacked)
-- Ultra-small: ≤320px (minimal spacing)
+## Documentation
 
-## 🎯 Roadmap
+- `docs/FILE_STRUCTURE.md`
+- `docs/EDITOR_INTEGRATION.md`
+- `docs/SECURITY.md`
 
-- [ ] Backend API services
-- [ ] Advanced analytics & progress tracking
-- [ ] Community problem submissions
-- [ ] Real-time multiplayer contests
-- [ ] Mobile app (React Native)
-- [ ] Certification system
+## Features
 
-## 📝 License
+- In-browser SQL editor and practice lab
+- Real-time judge and contest workflows
+- Leaderboards and submission history
+- Responsive layout for desktop, tablet, and mobile
+- Optional Supabase sync for cloud-backed storage
 
-BeSQL is open source. See LICENSE file for details.
+## Contributing
 
-## 🤝 Contributing
+1. Create a feature branch.
+2. Make your changes.
+3. Run the app locally and verify the affected flow.
+4. Open a pull request.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## License
 
-## 💬 Support
-
-For questions or issues:
-- Open an issue on GitHub
-- Check existing documentation in `docs/`
-- Review code comments in source files
-
----
-
-**Happy Learning! 🚀 Start solving SQL challenges now.**
+See the repository license for details.

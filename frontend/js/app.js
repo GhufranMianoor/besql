@@ -1488,7 +1488,7 @@ function runPracticeLab(){
         });
         let count=0;
         t.rows.forEach(r=>{
-          const ok=updateM[3]?ew(updateM[3],r):true;
+          const ok=updateM[3]?evaluatePredicate(updateM[3],r,labSchemaToData()):true;
           if(ok){
             assigns.forEach(a=>{
               const def=t.columns.find(x=>x.name===a.col);
@@ -1508,7 +1508,7 @@ function runPracticeLab(){
         const t=S.practiceLab.tables[tname];
         if(!t)throw new Error(`Table '${tname}' does not exist.`);
         const before=t.rows.length;
-        t.rows=t.rows.filter(r=>deleteM[2]?!ew(deleteM[2],r):false);
+        t.rows=t.rows.filter(r=>deleteM[2]?!evaluatePredicate(deleteM[2],r,labSchemaToData()):false);
         const removed=before-t.rows.length;
         outputs.push({type:'msg',text:`Deleted ${removed} row(s) from '${tname}'.`});
         continue;
