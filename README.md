@@ -16,7 +16,21 @@ cp .env.example .env
 node frontend/scripts/generate-config.js
 ```
 
-3. Open the app in a browser:
+3. Start the Express backend (serves frontend and runtime config):
+
+```bash
+cd backend
+npm install
+npm run start
+```
+
+4. Open the app in a browser:
+
+```bash
+http://localhost:3000
+```
+
+Optional static-only mode (no backend):
 
 ```bash
 open frontend/pages/home.html
@@ -54,11 +68,19 @@ Key files:
 
 ## Backend
 
-The backend folder currently stores SQL schemas and future service structure. The app is frontend-first, but the folder is ready for backend APIs, auth, and database integrations if those are added later.
+The backend now includes an Express server with dotenv support at `backend/src/server.js`. It serves the frontend and exposes runtime-safe config for the browser:
+
+- `GET /health`
+- `GET /api/config`
+- `GET /js/config.js` (generated from `.env` at runtime)
+
+SQL schemas remain in `backend/sql/`.
 
 ## Environment
 
-The app expects local configuration through `.env`. Keep secrets out of version control and regenerate `frontend/js/config.js` whenever `.env` changes.
+The app expects local configuration through `.env`. Keep secrets out of version control.
+
+When running through the backend, config is loaded from `.env` at runtime so there is no need to regenerate `frontend/js/config.js`.
 
 ## Documentation
 
