@@ -447,7 +447,7 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
 #init{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:9999}
 #init.hidden{display:none}
 .init-logo{font-size:20px;font-weight:700;display:flex;align-items:center;gap:9px}
-.init-spinner{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;padding:40px}
+.init-spinner{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;padding:10px}
 .spinner{border:3px solid var(--line);border-top-color:var(--grn);border-radius:50%;width:36px;height:36px;animation:spin .8s linear infinite}
 
 /* ──────────────────────────────────────────────

@@ -1,0 +1,10 @@
+{
+  "name": "besql",
+  "version": "1.0.0",
+  "description": "SQL contest platform",
+  "scripts": {
+    "build": "node generate-config.js"
+  },
+  "author": "GhufranMianoor",
+  "license": "MIT"
+}

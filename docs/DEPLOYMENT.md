@@ -71,11 +71,19 @@ window.SUPABASE_ANON_KEY = "eyJ...your-anon-key";
 ## 3. Deploy to Vercel
 
 ### Option A: Auto-deploy from GitHub
-1. Push your repo to GitHub
-2. Go to [vercel.com](https://vercel.com) → Import project
-3. Select your repo
-4. Set **Root Directory** to `frontend`
-5. Deploy
+1. Push your repo to GitHub.
+2. Go to [vercel.com](https://vercel.com) → Import project.
+3. Select your repo.
+4. **Environment Variables**: Add the following:
+   - `SUPABASE_URL`: Your project URL.
+   - `SUPABASE_ANON_KEY`: Your anon public key.
+5. **Build Settings**:
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm run build` (This runs `generate-config.js` to create your `config.js` on the server).
+   - **Output Directory**: `.` (Vercel will serve the current `frontend` directory).
+6. Deploy.
+
+> 💡 This method is secure because your keys are never committed to GitHub, but are safely injected into the app during Vercel's build process.
 
 ### Option B: Local development
 ```bash
@@ -121,3 +129,4 @@ npx serve frontend
 | Confirmation email not arriving | Check spam; verify SMTP settings saved correctly |
 | Login works but data not saving | Check `besql_kv` RLS policy exists |
 | `invalid api key` | Rotate and update `config.js` |
+| `config.js` 404 on Vercel | Add Environment Variables and set Build Command to `npm run build` |
