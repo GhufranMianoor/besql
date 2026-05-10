@@ -197,10 +197,16 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
 /* SQL semantic highlighting (overlay under textarea) */
 .sql-editor-shell{
   position:relative;
-  min-height:auto;
+  min-height:200px;
+  background:var(--bg);
+  border:1px solid var(--line2);
   border-radius:var(--r);
   overflow:hidden;
   animation:fadeIn .3s ease both;
+}
+.sql-editor-shell .cm-editor{
+  min-height:inherit;
+  border:none;
 }
 .sql-highlight{
   position:absolute;inset:0;z-index:1;pointer-events:none;overflow:auto;
