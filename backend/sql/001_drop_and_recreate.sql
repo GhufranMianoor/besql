@@ -27,6 +27,13 @@ BEGIN
 END;
 $$;
 
+-- ─── 2.5 Key-Value Storage (besql_kv) ──────────────────────
+-- Frontend expects: k (text PK), v (jsonb)
+CREATE TABLE besql_kv (
+  k TEXT PRIMARY KEY,
+  v JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
 -- ─── 3. Users ────────────────────────────────────────────────
 -- Frontend expects: id, username, email, password_hash, full_name, is_active
 CREATE TABLE users (
@@ -142,6 +149,7 @@ CREATE INDEX idx_submissions_contest  ON submissions(contest_id);
 
 -- ─── 9. Row Level Security ───────────────────────────────────
 -- Open RLS for anon + authenticated (app handles auth in-app)
+ALTER TABLE besql_kv     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_roles   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE problems     ENABLE ROW LEVEL SECURITY;
@@ -149,6 +157,7 @@ ALTER TABLE contests     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE submissions  ENABLE ROW LEVEL SECURITY;
 
 -- Grant access
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE besql_kv       TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE users        TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE user_roles   TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE problems     TO anon, authenticated;
@@ -156,6 +165,11 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE contests     TO anon, authenticate
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE submissions  TO anon, authenticated;
 
 -- Open policies (the app manages auth via KV-stored sessions)
+CREATE POLICY "open_select" ON besql_kv     FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "open_insert" ON besql_kv     FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "open_update" ON besql_kv     FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "open_delete" ON besql_kv     FOR DELETE TO anon, authenticated USING (true);
+
 CREATE POLICY "open_select" ON users        FOR SELECT TO anon, authenticated USING (true);
 CREATE POLICY "open_insert" ON users        FOR INSERT TO anon, authenticated WITH CHECK (true);
 CREATE POLICY "open_update" ON users        FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
