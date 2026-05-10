@@ -133,29 +133,26 @@ function primeOptionalFeatureLoads(){
 }
 
 function loadEditorModuleOnce(){
-  if(typeof window !== 'undefined' && window.BeSQLEditor) return Promise.resolve();
+  if(typeof window !== 'undefined' && window.BeSQLEditor) return Promise.resolve(window.BeSQLEditor);
   if(_besqlEditorLoadPromise) return _besqlEditorLoadPromise;
-  _besqlEditorLoadPromise = new Promise((resolve,reject)=>{
-    try{
-      const script = document.createElement('script');
-      script.type = 'module';
-      // Resolve editor path relative to this script's location (app.js)
-      let editorUrl = 'js/besql-sql-editor.js';
-      if(document.currentScript && document.currentScript.src){
-        editorUrl = new URL('besql-sql-editor.js', document.currentScript.src).href;
+  
+  _besqlEditorLoadPromise = (async () => {
+    try {
+      // Use dynamic import for the module. 
+      // Relative to app.js, the editor is in the same folder.
+      const module = await import('./besql-sql-editor.js');
+      const EditorClass = module.default || module.BeSQLEditor;
+      if (typeof window !== 'undefined') {
+        window.BeSQLEditor = EditorClass;
       }
-      script.src = editorUrl;
-      script.onload = ()=>{
-        resolve();
-      };
-      script.onerror = (e)=>{
-        reject(new Error('Failed to load editor module: '+editorUrl));
-      };
-      document.head.appendChild(script);
-    }catch(err){
-      reject(err);
+      return EditorClass;
+    } catch (err) {
+      console.error('Failed to load editor module:', err);
+      _besqlEditorLoadPromise = null; // Allow retry
+      throw err;
     }
-  });
+  })();
+  
   return _besqlEditorLoadPromise;
 }
 function normalizeSearchQuery(value){
@@ -1646,9 +1643,9 @@ function renderJudge(ctx){
     schema[p.schemaHint.table]=p.schemaHint.columns.map(c=>c[0]);
   }
   // Load editor module on-demand and initialize editor instance
-    loadEditorModuleOnce().then(()=>{
+    loadEditorModuleOnce().then((EditorClass)=>{
       if(!window.judgeEditor){
-        window.judgeEditor = new window.BeSQLEditor();
+        window.judgeEditor = new EditorClass();
       }
       window.judgeEditor.init({
       container:el('judge-editor'),
@@ -2219,8 +2216,8 @@ function renderPractice(){
 function renderPlayground(){
   // Initialize practice lab editor on first load
   if(!window.practiceLabEditor){
-    loadEditorModuleOnce().then(()=>{
-      window.practiceLabEditor = new window.BeSQLEditor();
+    loadEditorModuleOnce().then((EditorClass)=>{
+      window.practiceLabEditor = new EditorClass();
       window.practiceLabEditor.init({
         container:el('practice-lab-editor'),
         dialect:'sqlite',

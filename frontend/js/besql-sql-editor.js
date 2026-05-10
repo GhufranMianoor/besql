@@ -55,6 +55,7 @@ import {
   MariaSQL,
   PLSQL,
   Cassandra,
+  OracleSQL,
 } from "https://esm.sh/@codemirror/lang-sql@6";
 
 import { oneDark } from "https://esm.sh/@codemirror/theme-one-dark@6";
