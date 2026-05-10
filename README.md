@@ -38,8 +38,7 @@ No backend server needed. The entire application runs as static HTML/JS with [Su
 ```
 besql/
 ├── frontend/
-│   ├── index.html              # Home / Dashboard
-│   ├── pages/                  # MPA entry points (contests, practice, admin, etc.)
+│   ├── index.html              # Single-Page Application Entry
 │   ├── css/style.css           # Complete design system
 │   ├── js/
 │   │   ├── app.js              # Core application logic

@@ -270,6 +270,182 @@ async function deactivateProblemInRelational(problemId){
   }
 }
 
+async function syncContestToRelational(contest){
+  if(!isSupabaseReady()||!contest?.id)return Promise.resolve({success:false,reason:'Supabase not available or contest data incomplete'});
+  try {
+    const payload = serializeContestForRelational(contest);
+    const { error } = await SB.from('contests').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.warn('Supabase contest sync failed:', error.message || error);
+      return { success: false, error: error.message || error };
+    }
+    return { success: true, contestId: contest.id };
+  } catch (err) {
+    console.warn('Supabase contest sync exception:', err?.message || err);
+    return { success: false, error: err?.message || err };
+  }
+}
+
+async function deleteContestFromRelational(id){
+  if(!isSupabaseReady()||!id)return Promise.resolve({success:false,reason:'Supabase not available or ID missing'});
+  try {
+    const { error } = await SB.from('contests').delete().eq('id', id);
+    if (error) {
+      console.warn('Supabase contest delete failed:', error.message || error);
+      return { success: false, error: error.message || error };
+    }
+    return { success: true };
+  } catch (err) {
+    console.warn('Supabase contest delete exception:', err?.message || err);
+    return { success: false, error: err?.message || err };
+  }
+}
+
+function mapRelationalVerdictToLocal(verdict){
+  const v=String(verdict||'').trim().toLowerCase();
+  if(v==='accepted')return 'AC';
+  if(v==='wrong_answer')return 'WA';
+  if(v==='time_limit')return 'TLE';
+  if(v==='error')return 'CE';
+  return String(verdict||'WA').toUpperCase();
+}
+
+function mapRelationalProblemIdToLocal(problemId){
+  const raw=String(problemId||'').trim();
+  if(!raw)return raw;
+  const direct=S.problems.find(p=>String(p.id)===raw);
+  if(direct)return direct.id;
+  const byCode=S.problems.find(p=>String(p.code||'').toLowerCase()===raw.toLowerCase());
+  if(byCode)return byCode.id;
+  return raw;
+}
+
+function submissionFingerprint(sub){
+  return [
+    String(sub.problemId||''),
+    String(sub.verdict||''),
+    String(Number(sub.at||0)),
+    String(sub.code||'').slice(0,80),
+  ].join('|');
+}
+
+async function fetchRelationalSubmissionsForUser(username,localUserId){
+  if(!isSupabaseReady()||!username)return [];
+  try{
+    const uid=await getRelationalUserId(username);
+    if(!uid)return [];
+    const {data,error}=await SB
+      .from('submissions')
+      .select('id,problem_id,contest_id,submitted_code,verdict,runtime_ms,tests_passed,total_tests,score,submitted_at,judged_at')
+      .eq('user_id',uid)
+      .order('submitted_at',{ascending:false});
+    if(error||!Array.isArray(data))return [];
+    return data.map(row=>({
+      id:`db-sub-${row.id}`,
+      userId:localUserId||`db-${uid}`,
+      problemId:mapRelationalProblemIdToLocal(row.problem_id),
+      contestId:row.contest_id==null?null:String(row.contest_id),
+      code:row.submitted_code||'',
+      verdict:mapRelationalVerdictToLocal(row.verdict),
+      timeTaken:Math.max(0,Number(row.runtime_ms||0))/1000,
+      at:new Date(row.submitted_at||row.judged_at||Date.now()).getTime(),
+      tcPassed:Number(row.tests_passed||0),
+      tcTotal:Number(row.total_tests||0),
+      publicPassed:Number(row.tests_passed||0),
+      publicTotal:Number(row.total_tests||0),
+      dbScore:Number(row.score||0),
+      isSubmitted:true,
+      submittedVia:'submit-button',
+    }));
+  }catch(err){
+    console.warn('Relational submissions fetch exception:',err?.message || err);
+    return [];
+  }
+}
+
+async function hydrateSubmissionsFromRelational(user){
+  if(!user?.username||!user?.userId)return;
+  const remote=normalizeSubmissionList(await fetchRelationalSubmissionsForUser(user.username,user.userId)).filter(isCountableSubmission);
+  if(!remote.length){
+    recomputeCurrentUserStatsFromSubmissions();
+    return;
+  }
+  const existing=normalizeSubmissionList(S.submissions);
+  const existingIds=new Set(existing.map(s=>String(s.id||'')));
+  const existingPrints=new Set(existing.map(submissionFingerprint));
+  const toAdd=remote.filter(s=>!existingIds.has(String(s.id||''))&&!existingPrints.has(submissionFingerprint(s)));
+  if(!toAdd.length){
+    recomputeCurrentUserStatsFromSubmissions();
+    return;
+  }
+  const merged=[...existing,...toAdd].sort((a,b)=>Number(b.at||0)-Number(a.at||0));
+  S.submissions=merged;
+  LS.set(`subs:${user.userId}`,merged);
+  recomputeCurrentUserStatsFromSubmissions();
+  if (typeof rerenderCurrentViewPreserveState === 'function') rerenderCurrentViewPreserveState();
+}
+
+function serializeContestForRelational(contest){
+  return {
+    id:String(contest.id),
+    title:contest.title||'Untitled Contest',
+    description:contest.description||'',
+    type:contest.type||'official',
+    status:contest.status||'upcoming',
+    start_time:new Date(Number(contest.startTime||Date.now())).toISOString(),
+    end_time:new Date(Number(contest.endTime||Date.now())).toISOString(),
+    duration_minutes:Number(contest.duration||120),
+    problem_ids:Array.isArray(contest.problemIds)?contest.problemIds:[],
+    is_public:contest.isPublic!==false,
+    max_participants:Number(contest.maxParticipants||500),
+    announcement:contest.announcement||'',
+    created_by:String(contest.createdBy||S.user?.username||S.user?.userId||'system'),
+    invitees:Array.isArray(contest.invitees)?contest.invitees:[],
+    participants:Array.isArray(contest.participants)?contest.participants:[],
+    password:contest.password||'',
+    updated_at:new Date().toISOString(),
+  };
+}
+
+function hydrateContestFromRelationalRow(row){
+  const startTs=row.start_time?new Date(row.start_time).getTime():Date.now();
+  const endTs=row.end_time?new Date(row.end_time).getTime():(startTs+Number(row.duration_minutes||120)*60000);
+  return {
+    id:String(row.id),
+    title:row.title||'Untitled Contest',
+    description:row.description||'',
+    type:row.type||'official',
+    status:row.status||'upcoming',
+    startTime:startTs,
+    endTime:endTs,
+    duration:Number(row.duration_minutes||120),
+    problemIds:Array.isArray(row.problem_ids)?row.problem_ids:[],
+    isPublic:row.is_public!==false,
+    maxParticipants:Number(row.max_participants||500),
+    announcement:row.announcement||'',
+    createdBy:row.created_by||'system',
+    invitees:Array.isArray(row.invitees)?row.invitees:[],
+    participants:Array.isArray(row.participants)?row.participants:[],
+    password:row.password||'',
+  };
+}
+
+async function loadContestsFromRelational(){
+  if(!isSupabaseReady())return Promise.resolve({success:false,contests:null,reason:'Supabase not configured'});
+  try{
+    const {data,error}=await SB.from('contests').select('*').order('start_time',{ascending:false});
+    if(error){
+      console.warn('Supabase contests load failed:',error.message||error);
+      return {success:false,contests:null,error:error.message||error};
+    }
+    const contests=(data||[]).map(hydrateContestFromRelationalRow);
+    return {success:true,contests,count:contests.length};
+  }catch(err){
+    console.warn('Supabase contests load exception:',err?.message||err);
+    return {success:false,contests:null,error:err?.message||err};
+  }
+}
+
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -283,5 +459,14 @@ if (typeof module !== 'undefined' && module.exports) {
     deactivateProblemInRelational,
     serializeProblemTestCases,
     hydrateProblemFromRelationalRow,
+    syncContestToRelational,
+    deleteContestFromRelational,
+    fetchRelationalSubmissionsForUser,
+    hydrateSubmissionsFromRelational,
+    serializeContestForRelational,
+    hydrateContestFromRelationalRow,
+    loadContestsFromRelational,
   };
 }
+
+

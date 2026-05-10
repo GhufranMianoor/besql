@@ -31,11 +31,18 @@ const StorageAPI = {
   loadProblemsFromRelational,
   fetchRelationalAuthUser,
   getRelationalUserId,
+  syncContestToRelational,
+  deleteContestFromRelational,
+  fetchRelationalSubmissionsForUser,
+  hydrateSubmissionsFromRelational,
   
   // Utilities
   serializeProblemTestCases,
   hydrateProblemFromRelationalRow,
+  serializeContestForRelational,
+  hydrateContestFromRelationalRow,
 };
+
 
 // Make available globally
 if (typeof window !== 'undefined') {
