@@ -112,9 +112,11 @@ function loadScriptOnce(src, options = {}){
 }
 
 function ensureFeatureLoaded(feature){
+  const isPagesDir = window.location.pathname.includes('/pages/');
+  const prefix = isPagesDir ? '../' : '';
   const map = {
-    admin: 'js/features/admin.js',
-    scoreboards: 'js/features/scoreboards.js',
+    admin: prefix + 'js/features/admin.js',
+    scoreboards: prefix + 'js/features/scoreboards.js',
   };
   const src = map[feature];
   return src ? loadScriptOnce(src) : Promise.resolve();
@@ -2915,7 +2917,7 @@ async function init(){
   S.practiceLab=LS.get('practiceLab')||createDefaultPracticeLab();
   S.practiceLabTaskDone=LS.get('practiceLabTaskDone')||{};
   hydrateJudgeSessionsForCurrentUser();
-  attachSqlHighlighting('practice-lab-editor');
+  if (typeof attachSqlHighlighting === 'function') attachSqlHighlighting('practice-lab-editor');
   const practiceEditor=el('practice-lab-editor');
   if(practiceEditor&&practiceEditor.dataset.shortcutsBound!=='1'){
     practiceEditor.dataset.shortcutsBound='1';
