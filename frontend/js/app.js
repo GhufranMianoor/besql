@@ -2567,7 +2567,9 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('keydown',e=>{
   if(e.key==='Enter'){
     if(!el('modal-auth').classList.contains('hidden')){
-      if(el('ap'))doLogin();else if(el('rp'))doRegister();
+      if(el('ap'))doLogin();
+      else if(el('rp'))doRegister();
+      else if(el('fgp') && typeof doResetPassword === 'function') doResetPassword();
     }
   }
 });
