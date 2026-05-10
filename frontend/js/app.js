@@ -1646,11 +1646,11 @@ function renderJudge(ctx){
     schema[p.schemaHint.table]=p.schemaHint.columns.map(c=>c[0]);
   }
   // Load editor module on-demand and initialize editor instance
-  loadEditorModuleOnce().then(()=>{
-    if(!window.judgeEditor){
-      window.judgeEditor=Object.create(window.BeSQLEditor);
-    }
-    window.judgeEditor.init({
+    loadEditorModuleOnce().then(()=>{
+      if(!window.judgeEditor){
+        window.judgeEditor = new window.BeSQLEditor();
+      }
+      window.judgeEditor.init({
       container:el('judge-editor'),
       dialect:'sqlite',
       schema,
@@ -2214,7 +2214,7 @@ function renderPlayground(){
   // Initialize practice lab editor on first load
   if(!window.practiceLabEditor){
     loadEditorModuleOnce().then(()=>{
-      window.practiceLabEditor=Object.create(window.BeSQLEditor);
+      window.practiceLabEditor = new window.BeSQLEditor();
       window.practiceLabEditor.init({
         container:el('practice-lab-editor'),
         dialect:'sqlite',
@@ -2446,16 +2446,6 @@ async function init(){
   S.practiceLabTaskDone=LS.get('practiceLabTaskDone')||{};
   hydrateJudgeSessionsForCurrentUser();
   if (typeof attachSqlHighlighting === 'function') attachSqlHighlighting('practice-lab-editor');
-  const practiceEditor=el('practice-lab-editor');
-  if(practiceEditor&&practiceEditor.dataset.shortcutsBound!=='1'){
-    practiceEditor.dataset.shortcutsBound='1';
-    practiceEditor.addEventListener('keydown',e=>{
-      if((e.ctrlKey||e.metaKey)&&e.key==='/'){
-        e.preventDefault();
-        commentPracticeLabEditor();
-      }
-    });
-  }
 
   // Render
   renderTopRight();

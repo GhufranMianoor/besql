@@ -197,9 +197,7 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
 /* SQL semantic highlighting (overlay under textarea) */
 .sql-editor-shell{
   position:relative;
-  min-height:220px;
-  background:var(--bg);
-  border:1px solid var(--line2);
+  min-height:auto;
   border-radius:var(--r);
   overflow:hidden;
   animation:fadeIn .3s ease both;
