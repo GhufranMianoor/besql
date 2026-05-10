@@ -1254,10 +1254,10 @@ function renderTopRight(){
     area.innerHTML=`
       <div class="fx ic gap3">
         ${roleBadge(S.user.role)}
-        <div style="display:flex;align-items:center;gap:7px">
+        <div style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:background 0.2s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'" onclick="nav('profile')">
           <div style="width:30px;height:30px;border-radius:6px;background:var(--bg3);border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:var(--grn)">${esc(S.user.username[0].toUpperCase())}</div>
           <div>
-            <div class="tr-username" style="font-size:12px;color:var(--t0)">${esc(S.user.username)}</div>
+            <div class="tr-username" style="font-size:12px;color:var(--t0);font-weight:600">${esc(S.user.username)}</div>
             <div style="font-size:11px;color:var(--gold);font-weight:700">${fmtN(S.user.score||0)} pts</div>
           </div>
         </div>
