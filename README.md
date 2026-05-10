@@ -4,39 +4,10 @@ BeSQL is a browser-based SQL learning and contest platform with a lightweight in
 
 ## Quick Start
 
-1. Create your local environment file:
+1. Open `frontend/pages/home.html` or `index.html` directly in your browser.
+2. For cloud syncing, copy `.env.example` to `.env` and fill in your Supabase credentials, then configure `frontend/js/config.js` accordingly (or rely on the browser's local storage mode).
 
-```bash
-cp .env.example .env
-```
-
-2. Generate the browser config from `.env`:
-
-```bash
-node frontend/scripts/generate-config.js
-```
-
-3. Start the Express backend (serves frontend and runtime config):
-
-```bash
-cd backend
-npm install
-npm run start
-```
-
-4. Open the app in a browser:
-
-```bash
-http://localhost:3000
-```
-
-Optional static-only mode (no backend):
-
-```bash
-open frontend/pages/home.html
-```
-
-No build step is required.
+No backend server or build step is required! The entire application can be run purely as static files.
 
 ## Repository Layout
 
@@ -44,49 +15,28 @@ No build step is required.
 besql/
 ├── frontend/              # Multipage browser app
 │   ├── css/               # Global styles and responsive layout
-│   ├── data/              # Default problems and seed data
 │   ├── js/                # App logic, SQL engine, storage, features
 │   └── pages/             # Standalone entry pages
-├── backend/               # SQL schemas and backend stubs
-├── docs/                  # Supporting documentation
-├── .env                    # Local secrets and runtime config
-├── .env.example           # Environment template
+├── backend/               # SQL schemas for database setup
+├── .env.example           # Environment template for Supabase
 └── README.md              # Main project guide
 ```
 
-## Frontend
+## Frontend Architecture
 
-The frontend is a pure HTML and ES module application. The main shell is `frontend/index.html`, while `frontend/pages/*.html` provide direct entry points for the dashboard, playground, contests, submissions, profile, and admin screens.
+The frontend is a pure HTML and ES module application. The main shell is `index.html`, while `frontend/pages/*.html` provide direct entry points for the dashboard, playground, contests, submissions, profile, and admin screens.
 
 Key files:
+- `frontend/js/app.js` - App state, routing, rendering, and practice lab logic
+- `frontend/js/core/sql-engine.js` - In-browser SQL execution engine using SQL.js
+- `frontend/js/storage/` - Local persistence, rate limiting, and optional Supabase sync
+- `frontend/css/style.css` - Global responsive styling and layout
 
-- `frontend/js/app.js` - app state, routing, rendering, and practice lab logic
-- `frontend/js/core/sql-engine.js` - in-browser SQL execution engine
-- `frontend/js/storage/` - local persistence, rate limiting, and optional Supabase sync
-- `frontend/css/style.css` - global responsive styling and layout
-- `frontend/js/config.js` - generated browser config loaded from `.env`
+## Backend & Database
 
-## Backend
-
-The backend now includes an Express server with dotenv support at `backend/src/server.js`. It serves the frontend and exposes runtime-safe config for the browser:
-
-- `GET /health`
-- `GET /api/config`
-- `GET /js/config.js` (generated from `.env` at runtime)
-
-SQL schemas remain in `backend/sql/`.
-
-## Environment
-
-The app expects local configuration through `.env`. Keep secrets out of version control.
-
-When running through the backend, config is loaded from `.env` at runtime so there is no need to regenerate `frontend/js/config.js`.
-
-## Documentation
-
-- `docs/FILE_STRUCTURE.md`
-- `docs/EDITOR_INTEGRATION.md`
-- `docs/SECURITY.md`
+To utilize cloud syncing, set up a Supabase project and execute the SQL schemas located in `backend/sql/` in your Supabase SQL Editor. 
+- `supabase-schema.sql` handles all relational structure setups.
+- `db-tables.sql` manages practice dataset table definitions.
 
 ## Features
 
@@ -95,13 +45,6 @@ When running through the backend, config is loaded from `.env` at runtime so the
 - Leaderboards and submission history
 - Responsive layout for desktop, tablet, and mobile
 - Optional Supabase sync for cloud-backed storage
-
-## Contributing
-
-1. Create a feature branch.
-2. Make your changes.
-3. Run the app locally and verify the affected flow.
-4. Open a pull request.
 
 ## License
 
