@@ -139,6 +139,7 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
 #main-content{flex:1;overflow:hidden;display:flex;flex-direction:column}
 .view{flex:1;overflow-y:auto;padding:24px 40px;animation:fadeUp .2s ease both}
 .view.hidden{display:none!important}
+.hidden{display:none!important}
 
 /* ── CARDS ── */
 .card{background:var(--bg1);border:1px solid var(--line);border-radius:var(--r2);overflow:hidden}
@@ -152,10 +153,10 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
 .stat-l{font-size:10.5px;color:var(--t3);margin-top:5px;font-weight:500;text-transform:uppercase;letter-spacing:.4px}
 
 /* ── BUTTONS ── */
-.btn{border:none;border-radius:var(--r);cursor:pointer;font-family:var(--sans);font-weight:600;transition:all .14s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;line-height:1}
+.btn{border:none;border-radius:var(--r);cursor:pointer;font-family:var(--sans);font-weight:600;transition:all .14s;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;line-height:1.2;text-align:center}
 .btn:disabled{opacity:.38;cursor:not-allowed!important;transform:none!important;filter:none!important}
 .btn-xs{font-size:11px;padding:4px 9px}
-.btn-sm{font-size:12px;padding:5px 12px}
+.btn-sm{font-size:12px;padding:7px 12px}
 .btn-md{font-size:13px;padding:7px 16px}
 .btn-lg{font-size:13.5px;padding:9px 22px}
 .btn-blue,.btn-primary{background:var(--grn);color:#0d1117;font-weight:700}
@@ -182,7 +183,7 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
 /* ── FORMS ── */
 .fg{margin-bottom:14px}
 .lbl{display:block;font-size:11.5px;font-weight:600;color:var(--t2);margin-bottom:5px}
-.inp,.sel,.ta{width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);color:var(--t0);font-family:var(--sans);font-size:13px;padding:8px 11px;outline:none;transition:border-color .14s,box-shadow .14s}
+.inp,.sel,.ta{width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r);color:var(--t0);font-family:var(--sans);font-size:13px;padding:7px 11px;outline:none;transition:border-color .14s,box-shadow .14s}
 .inp:focus,.sel:focus,.ta:focus{border-color:var(--grn);box-shadow:0 0 0 3px rgba(46,200,102,.1)}
 .inp::placeholder,.ta::placeholder{color:var(--t3)}
 .search-inp{width:min(100%,360px);font-size:12px;padding:5px 9px}
@@ -192,7 +193,15 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
 .code-ta:focus{border-color:var(--grn)!important;box-shadow:0 0 0 3px rgba(46,200,102,.08)!important}
 
 /* SQL semantic highlighting (overlay under textarea) */
-.sql-editor-shell{position:relative}
+.sql-editor-shell{
+  position:relative;
+  min-height:220px;
+  background:var(--bg);
+  border:1px solid var(--line2);
+  border-radius:var(--r);
+  overflow:hidden;
+  animation:fadeIn .3s ease both;
+}
 .sql-highlight{
   position:absolute;inset:0;z-index:1;pointer-events:none;overflow:auto;
   margin:0;padding:8px 11px;border:1px solid var(--line2);border-radius:var(--r);
@@ -305,13 +314,14 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
 .g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.fx{display:flex}.fxc{flex-direction:column}.ic{align-items:center}.sb{justify-content:space-between}
+.fx{display:flex}.fxc{flex-direction:column}.ic{align-items:center}.sb{justify-content:space-between}.wrap{flex-wrap:wrap}
 .gap2{gap:6px}.gap3{gap:10px}.gap4{gap:14px}.gap5{gap:18px}
 .mt1{margin-top:4px}.mt2{margin-top:8px}.mt3{margin-top:14px}.mt4{margin-top:20px}
 .mb2{margin-bottom:8px}.mb3{margin-bottom:14px}.mb4{margin-bottom:20px}
 .f1{flex:1}.wf{width:100%}.trunc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .divider{height:1px;background:var(--line);margin:14px 0}
 .flex-wrap{flex-wrap:wrap}
+.fx.wrap{flex-wrap:wrap}
 
 /* Keep content from blowing out narrow flex/grid containers */
 #app,#body,#main-content,.view,.card,.card-body,.card-hdr,.modal,.mbody,.mfooter,.mhdr,
@@ -542,7 +552,7 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
 /* ── ENSURE TOUCH FRIENDLY BUTTONS ──────────– */
 .btn{min-height:44px;min-width:44px}
 .btn-xs{min-height:auto;min-width:auto}
-.btn-sm{min-height:32px}
+.btn-sm{min-height:44px}
 .tab-btn{min-height:44px;touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .slink{min-height:44px}
 .inp,.sel,.ta{min-height:44px;touch-action:manipulation}
@@ -598,6 +608,14 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
 
   /* View padding */
   .view{padding:18px 16px}
+  .view > .fx.ic.sb {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .view > .fx.ic.sb > .fx {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
 
   /* Cards spacing */
   .card{margin-bottom:12px}
@@ -634,12 +652,22 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
     grid-template-rows:minmax(0,42%) minmax(0,58%);
   }
 
-  /* Bottom nav visible always */
-  #bottom-nav{display:flex}
+  /* Bottom nav visible always on small screens */
+  #bottom-nav{display:flex!important}
   #sidebar{bottom:56px}
 
   /* View padding tighter but readable */
   .view{padding:14px 14px!important;font-size:13px}
+  .view > .fx.ic.sb {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+  .view > .fx.ic.sb > .fx {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
 
   /* Problem panel responsive */
   .judge-prob-wrap{padding:16px 16px 20px!important;font-size:12px}
@@ -648,7 +676,7 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
   .prob-section-title{font-size:10.5px!important;margin-top:14px!important;margin-bottom:10px!important}
 
   /* Topbar spacing tight */
-  #topbar{padding:0 8px;gap:4px;height:52px}
+  #topbar{padding:0 16px;gap:8px;height:52px}
   .logo{font-size:13px;font-weight:700}
   .logo-icon{width:24px;height:24px;font-size:9px}
   .theme-btn{width:36px;height:36px;font-size:13px}
@@ -679,9 +707,9 @@ html,body{height:100%;background:var(--bg);color:var(--t0);font-family:var(--san
   .card{border-radius:5px}
 
   /* Buttons full width or compact */
-  .btn-md,.btn-lg{padding:8px 12px;font-size:12px}
-  .btn-sm{padding:5px 10px;font-size:11px}
-  .btn{gap:4px}
+  .btn-md,.btn-lg{padding:8px 16px;font-size:12px}
+  .btn-sm{padding:6px 12px;font-size:11px}
+  .btn{gap:4px;justify-content:center}
 
   /* Judge view compact */
   .judge-topbar{padding:6px 8px!important;height:44px;gap:8px}
