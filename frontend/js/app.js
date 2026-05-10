@@ -2183,7 +2183,11 @@ function renderPractice(){
     <button class="btn btn-sm ${S.practiceFilter===d?'btn-blue':'btn-ghost'}" onclick="setPracticeFilter('${d}')">${d}</button>`).join('');
 
   const byDifficulty=S.practiceFilter==='All'?publicProblems:publicProblems.filter(p=>p.difficulty===S.practiceFilter);
-  const filtered=byDifficulty.filter(p=>problemMatchesQuery(p,S.practiceSearch));
+  const filtered=byDifficulty.filter(p=>problemMatchesQuery(p,S.practiceSearch)).sort((a,b) => {
+    const numA = parseInt((a.id||'').replace(/\\D/g, '')) || 0;
+    const numB = parseInt((b.id||'').replace(/\\D/g, '')) || 0;
+    return numA - numB;
+  });
   el('practice-problem-list').innerHTML=`<div class="card" style="margin-bottom:10px"><div class="card-body" style="padding:10px"><input id="practice-search-input" class="inp search-inp" value="${esc(S.practiceSearch||'')}" placeholder="Search problems by code, title, tags, category..." oninput="setPracticeSearch(this.value)"></div></div><div class="card">${filtered.map((p,i)=>`
     <div class="prob-row ${solved.has(p.id)?'solved':''}" onclick="nav('judge',{problemId:'${p.id}',backView:'practice'})">
       <div class="prob-num" style="width:28px">${i+1}</div>
