@@ -2587,6 +2587,7 @@ window.addEventListener('focus',()=>refreshDataInBackground('focus'));
 
 async function bootstrap(){
   try{
+    loadEditorModuleOnce().catch(err=>console.warn('Preload editor failed:',err)); // Start pre-loading editor immediately
     const storageResult=await initStorageWithTimeout();
     if(!storageResult.success){
       console.warn('[Bootstrap] Storage initialization failed, using fallback mode');

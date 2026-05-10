@@ -21,6 +21,7 @@ function openAuth(mode='login'){
       <button class="btn btn-blue btn-md" onclick="doLogin()">Sign In</button>
     </div>` : mode==='reset' ? `
     <div class="fg"><label class="lbl">Username</label><input class="inp" id="fgu" placeholder="your_username" autocomplete="off"></div>
+    <div class="fg"><label class="lbl">Email</label><input class="inp" id="fge" placeholder="you@example.com" autocomplete="email"></div>
     <div class="fg"><label class="lbl">New Password</label><input class="inp" type="password" id="fgp" placeholder="New Password"></div>
     <div id="fg-err" class="hidden" style="color:var(--rose);font-size:11px;margin-bottom:10px"></div>
     <div class="mfooter" style="padding:14px 0 0;border-top:1px solid var(--line);margin-top:14px;justify-content:flex-end;display:flex;gap:9px">
@@ -113,15 +114,22 @@ async function doRegister(){
 
 async function doResetPassword() {
   const u = (el('fgu') || {}).value?.trim();
+  const e = (el('fge') || {}).value?.trim();
   const p = (el('fgp') || {}).value;
 
-  if (!u || !p) { showAuthErr('fg-err', 'Enter username and new password.'); return; }
+  if (!u || !e || !p) { showAuthErr('fg-err', 'Enter username, email, and new password.'); return; }
   const passErr = validatePassword(p);
   if (passErr) { showAuthErr('fg-err', passErr); return; }
 
   let stored = LS.get(`user:${u}`);
   if (!stored) {
-    showAuthErr('fg-err', 'User not found.');
+    if (typeof fetchRelationalAuthUser === 'function') {
+      stored = await fetchRelationalAuthUser(u);
+    }
+  }
+
+  if (!stored || String(stored.email).toLowerCase() !== String(e).toLowerCase()) {
+    showAuthErr('fg-err', 'User not found or email does not match.');
     return;
   }
 
