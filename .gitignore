@@ -59,5 +59,4 @@ node_modules
 # Output
 out/
 
-# Generated config file
-frontend/js/config.js
+
