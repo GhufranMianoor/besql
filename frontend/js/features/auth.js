@@ -1,10 +1,16 @@
 'use strict';
 
 function openAuth(mode='login'){
-  el('auth-title').textContent=mode==='login'?'Sign In':'Create Account';
+  el('auth-title').textContent=mode==='login'?'Sign In':mode==='reset'?'Reset Password':'Create Account';
   el('auth-body').innerHTML = mode==='login' ? `
     <div class="fg"><label class="lbl">Username</label><input class="inp" id="au" placeholder="your_username" autocomplete="off"></div>
-    <div class="fg"><label class="lbl">Password</label><input class="inp" type="password" id="ap" placeholder="••••••••" autocomplete="current-password"></div>
+    <div class="fg">
+      <div class="fx ic sb">
+        <label class="lbl">Password</label>
+        <span style="font-size:11px;color:var(--ind);cursor:pointer;margin-bottom:6px" onclick="openAuth('reset')">Forgot?</span>
+      </div>
+      <input class="inp" type="password" id="ap" placeholder="••••••••" autocomplete="current-password">
+    </div>
     <div id="a-err" class="hidden" style="color:var(--rose);font-size:11px;margin-bottom:10px"></div>
     <div class="fx ic sb" style="margin-top:14px">
       <span style="font-size:12px;color:var(--t2)">No account?</span>
@@ -13,6 +19,13 @@ function openAuth(mode='login'){
     <div class="mfooter" style="padding:14px 0 0;border-top:1px solid var(--line);margin-top:14px;justify-content:flex-end;display:flex;gap:9px">
       <button class="btn btn-ghost btn-md" onclick="closeModal('modal-auth')">Cancel</button>
       <button class="btn btn-blue btn-md" onclick="doLogin()">Sign In</button>
+    </div>` : mode==='reset' ? `
+    <div class="fg"><label class="lbl">Username</label><input class="inp" id="fgu" placeholder="your_username" autocomplete="off"></div>
+    <div class="fg"><label class="lbl">New Password</label><input class="inp" type="password" id="fgp" placeholder="New Password"></div>
+    <div id="fg-err" class="hidden" style="color:var(--rose);font-size:11px;margin-bottom:10px"></div>
+    <div class="mfooter" style="padding:14px 0 0;border-top:1px solid var(--line);margin-top:14px;justify-content:flex-end;display:flex;gap:9px">
+      <button class="btn btn-ghost btn-md" onclick="openAuth('login')">← Back</button>
+      <button class="btn btn-blue btn-md" onclick="doResetPassword()">Reset Password</button>
     </div>` : `
     <div class="fg"><label class="lbl">Username</label><input class="inp" id="ru" placeholder="choose_username" autocomplete="off"></div>
     <div class="fg"><label class="lbl">Email</label><input class="inp" id="re" placeholder="you@example.com" autocomplete="email"></div>
@@ -24,7 +37,7 @@ function openAuth(mode='login'){
       <button class="btn btn-blue btn-md" onclick="doRegister()">Create Account</button>
     </div>`;
   openModal('modal-auth');
-  setTimeout(()=>{const f=el('au')||el('ru');if(f)f.focus();},100);
+  setTimeout(()=>{const f=el('au')||el('ru')||el('fgu');if(f)f.focus();},100);
 }
 
 async function doLogin(){
@@ -96,6 +109,29 @@ async function doRegister(){
   finishLogin(nu);
   closeModal('modal-auth');
   toast(`Welcome, ${u}!`,'success');
+}
+
+async function doResetPassword() {
+  const u = (el('fgu') || {}).value?.trim();
+  const p = (el('fgp') || {}).value;
+
+  if (!u || !p) { showAuthErr('fg-err', 'Enter username and new password.'); return; }
+  const passErr = validatePassword(p);
+  if (passErr) { showAuthErr('fg-err', passErr); return; }
+
+  let stored = LS.get(`user:${u}`);
+  if (!stored) {
+    showAuthErr('fg-err', 'User not found.');
+    return;
+  }
+
+  stored.passwordHash = await hashPassword(p);
+  if (stored.password) delete stored.password; // Cleanup legacy
+  LS.set(`user:${u}`, stored);
+  await syncUserToRelational(stored);
+  
+  toast('Password reset successful!', 'success');
+  openAuth('login');
 }
 
 async function quickLogin(uname,role){
@@ -179,9 +215,9 @@ function getJudgeSessionState(ctx){
 function saveJudgeSessionState(ctx=S.judgeContext,overrides={}){
   const key=getJudgeSessionKey(ctx);
   if(!key)return;
-  const editor=el('judge-editor');
+  const draft = window.judgeEditor ? window.judgeEditor.getValue() : '';
   const next={
-    draft:editor?editor.value:'',
+    draft:draft,
     elapsed:Number(S.judgeElapsed||0),
     updatedAt:Date.now(),
     ...overrides,

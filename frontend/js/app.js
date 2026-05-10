@@ -1561,7 +1561,7 @@ function renderJudge(ctx){
   }
 
   // Build rich problem description with sample output + schema
-  let descHTML=`<div style="font-size:13px;color:var(--t1);line-height:1.8;white-space:pre-line">${esc(p.description)}</div>`;
+  let descHTML=`<div style="font-size:15px;color:var(--t1);line-height:1.8;white-space:pre-line">${esc(p.description)}</div>`;
 
   // Sample output table
   if(effectiveSampleOutput&&effectiveSampleOutput.columns){
@@ -1659,6 +1659,7 @@ function renderJudge(ctx){
       onRun:(sql)=>judgeRun(),
       minHeight:200,
     });
+    window.judgeEditor.focus();
     const judgeCharsEl=el('judge-chars');
     if(judgeCharsEl)judgeCharsEl.textContent=`${initialCode.length}`;
   }).catch(err=>{
@@ -1885,6 +1886,7 @@ function showJudgeResult(result){
   }
   show(panel);
 }
+
 
 function judgeSubmit(){
   if(!S.user){toast('Please sign in to submit','error');return;}
