@@ -63,19 +63,21 @@ import { oneDark } from "https://esm.sh/@codemirror/theme-one-dark@6";
 // ─── DIALECT MAP ──────────────────────────────────────────────────────────────
 
 const DIALECTS = {
-  mysql:      MySQL,
+  mysql: MySQL,
   postgresql: PostgreSQL,
-  sqlite:     SQLite,
-  mssql:      MSSQL,
-  mariadb:    MariaSQL,
-  plsql:      PLSQL,
-  cassandra:  Cassandra,
+  sqlite: SQLite,
+  mssql: MSSQL,
+  mariadb: MariaSQL,
+  plsql: PLSQL,
+  cassandra: Cassandra,
+  oracle: OracleSQL,
+  sqlserver: MSSQL,
 };
 
 
-// ─── BESQL CUSTOM THEME ───────────────────────────────────────────────────────
+// ─── DARK THEME (existing) ────────────────────────────────────────────────────
 
-const beSQLTheme = EditorView.theme({
+const beSQLDarkTheme = EditorView.theme({
   "&": {
     color: "var(--t0, #c9d1d9)",
     backgroundColor: "var(--bg, #0d1117)",
@@ -142,6 +144,91 @@ const beSQLTheme = EditorView.theme({
 }, { dark: true });
 
 
+// ─── LIGHT THEME (new) ───────────────────────────────────────────────────────
+
+const beSQLLightTheme = EditorView.theme({
+  "&": {
+    color: "#24292f",
+    backgroundColor: "#ffffff",
+    borderRadius: "var(--r, 5px)",
+    border: "1px solid #d0d7de",
+    fontSize: "13.5px",
+    fontFamily: "var(--mono, monospace)",
+  },
+  "&.cm-focused": {
+    outline: "none",
+    borderColor: "#0969da",
+    boxShadow: "0 0 0 2px rgba(9,105,218,0.15)",
+  },
+  ".cm-content": {
+    padding: "12px 0",
+    caretColor: "#0969da",
+    minHeight: "var(--cm-min-height, 180px)",
+  },
+  ".cm-gutters": {
+    backgroundColor: "#f6f8fa",
+    borderRight: "1px solid #d0d7de",
+    color: "#8c959f",
+    borderRadius: "var(--r, 5px) 0 0 var(--r, 5px)",
+  },
+  ".cm-lineNumbers .cm-gutterElement": {
+    padding: "0 10px 0 6px",
+    minWidth: "36px",
+  },
+  ".cm-activeLine": {
+    backgroundColor: "rgba(0,0,0,0.03)",
+  },
+  ".cm-activeLineGutter": {
+    backgroundColor: "rgba(0,0,0,0.05)",
+    color: "#24292f",
+  },
+  ".cm-selectionBackground, ::selection": {
+    backgroundColor: "rgba(9,105,218,0.15) !important",
+  },
+  ".cm-cursor": {
+    borderLeftColor: "#0969da",
+    borderLeftWidth: "2px",
+  },
+  ".cm-tooltip": {
+    backgroundColor: "#ffffff",
+    border: "1px solid #d0d7de",
+    borderRadius: "var(--r, 6px)",
+    fontSize: "13px",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+  },
+  ".cm-tooltip-autocomplete ul li[aria-selected]": {
+    backgroundColor: "#0969da",
+    color: "#ffffff",
+  },
+  ".cm-completionLabel": {
+    color: "#24292f",
+  },
+  ".cm-completionDetail": {
+    color: "#57606a",
+    fontStyle: "normal",
+    marginLeft: "8px",
+  },
+  ".cm-completionIcon": {
+    opacity: "0.7",
+  },
+}, { dark: false });
+
+
+// ─── THEME BUNDLES ────────────────────────────────────────────────────────────
+// Each bundle = [CodeMirror base theme, BeSQL custom theme]
+
+const THEMES = {
+  dark: [oneDark, beSQLDarkTheme],
+  light: [beSQLLightTheme],        // light has no CM base theme — uses defaultHighlightStyle
+};
+
+
+// ─── SYSTEM THEME DETECTION ───────────────────────────────────────────────────
+
+const systemPrefersDark = () =>
+  window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true;
+
+
 // ─── BE SQL EDITOR CLASS ─────────────────────────────────────────────────────
 
 export class BeSQLEditor {
@@ -151,10 +238,21 @@ export class BeSQLEditor {
     this._langCompartment = new Compartment();
     this._readOnlyCompartment = new Compartment();
     this._themeCompartment = new Compartment();
+    this._currentTheme = 'system'; // 'dark' | 'light' | 'system'
+    this._systemThemeListener = null;
   }
 
   /**
    * Initialize the editor and mount it into `container`.
+   * @param {object} opts
+   * @param {HTMLElement} opts.container
+   * @param {string}  [opts.dialect='mysql']
+   * @param {object}  [opts.schema={}]
+   * @param {string}  [opts.initialValue='']
+   * @param {boolean} [opts.readOnly=false]
+   * @param {function} [opts.onRun]
+   * @param {number}  [opts.minHeight=180]
+   * @param {'dark'|'light'|'system'} [opts.theme='system']
    */
   init({
     container,
@@ -164,17 +262,17 @@ export class BeSQLEditor {
     readOnly = false,
     onRun,
     minHeight = 180,
+    theme = 'system',   // ← NEW: default follows system
   } = {}) {
     if (!container) {
       console.error('[BeSQLEditor] container element is required');
       return this;
     }
 
-    // Destroy any previous instance
     this.destroy();
     this._onRun = onRun ?? null;
+    this._currentTheme = theme;
 
-    // Apply min-height via CSS variable
     container.style.setProperty('--cm-min-height', `${minHeight}px`);
 
     this._view = new EditorView({
@@ -185,7 +283,49 @@ export class BeSQLEditor {
       parent: container,
     });
 
+    // Listen for OS theme changes when in 'system' mode
+    this._attachSystemListener();
+
     return this;
+  }
+
+  // ── Private: resolve 'system' → 'dark' | 'light' ──────────────────────────
+  _resolvedTheme() {
+    if (this._currentTheme === 'system') {
+      return systemPrefersDark() ? 'dark' : 'light';
+    }
+    return this._currentTheme;
+  }
+
+  // ── Private: attach matchMedia listener for system theme ──────────────────
+  _attachSystemListener() {
+    this._detachSystemListener();
+
+    const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
+    if (!mq) return;
+
+    this._systemThemeListener = (e) => {
+      if (this._currentTheme === 'system') {
+        this._applyTheme(e.matches ? 'dark' : 'light');
+      }
+    };
+
+    mq.addEventListener('change', this._systemThemeListener);
+  }
+
+  _detachSystemListener() {
+    if (!this._systemThemeListener) return;
+    window.matchMedia?.('(prefers-color-scheme: dark)')
+      ?.removeEventListener('change', this._systemThemeListener);
+    this._systemThemeListener = null;
+  }
+
+  // ── Private: push theme extensions into the compartment ───────────────────
+  _applyTheme(resolved) {
+    if (!this._view) return;
+    this._view.dispatch({
+      effects: this._themeCompartment.reconfigure(THEMES[resolved] ?? THEMES.dark),
+    });
   }
 
   _buildLang(dialectKey = 'mysql', schema = {}) {
@@ -196,7 +336,8 @@ export class BeSQLEditor {
   _runKeymap() {
     return [
       {
-        key: "Mod-Enter",
+        key: "Ctrl-Enter",
+        mac: "Cmd-Enter",
         run: (view) => {
           if (typeof this._onRun === 'function') {
             this._onRun(view.state.doc.toString());
@@ -257,9 +398,11 @@ export class BeSQLEditor {
       ]),
       this._langCompartment.of(this._buildLang(dialect, schema)),
       this._readOnlyCompartment.of(EditorState.readOnly.of(!!readOnly)),
-      this._themeCompartment.of([oneDark, beSQLTheme]),
+      this._themeCompartment.of(THEMES[this._resolvedTheme()]),
     ];
   }
+
+  // ─── PUBLIC API ─────────────────────────────────────────────────────────────
 
   getValue() {
     return this._view?.state.doc.toString() ?? '';
@@ -299,12 +442,49 @@ export class BeSQLEditor {
     return this;
   }
 
+  /**
+   * Switch editor theme.
+   * @param {'dark' | 'light' | 'system'} theme
+   *   'system' — follows OS preference and updates live when it changes
+   *   'dark'   — always dark regardless of OS
+   *   'light'  — always light regardless of OS
+   */
+  setTheme(theme) {
+    if (!['dark', 'light', 'system'].includes(theme)) {
+      console.warn(`[BeSQLEditor] Unknown theme "${theme}". Use 'dark', 'light', or 'system'.`);
+      return this;
+    }
+
+    this._currentTheme = theme;
+
+    if (theme === 'system') {
+      // Re-attach listener in case it was detached
+      this._attachSystemListener();
+      this._applyTheme(systemPrefersDark() ? 'dark' : 'light');
+    } else {
+      // Manual override — detach system listener so OS changes don't override
+      this._detachSystemListener();
+      this._applyTheme(theme);
+    }
+
+    return this;
+  }
+
+  /**
+   * Returns the currently active resolved theme ('dark' or 'light').
+   * Useful for syncing a toggle button state.
+   */
+  getTheme() {
+    return this._resolvedTheme();
+  }
+
   focus() {
     this._view?.focus();
     return this;
   }
 
   destroy() {
+    this._detachSystemListener();
     this._view?.destroy();
     this._view = null;
     this._onRun = null;
