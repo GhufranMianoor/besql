@@ -220,7 +220,6 @@ async function loadProblemsFromRelational(){
 
 async function syncProblemToRelational(problem){
   if(!isSupabaseReady()||!problem?.id)return Promise.resolve({success:false,reason:'Supabase not available or problem data incomplete'});
-  }
   try {
     const payload = {
       id: problem.id,
@@ -255,7 +254,6 @@ async function syncProblemToRelational(problem){
 
 async function deactivateProblemInRelational(problemId){
   if(!isSupabaseReady()||!problemId)return Promise.resolve({success:false,reason:'Supabase not available or problem ID missing'});
-  }
   try {
     const { error } = await SB
       .from('problems')
