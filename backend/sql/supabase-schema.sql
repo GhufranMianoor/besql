@@ -272,24 +272,7 @@ VALUES
   (3, 'master', 'Contest master role')
 ON CONFLICT (id) DO NOTHING;
 
--- Step 2: Create Admin User
--- Password: admin123 (use your own hashed password)
-INSERT INTO public.users (username, email, password_hash, full_name, is_active)
-VALUES (
-  'admin',
-  'admin@besql.local',
-  'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-  'Admin User',
-  TRUE
-)
-ON CONFLICT (username) DO NOTHING;
 
--- Step 3: Assign Admin Role to Admin User
-INSERT INTO public.user_roles (user_id, role_id)
-SELECT u.id, 1
-FROM public.users u
-WHERE u.username = 'admin'
-ON CONFLICT (user_id, role_id) DO NOTHING;
 
 -- Step 4: Insert All Privileges (Required before assigning to roles)
 INSERT INTO public.privileges (id, name, description, code) VALUES

@@ -2849,19 +2849,7 @@ async function init(){
     else{S.contests=[...CONTESTS_DEFAULT];LS.set('contests',S.contests);}
   }
 
-  // Seed admin account (admin123 / 123) — always ensure it exists
-  if(!LS.get('user:admin123')){
-    const seededAdmin={userId:'admin-uid-001',username:'admin123',email:'admin123@besql.local',passwordHash:await hashPassword('123'),role:'admin',score:0,solved:0,joinedAt:Date.now()};
-    LS.set('user:admin123',seededAdmin);
-    await safeCloudCall(()=>syncUserToRelational(seededAdmin),'syncUserToRelational(admin)');
-  } else {
-    // Ensure role stays admin even if tampered, and migrate plain password.
-    const adm=LS.get('user:admin123');
-    if(adm&&adm.password&&!adm.passwordHash){adm.passwordHash=await hashPassword(adm.password);delete adm.password;}
-    if(adm&&adm.role!=='admin'){adm.role='admin';LS.set('user:admin123',adm);}
-    else if(adm){LS.set('user:admin123',adm);}
-    if(adm)await safeCloudCall(()=>syncUserToRelational(adm),'syncUserToRelational(existing admin)');
-  }
+
 
   // Load user session
   const sessionUser=restoreSessionUser();
