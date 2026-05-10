@@ -1,0 +1,158 @@
+// BeSQL Database Schema (DBML notation)
+// Visual reference — paste into dbdiagram.io to view
+
+Table users {
+  id         uuid     [pk, default: `gen_random_uuid()`]
+  email      text     [unique, not null]
+  username   text     [unique, not null]
+  role       text     [not null, default: 'user', note: 'user | admin | moderator']
+  is_active  boolean  [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table user_profiles {
+  user_id         uuid [pk, ref: - users.id]
+  display_name    text
+  avatar_url      text
+  bio             text
+  country         char(2)
+  points          int  [not null, default: 0]
+  rank            int
+  problems_solved int  [not null, default: 0]
+  contests_joined int  [not null, default: 0]
+  updated_at      timestamptz [not null, default: `now()`]
+}
+
+Table problems {
+  id            uuid             [pk, default: `gen_random_uuid()`]
+  slug          text             [unique, not null]
+  title         text             [not null]
+  description   text             [not null]
+  difficulty    difficulty_level [not null, default: 'easy']
+  dialect       sql_dialect      [not null, default: 'postgresql']
+  schema_setup  text             [not null]
+  solution_sql  text             [not null]
+  checker_sql   text
+  time_limit_ms int              [not null, default: 5000]
+  max_score     int              [not null, default: 100]
+  is_published  boolean          [not null, default: false]
+  author_id     uuid             [ref: > users.id]
+  created_at    timestamptz      [not null, default: `now()`]
+  updated_at    timestamptz      [not null, default: `now()`]
+}
+
+Table tags {
+  id        serial [pk]
+  name      text   [unique, not null]
+  color_hex char(7) [default: '#6366f1']
+}
+
+Table problem_tags {
+  problem_id uuid [ref: > problems.id]
+  tag_id     int  [ref: > tags.id]
+
+  indexes {
+    (problem_id, tag_id) [pk]
+  }
+}
+
+Table contests {
+  id               uuid           [pk, default: `gen_random_uuid()`]
+  title            text           [not null]
+  description      text
+  status           contest_status [not null, default: 'draft']
+  starts_at        timestamptz    [not null]
+  ends_at          timestamptz    [not null]
+  max_participants int
+  is_public        boolean        [not null, default: true]
+  created_by       uuid           [ref: > users.id]
+  created_at       timestamptz    [not null, default: `now()`]
+  updated_at       timestamptz    [not null, default: `now()`]
+}
+
+Table contest_problems {
+  contest_id uuid     [ref: > contests.id]
+  problem_id uuid     [ref: > problems.id]
+  position   smallint [not null, default: 1]
+  points     int      [not null, default: 100]
+
+  indexes {
+    (contest_id, problem_id) [pk]
+  }
+}
+
+Table contest_participants {
+  contest_id    uuid        [ref: > contests.id]
+  user_id       uuid        [ref: > users.id]
+  score         int         [not null, default: 0]
+  rank          int
+  registered_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (contest_id, user_id) [pk]
+  }
+}
+
+Table submissions {
+  id            uuid              [pk, default: `gen_random_uuid()`]
+  user_id       uuid              [not null, ref: > users.id]
+  problem_id    uuid              [not null, ref: > problems.id]
+  contest_id    uuid              [ref: > contests.id]
+  submitted_sql text              [not null]
+  status        submission_status [not null, default: 'pending']
+  score         int               [not null, default: 0]
+  exec_time_ms  int
+  error_message text
+  submitted_at  timestamptz       [not null, default: `now()`]
+}
+
+Table submission_test_results {
+  id              bigserial [pk]
+  submission_id   uuid      [not null, ref: > submissions.id]
+  test_case_no    smallint  [not null]
+  passed          boolean   [not null]
+  expected_output text
+  actual_output   text
+  exec_time_ms    int
+}
+
+Table besql_kv {
+  k          text        [pk]
+  v          jsonb
+  uid        uuid        [ref: > users.id]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Enum difficulty_level {
+  beginner
+  easy
+  medium
+  hard
+  expert
+}
+
+Enum sql_dialect {
+  postgresql
+  mysql
+  sqlite
+  mssql
+  oracle
+}
+
+Enum submission_status {
+  pending
+  accepted
+  wrong_answer
+  runtime_error
+  time_limit_exceeded
+  compile_error
+}
+
+Enum contest_status {
+  draft
+  upcoming
+  active
+  ended
+  cancelled
+}

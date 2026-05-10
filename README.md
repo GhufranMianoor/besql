@@ -1,51 +1,139 @@
 # BeSQL
 
-BeSQL is a browser-based SQL learning and contest platform with a lightweight in-browser SQL engine, a practice lab, contest workflows, and optional Supabase-backed sync.
+> An open-source SQL contest platform for learning, practicing, and competing in SQL — built entirely in the browser.
+
+![License](https://img.shields.io/badge/license-MIT-green)
+![Stack](https://img.shields.io/badge/stack-HTML%20%2F%20JS%20%2F%20Supabase-blue)
+
+---
+
+## What is BeSQL?
+
+BeSQL is a browser-based platform where students and developers can:
+
+- **Solve SQL problems** with an in-browser judge that validates queries in real time
+- **Compete in contests** — timed challenges with live scoreboards
+- **Create custom contests** — teachers can build private problem sets with passwords
+- **Practice daily** — curated problems by difficulty (Easy → Expert)
+- **Explore SQL freely** — a DDL/DML sandbox (Playground) with no setup required
+
+No backend server needed. The entire application runs as static HTML/JS with [Supabase](https://supabase.com) handling auth, storage, and the database.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Vanilla HTML, CSS, JavaScript (no framework, no build step) |
+| Database | PostgreSQL via [Supabase](https://supabase.com) |
+| Auth | Supabase Auth with email confirmation via [Resend](https://resend.com) |
+| SQL Engine | [sql.js](https://github.com/sql-js/sql.js) (in-browser SQLite for the judge) |
+| Hosting | [Vercel](https://vercel.com) (static) |
+
+---
+
+## Project Structure
+
+```
+besql/
+├── frontend/
+│   ├── index.html              # Home / Dashboard
+│   ├── pages/                  # MPA entry points (contests, practice, admin, etc.)
+│   ├── css/style.css           # Complete design system
+│   ├── js/
+│   │   ├── app.js              # Core application logic
+│   │   ├── config.js           # Supabase credentials (gitignored)
+│   │   ├── core/               # SQL engine, routing, helpers
+│   │   ├── features/           # Lazy-loaded modules (admin, scoreboards)
+│   │   └── storage/            # Supabase sync + local cache
+│   └── data/                   # Problem/DB schema definitions
+├── backend/
+│   └── sql/                    # Supabase migration files
+│       ├── 001_drop_and_recreate.sql   # Full schema
+│       ├── 002_kv_table.sql            # KV store
+│       └── 003_helper_functions.sql    # Judge helpers
+├── docs/
+│   ├── DEPLOYMENT.md           # Setup & deployment guide
+│   └── SCHEMA.dbml             # Visual schema (paste into dbdiagram.io)
+├── .env.example                # Environment variable template
+├── .gitignore
+├── LICENSE                     # MIT
+└── README.md                   # This file
+```
+
+---
 
 ## Quick Start
 
-1. Open `frontend/pages/home.html` or `index.html` directly in your browser.
-2. For cloud syncing, copy `.env.example` to `.env` and fill in your Supabase credentials, then configure `frontend/js/config.js` accordingly (or rely on the browser's local storage mode).
-
-No backend server or build step is required! The entire application can be run purely as static files.
-
-## Repository Layout
-
-```text
-besql/
-├── frontend/              # Multipage browser app
-│   ├── css/               # Global styles and responsive layout
-│   ├── js/                # App logic, SQL engine, storage, features
-│   └── pages/             # Standalone entry pages
-├── backend/               # SQL schemas for database setup
-├── .env.example           # Environment template for Supabase
-└── README.md              # Main project guide
+### 1. Clone the repo
+```bash
+git clone https://github.com/GhufranMianoor/besql.git
+cd besql
 ```
 
-## Frontend Architecture
+### 2. Set up Supabase
+1. Create a [Supabase project](https://supabase.com/dashboard)
+2. Run the 3 SQL migration files from `backend/sql/` in order in the SQL Editor
+3. Copy your **Project URL** and **anon key** from Settings → API
 
-The frontend is a pure HTML and ES module application. The main shell is `index.html`, while `frontend/pages/*.html` provide direct entry points for the dashboard, playground, contests, submissions, profile, and admin screens.
+### 3. Configure credentials
+```bash
+cp frontend/js/config.js.example frontend/js/config.js
+# Edit config.js with your Supabase URL and anon key
+```
 
-Key files:
-- `frontend/js/app.js` - App state, routing, rendering, and practice lab logic
-- `frontend/js/core/sql-engine.js` - In-browser SQL execution engine using SQL.js
-- `frontend/js/storage/` - Local persistence, rate limiting, and optional Supabase sync
-- `frontend/css/style.css` - Global responsive styling and layout
+Or create `frontend/js/config.js` manually:
+```js
+window.SUPABASE_URL = "https://your-project.supabase.co";
+window.SUPABASE_ANON_KEY = "eyJ...your-key";
+```
 
-## Backend & Database
+### 4. Open in browser
+```bash
+# Option A: Just open the file
+open frontend/index.html
 
-To utilize cloud syncing, set up a Supabase project and execute the SQL schemas located in `backend/sql/` in your Supabase SQL Editor. 
-- `supabase-schema.sql` handles all relational structure setups.
-- `db-tables.sql` manages practice dataset table definitions.
+# Option B: Use a local server
+npx serve frontend
+```
 
-## Features
+The app works without Supabase too — it falls back to browser `localStorage` automatically.
 
-- In-browser SQL editor and practice lab
-- Real-time judge and contest workflows
-- Leaderboards and submission history
-- Responsive layout for desktop, tablet, and mobile
-- Optional Supabase sync for cloud-backed storage
+---
+
+## Database Schema
+
+11 tables in a fully normalized PostgreSQL schema:
+
+| Table | Purpose |
+|-------|---------|
+| `users` | Core accounts (UUID, email, username, role) |
+| `user_profiles` | Points, rank, bio, avatar |
+| `problems` | Problem bank with SQL schema + solution |
+| `tags` | Tag vocabulary (10 pre-seeded) |
+| `problem_tags` | Problems ↔ Tags (M:N) |
+| `contests` | Contest metadata + lifecycle |
+| `contest_problems` | Contests ↔ Problems (M:N, ordered) |
+| `contest_participants` | Registrations + scores |
+| `submissions` | Every SQL submission |
+| `submission_test_results` | Per-test-case detail |
+| `besql_kv` | Frontend state (used by storage.js) |
+
+Full visual schema: open `docs/SCHEMA.dbml` in [dbdiagram.io](https://dbdiagram.io).
+
+---
+
+## Deployment
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full guide covering:
+- Supabase project setup
+- Email confirmation via Resend
+- Vercel deployment
+- Troubleshooting
+
+---
 
 ## License
 
-See the repository license for details.
+[MIT](LICENSE) — free to use, modify, and distribute.
