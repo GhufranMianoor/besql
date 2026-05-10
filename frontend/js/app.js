@@ -1628,6 +1628,23 @@ function toggleSidebar(){
    NAVIGATION
 ══════════════════════════════════════════════════════════ */
 async function nav(view, extra){
+  const topLevelPages = ['home','contests','custom','practice','playground','submissions','profile','admin','scoreboards'];
+  const currentTopView = window.__BESQL_ENTRY_VIEW || 'home';
+  if (topLevelPages.includes(view) && currentTopView !== view) {
+    const isPagesDir = window.location.pathname.includes('/pages/');
+    let target = '';
+    if (view === 'home') {
+      target = isPagesDir ? '../index.html' : 'index.html';
+    } else {
+      target = isPagesDir ? `${view}.html` : `pages/${view}.html`;
+    }
+    if (view === 'scoreboards' && extra && extra.contestId) {
+       target += `?contestId=${extra.contestId}`;
+    }
+    window.location.href = target;
+    return;
+  }
+
   if(S.currentView==='judge'&&view!=='judge'){
     saveJudgeSessionState(S.judgeContext);
   }
