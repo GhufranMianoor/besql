@@ -196,8 +196,7 @@ export class BeSQLEditor {
   _runKeymap() {
     return [
       {
-        key: "Ctrl-Enter",
-        mac: "Cmd-Enter",
+        key: "Mod-Enter",
         run: (view) => {
           if (typeof this._onRun === 'function') {
             this._onRun(view.state.doc.toString());
