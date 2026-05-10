@@ -55,7 +55,7 @@ import {
   MariaSQL,
   PLSQL,
   Cassandra,
-  OracleSQL,
+  StandardSQL,
 } from "https://esm.sh/@codemirror/lang-sql@6";
 
 import { oneDark } from "https://esm.sh/@codemirror/theme-one-dark@6";
@@ -71,7 +71,7 @@ const DIALECTS = {
   mariadb: MariaSQL,
   plsql: PLSQL,
   cassandra: Cassandra,
-  oracle: OracleSQL,
+  oracle: StandardSQL,
   sqlserver: MSSQL,
 };
 

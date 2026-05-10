@@ -138,9 +138,8 @@ function loadEditorModuleOnce(){
   
   _besqlEditorLoadPromise = (async () => {
     try {
-      // Use dynamic import for the module. 
-      // Relative to app.js, the editor is in the same folder.
-      const module = await import('./besql-sql-editor.js');
+      // Use absolute path for reliability with clean URLs/rewrites
+      const module = await import('/js/besql-sql-editor.js');
       const EditorClass = module.default || module.BeSQLEditor;
       if (typeof window !== 'undefined') {
         window.BeSQLEditor = EditorClass;
