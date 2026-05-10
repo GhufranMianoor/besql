@@ -6,8 +6,8 @@
 
 | | |
 |---|---|
-| **Student Name** | Muhammad Ghufran | Shayan Khan | Adeel Intikhab
-| **Student ID** | 24K-0541 | 24K-0669 | 24K-0670
+| **Student Name** | Muhammad Ghufran Shayan Khan Adeel Intikhab
+| **Student ID** | 24K-0541 24K-0669 24K-0670
 | **Program** | BS Computer Science — 2nd Year (Sophomore) |
 | **Course** | Database Systems (CS2006) |
 | **Institution** | FAST National University of Computer and Emerging Sciences, Karachi |
