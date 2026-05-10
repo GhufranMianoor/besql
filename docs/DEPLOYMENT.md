@@ -78,9 +78,9 @@ window.SUPABASE_ANON_KEY = "eyJ...your-anon-key";
    - `SUPABASE_URL`: Your project URL.
    - `SUPABASE_ANON_KEY`: Your anon public key.
 5. **Build Settings**:
-   - **Root Directory**: `frontend`
-   - **Build Command**: `npm run build` (This runs `generate-config.js` to create your `config.js` on the server).
-   - **Output Directory**: `.` (Vercel will serve the current `frontend` directory).
+   - **Root Directory**: Keep as default (Project Root).
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `frontend` (This tells Vercel to serve the `frontend` folder after building).
 6. Deploy.
 
 > 💡 This method is secure because your keys are never committed to GitHub, but are safely injected into the app during Vercel's build process.

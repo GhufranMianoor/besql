@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const configPath = path.join(__dirname, 'js', 'config.js');
+const configPath = path.join(__dirname, 'frontend', 'js', 'config.js');
 
 // Default values (from environment variables or empty)
 const url = process.env.SUPABASE_URL || '';
