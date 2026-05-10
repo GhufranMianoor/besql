@@ -12,10 +12,12 @@
 BeSQL is a browser-based platform where students and developers can:
 
 - **Solve SQL problems** with an in-browser judge that validates queries in real time
+- **Multi-dialect SQL Editor** — CodeMirror 6 powered editor with themes and support for Postgres, MySQL, SQLite, and more
 - **Compete in contests** — timed challenges with live scoreboards
 - **Create custom contests** — teachers can build private problem sets with passwords
 - **Practice daily** — curated problems by difficulty (Easy → Expert)
 - **Explore SQL freely** — a DDL/DML sandbox (Playground) with no setup required
+- **Instant Response** — The SQL editor is pre-loaded during app bootstrap for zero-latency loading
 
 No backend server needed. The entire application runs as static HTML/JS with [Supabase](https://supabase.com) handling auth, storage, and the database.
 
@@ -27,8 +29,9 @@ No backend server needed. The entire application runs as static HTML/JS with [Su
 |-------|-----------|
 | Frontend | Vanilla HTML, CSS, JavaScript (no framework, no build step) |
 | Database | PostgreSQL via [Supabase](https://supabase.com) |
-| Auth | Supabase Auth with email confirmation via [Resend](https://resend.com) |
+| Auth | Supabase Auth with **username + email** verification for secure password resets |
 | SQL Engine | [sql.js](https://github.com/sql-js/sql.js) (in-browser SQLite for the judge) |
+| Editor | [CodeMirror 6](https://codemirror.net/) with custom themes and multi-dialect support |
 | Hosting | [Vercel](https://vercel.com) (static) |
 
 ---
@@ -60,6 +63,17 @@ besql/
 ├── LICENSE                     # MIT
 └── README.md                   # This file
 ```
+
+---
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl + Enter` | Run & Test SQL (Windows/Linux) |
+| `Cmd + Enter` | Run & Test SQL (Mac) |
+
+The execution shortcut works globally even if the editor is not in focus.
 
 ---
 
