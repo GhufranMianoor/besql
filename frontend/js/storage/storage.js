@@ -206,7 +206,7 @@ async function flushCloudWrites() {
 async function checkSupabaseHealth() {
   if (!SB) return false;
   try {
-    const { error } = await SB.from(STORAGE_SUPABASE_CONFIG.kvTable).select('1').limit(1);
+    const { error } = await SB.from(STORAGE_SUPABASE_CONFIG.kvTable).select('k').limit(1);
     return !error;
   } catch {
     return false;
