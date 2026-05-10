@@ -2569,11 +2569,23 @@ document.addEventListener('keydown',e=>{
 
 // Login shortcuts
 document.addEventListener('keydown',e=>{
-  if(e.key==='Enter'){
+  if(e.key==='Enter' && !e.ctrlKey && !e.metaKey){
     if(!el('modal-auth').classList.contains('hidden')){
       if(el('ap'))doLogin();
       else if(el('rp'))doRegister();
       else if(el('fgp') && typeof doResetPassword === 'function') doResetPassword();
+    }
+  }
+  
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    const judgeView = el('view-judge');
+    const playgroundView = el('view-playground');
+    if (judgeView && !judgeView.classList.contains('hidden')) {
+      e.preventDefault();
+      if (typeof judgeRun === 'function') judgeRun();
+    } else if (playgroundView && !playgroundView.classList.contains('hidden')) {
+      e.preventDefault();
+      if (typeof pgRun === 'function') pgRun();
     }
   }
 });
