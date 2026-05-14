@@ -11,7 +11,7 @@
 | **Program** | BS Computer Science — 2nd Year (Sophomore) |
 | **Course** | Database Systems (CS2006) |
 | **Institution** | FAST National University of Computer and Emerging Sciences, Karachi |
-| **Submission Date** | May 2025 |
+| **Submission Date** | May 2026 |
 | **GitHub** | https://github.com/GhufranMianoor/besql |
 | **Live Demo** | https://besql.vercel.app |
 
