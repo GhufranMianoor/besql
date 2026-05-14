@@ -46,7 +46,6 @@
 9. [Testing & Validation](#9-testing--validation)
 10. [Deployment](#10-deployment)
 11. [Conclusion](#11-conclusion)
-12. [References](#12-references)
 
 ---
 
