@@ -390,19 +390,4 @@ This project was developed as part of the Database Systems course (CS2006) at FA
 
 ---
 
-## 12. References
-
-1. Supabase. (2024). *Supabase Documentation*. https://supabase.com/docs
-2. CodeMirror. (2024). *CodeMirror 6 Reference Manual*. https://codemirror.net/docs/
-3. Vercel. (2024). *Vercel Deployment Documentation*. https://vercel.com/docs
-4. Mozilla Developer Network. (2024). *JavaScript ES Modules*. https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules
-5. PostgreSQL Global Development Group. (2024). *PostgreSQL 16 Documentation*. https://www.postgresql.org/docs/
-6. Elmasri, R. & Navathe, S. B. (2015). *Fundamentals of Database Systems* (7th ed.). Pearson.
-7. Silberschatz, A., Korth, H. F., & Sudarshan, S. (2019). *Database System Concepts* (7th ed.). McGraw-Hill.
-8. LeetCode. (2024). *Database Problems*. https://leetcode.com/problemset/database/
-9. HackerRank. (2024). *SQL Challenges*. https://www.hackerrank.com/domains/sql
-10. BeSQL GitHub Repository. (2025). https://github.com/GhufranMianoor/besql
-
----
-
-*Department of Computer Science · FAST National University of Computer and Emerging Sciences · Karachi Campus · Spring 2025*
+*Department of Computer Science · FAST National University of Computer and Emerging Sciences · Karachi Campus · Spring 2026*
